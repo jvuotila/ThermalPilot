@@ -462,7 +462,10 @@
     "Zone name": "Numele zonei",
     "Zone heat pump": "Pompa de căldură a zonei",
     "No rooms linked. Zone control is inactive.": "Nu sunt camere asociate. Controlul zonei este inactiv.",
-    "No rooms linked. This zone does not control heating.": "Nu sunt camere asociate. Controlul zonei este inactiv."
+    "No rooms linked. This zone does not control heating.": "Nu sunt camere asociate. Controlul zonei este inactiv.",
+    "Reset learning": "Resetează învățarea",
+    "Learning reset.": "Învățarea a fost resetată.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Activează planificarea, colectarea datelor și învățarea. Dezactivarea suspendă aceste funcții și păstrează datele învățate. Simularea este separată: activată calculează sugestii fără a aplica temperaturile programate; dezactivată permite controlul real după confirmare."
   },
   "legacy": {},
   "cardMessages": {

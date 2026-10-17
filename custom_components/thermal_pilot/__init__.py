@@ -187,10 +187,6 @@ async def ws_save(hass, connection, msg):
         except ValueError as error:
             connection.send_error(msg['id'], 'invalid_settings', str(error))
             return
-        changes=c.learning_changes(settings)
-        if changes and not msg.get('confirm_learning_reset',False):
-            connection.send_result(msg['id'],{'saved':False,'requires_learning_confirmation':True,'learning_changes':changes})
-            return
         hass.config_entries.async_update_entry(c.entry, options=settings)
         connection.send_result(msg['id'], {'saved':True})
 
@@ -212,7 +208,6 @@ async def ws_history(hass, connection, msg):
 async def ws_reset(hass, connection, msg):
     if (c := get_coordinator(hass, connection, msg)) is not None:
         async with c.backup_lock:
-            c.models.pop(msg['room_id'], None)
-            c.previous.pop(msg['room_id'], None)
+            c.reset_learning(msg['room_id'])
         await c.async_request_refresh()
         connection.send_result(msg['id'], {'reset':True})

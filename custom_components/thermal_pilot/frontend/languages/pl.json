@@ -462,7 +462,10 @@
     "Zone name": "Nazwa strefy",
     "Zone heat pump": "Pompa ciepła strefy",
     "No rooms linked. Zone control is inactive.": "Brak przypisanych pomieszczeń. Sterowanie strefą jest nieaktywne.",
-    "No rooms linked. This zone does not control heating.": "Brak przypisanych pomieszczeń. Sterowanie strefą jest nieaktywne."
+    "No rooms linked. This zone does not control heating.": "Brak przypisanych pomieszczeń. Sterowanie strefą jest nieaktywne.",
+    "Reset learning": "Zresetuj uczenie",
+    "Learning reset.": "Uczenie zostało zresetowane.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Włącza planowanie, zbieranie danych i uczenie. Wyłączenie wstrzymuje te funkcje i zachowuje wyuczone dane. Symulacja jest niezależna: włączona oblicza sugestie bez stosowania zaplanowanych temperatur docelowych; wyłączona pozwala na rzeczywiste sterowanie po potwierdzeniu."
   },
   "legacy": {},
   "cardMessages": {

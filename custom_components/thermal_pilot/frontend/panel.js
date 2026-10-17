@@ -26,6 +26,7 @@ function retentionRating(value){
 }
 const controlOptionLabels={house:'House heating system',air_to_air:'Air-to-air heat pump',temperature:'Temperature limits only',tariff:'Electricity tariff optimization',heat:'Heating only',cool:'Cooling only',both:'Heating in winter / cooling in summer',main:'Main room sensor',average:'Average of room sensors',coldest:'Coldest room sensor',fireplace:'Fireplace'};
 const settingHelp = {
+  heating_enabled: 'Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.',
   climate_mode:'Heating only operates in winter. Cooling only operates in summer. Both heats in winter and cools in summer. Automatic season changes must persist for 24 hours. Reversing between heating and cooling requires confirmed fan-only standby for ten minutes; automatic Heat/Cool mode is never used.',
   cooling_target:'The cooling target for this zone. Cooling starts 0.5 °C above this value and stops when any linked room reaches it. This keeps the pump from repeatedly starting and protects colder rooms.',
   zone_heating_enabled:'Allows ThermalPilot to control the selected zone heat pump for the selected use when global live control is enabled. Off observes the pump without controlling it. If ThermalPilot was already controlling it, it first returns the pump to fan-only standby.',
@@ -347,7 +348,7 @@ class ThermalPilotPanel extends HTMLElement {
   set hass(value){this._hass=value;this.updateFireplaceReading();this.updateSourceReadings();for(const card of this.historyCards||[])card.hass=this.historyCardHass();if(this.isConnected && !this.loaded && !this.loading)this.load();}
   set panel(value){this._panel=value;if(this.isConnected && this._hass && !this.loaded)this.load();}
   connectedCallback(){if(this._hass)this.load();this.timer=setInterval(()=>{if(!['settings','rooms'].includes(this.tab))this.load();},60000);}
-  disconnectedCallback(){this.priceResizeObserver?.disconnect();clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
+  disconnectedCallback(){this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
   get entry(){return this._panel?.config?.entry_id;}
   async call(type,extra={}){return this._hass.callWS({type:`thermal_pilot/${type}`,entry_id:this.entry,...extra});}
   async load(){
@@ -458,7 +459,7 @@ class ThermalPilotPanel extends HTMLElement {
     const html=`<form id="settings" data-settings-page="${page}"><section class="settings-sources"><h2>ThermalPilot settings</h2>${this.settingsGroups(sourceSettingGroups)}</section>
     <section class="settings-house"><h2>House heating settings</h2><p>Choose your heating system and house details. Heat distribution determines which sensor inputs are needed.</p>${this.settingsGroups([['House and heating',['house_construction','house_heat_source','house_distribution','house_heated_floor','house_foundation']],['Water heating',['water_entity','start_offset_minutes','stop_offset_minutes']],['Heating response',['lag_hours','curve_warm_temp','curve_cold_temp']]])}${statusNotice('Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.','info')}</section>
     <section class="settings-shared"><h2>Shared room and zone settings</h2><p>Shared settings apply to ordinary rooms and zones. Garages use their own room settings.</p>${this.settingsGroups(sharedSettingGroups)}</section>
-    <section class="settings-zones"><h2>Zones</h2><p>${escapeHTML(this.t("Zones are secondary heating or cooling sources. Each room keeps its primary heating system and thermostat."))}</p>${(this.settings.heating_zones||[]).map((z,index)=>`<article class="room-card"><details data-settings-disclosure="${escapeHTML(z.id)}"><summary><span data-user-text>${escapeHTML(z.name||'New zone')}</span></summary><div class="grid room-fields">${(i.zone_fields||[]).filter(f=>!['main_room_id','heating_enabled','climate_mode','heating_strategy','cooling_target'].includes(f[0])&&(!['thermostat','temperature_policy'].includes(f[0])||z.source_type!=='fireplace')).map(f=>this.field(f,z,`zone${index}`)).join('')}${this.field(['zone_rooms','Rooms','rooms'],z,`zone${index}`)}${z.source_type!=='fireplace'?(i.zone_fields||[]).filter(f=>f[0]==='main_room_id').map(f=>this.field(f,z,`zone${index}`)).join(''):''}${z.source_type!=='fireplace'?(i.zone_fields||[]).filter(f=>['heating_enabled','climate_mode','heating_strategy','cooling_target'].includes(f[0])&&(f[0]!=='heating_strategy'||z.climate_mode!=='cool')&&(f[0]!=='cooling_target'||['cool','both'].includes(z.climate_mode))).map(f=>this.field(f,z,`zone${index}`)).join(''):''}${this.settings.rooms.some(room=>room.heating_zone_id===z.id)?'':'<p class="zone-empty-note">No rooms linked. Zone control is inactive.</p>'}</div></details><div class="room-actions"><button type="button" class="icon-button delete-room" data-remove-zone="${index}" title="Remove zone" aria-label="Remove zone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></div></article>`).join('')}<button type="button" id="add-zone">Add zone</button></section>
+    <section class="settings-zones"><h2>Zones</h2><p>${escapeHTML(this.t("Zones are secondary heating or cooling sources. Each room keeps its primary heating system and thermostat."))}</p>${(this.settings.heating_zones||[]).map((z,index)=>`<article class="room-card"><details data-settings-disclosure="${escapeHTML(z.id)}"><summary><span data-user-text>${escapeHTML(z.name||'New zone')}</span></summary><div class="grid room-fields">${(i.zone_fields||[]).filter(f=>!['main_room_id','heating_enabled','climate_mode','heating_strategy','cooling_target'].includes(f[0])&&(!['thermostat','temperature_policy'].includes(f[0])||z.source_type!=='fireplace')).map(f=>this.field(f,z,`zone${index}`)).join('')}${this.field(['zone_rooms','Rooms','rooms'],z,`zone${index}`)}${z.source_type!=='fireplace'?(i.zone_fields||[]).filter(f=>f[0]==='main_room_id').map(f=>this.field(f,z,`zone${index}`)).join(''):''}${z.source_type!=='fireplace'?(i.zone_fields||[]).filter(f=>['heating_enabled','climate_mode','heating_strategy','cooling_target'].includes(f[0])&&(f[0]!=='heating_strategy'||z.climate_mode!=='cool')&&(f[0]!=='cooling_target'||['cool','both'].includes(z.climate_mode))).map(f=>this.field(f,z,`zone${index}`)).join(''):''}${this.settings.rooms.some(room=>room.heating_zone_id===z.id)?'':'<p class="zone-empty-note">No rooms linked. Zone control is inactive.</p>'}</div></details><div class="room-actions">${z.source_type!=='fireplace'?`<button type="button" class="icon-button" data-reset="zone:${escapeHTML(z.id)}" title="${escapeHTML(this.t('Reset learning'))}" aria-label="${escapeHTML(this.t('Reset learning')+': '+z.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg></button>`:''}<button type="button" class="icon-button delete-room" data-remove-zone="${index}" title="Remove zone" aria-label="Remove zone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></div></article>`).join('')}<button type="button" id="add-zone">Add zone</button></section>
     <section class="settings-rooms"><h2>Rooms</h2><p>Room response is learned from observed heating and cooling, starting with internal estimates.</p>
     <div class="room-cards">${rooms.map(({room:r,index})=>`<article class="room-card${r.is_garage?' garage-room-card':''}"><div class="room-actions"><button type="button" class="icon-button" data-reset="${escapeHTML(r.id)}" title="Reset learning for this room" aria-label="Reset learning for this room"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg></button><button type="button" class="icon-button delete-room" data-remove="${index}" title="Remove room" aria-label="Remove room"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></div><details data-settings-disclosure="${escapeHTML(r.id)}"><summary><span data-user-text>${escapeHTML(r.name||'New room')}</span> <span class="room-target">${escapeHTML(r.is_garage?`${r.garage_minimum}–${r.garage_maximum}`:r.baseline??'—')} °C</span></summary><div class="grid room-fields">${this.roomSettingsFields(r,index)}</div></details></article>`).join('')}</div>
     <button type="button" id="add">Add room</button></section><div class="sticky"><button class="primary" type="submit">Save settings</button><span id="settings-unsaved" class="unsaved-notice" role="status" ${this.hasUnsavedSettings()?'':'hidden'}>Unsaved changes</span><span>${this.settings.simulation_enabled===false?'Live control · check for conflicting thermostat automations':this.settings.apply_season_setpoints?'Season transitions change real thermostat setpoints':'Simulation only · scheduled targets are not applied'}</span></div></form>`;
@@ -803,6 +804,45 @@ class ThermalPilotPanel extends HTMLElement {
     viewport.addEventListener('click',event=>{if(openTemperature(event))return;const box=tooltip(),mark=event.target.closest?.('[data-chart-detail]');if(box&&!box.hidden&&mark&&box.textContent===mark.dataset.chartDetail)hide();else show(event);});
     viewport.addEventListener('scroll',hide);
     viewport.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){openTemperature(event);}else if(event.key==='Escape')hide();});
+  }
+  positionSettingTooltip(help){
+    const box=help.querySelector('.setting-tooltip'),anchor=help.querySelector('.setting-info');
+    if(!box||!anchor)return;
+    const viewport=window.visualViewport;
+    const left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0;
+    const width=viewport?.width||window.innerWidth,height=viewport?.height||window.innerHeight;
+    const margin=12,gap=8;
+    Object.assign(box.style,{width:Math.min(304,Math.max(0,width-2*margin))+'px',maxWidth:Math.max(0,width-2*margin)+'px',maxHeight:Math.max(0,height-2*margin)+'px',right:'auto',bottom:'auto'});
+    const bounds=box.getBoundingClientRect();
+    if(!bounds.width||!bounds.height)return;
+    const trigger=anchor.getBoundingClientRect();
+    const x=Math.max(left+margin,Math.min(trigger.left+trigger.width/2-bounds.width/2,left+width-margin-bounds.width));
+    const above=trigger.top-gap-bounds.height;
+    const y=Math.max(top+margin,Math.min(above>=top+margin?above:trigger.bottom+gap,top+height-margin-bounds.height));
+    box.style.left=x+'px';box.style.top=y+'px';
+  }
+  bindSettingTooltips(){
+    this.settingTooltipCleanup?.();
+    const helps=[...this.shadowRoot.querySelectorAll('.setting-help')];
+    if(!helps.length)return;
+    for(const help of helps){
+      const position=()=>this.positionSettingTooltip(help);
+      help.addEventListener('pointerenter',position);
+      help.addEventListener('focusin',position);
+      help.addEventListener('click',position);
+    }
+    const reposition=()=>helps.forEach(help=>this.positionSettingTooltip(help));
+    window.addEventListener?.('resize',reposition);
+    window.addEventListener?.('scroll',reposition,true);
+    window.visualViewport?.addEventListener('resize',reposition);
+    window.visualViewport?.addEventListener('scroll',reposition);
+    this.settingTooltipCleanup=()=>{
+      window.removeEventListener?.('resize',reposition);
+      window.removeEventListener?.('scroll',reposition,true);
+      window.visualViewport?.removeEventListener('resize',reposition);
+      window.visualViewport?.removeEventListener('scroll',reposition);
+      this.settingTooltipCleanup=null;
+    };
   }
   openTemperatureHistory(event){
     const entity=event.target.closest?.('[data-temperature-history-entity]')?.dataset?.temperatureHistoryEntity;
@@ -1230,7 +1270,7 @@ details{scroll-margin-block:16px}
 .setting-info svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
 .setting-info .info-dot{fill:currentColor;stroke:none}
 .setting-info:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:2px}
-.setting-tooltip{display:none;position:absolute;left:0;bottom:calc(100% + 8px);z-index:30;width:280px;max-width:calc(100vw - 48px);padding:12px;border-radius:8px;background:var(--primary-text-color,#213547);color:var(--card-background-color,white);font-size:13px;line-height:1.45;font-weight:normal;box-shadow:0 3px 12px #0003}
+.setting-tooltip{display:none;position:fixed;box-sizing:border-box;left:12px;top:12px;z-index:10000;width:304px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;overflow-wrap:anywhere;padding:12px;border-radius:8px;background:var(--primary-text-color,#213547);color:var(--card-background-color,white);font-size:13px;line-height:1.45;font-weight:normal;box-shadow:0 3px 12px #0003}
 .setting-help:hover .setting-tooltip,.setting-help:focus-within .setting-tooltip{display:block}
 
 /* Alternating room-row colors follow the responsive one/two-column layout. */
@@ -1302,7 +1342,6 @@ details{scroll-margin-block:16px}
  input:not([type=checkbox]),select,#settings input:not([type=checkbox]),#settings select{font-size:16px;min-height:44px}
  input[type=checkbox].setting-toggle,#settings input.setting-toggle{width:44px;height:26px;min-height:26px;max-height:26px;padding:2px;align-self:start}
  .setting-help .setting-info{width:32px;height:32px}
- .setting-tooltip{position:fixed;left:16px;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));width:auto;max-width:none;max-height:55vh;overflow:auto}
  .room-card summary{min-height:36px}
  .room-actions .icon-button{width:40px;height:40px}
  .room-card summary{padding-right:88px}
@@ -1372,6 +1411,7 @@ details{scroll-margin-block:16px}
     this.shadowRoot.querySelector('.save-error')?.focus?.({preventScroll:true});
     this.shadowRoot.querySelector('#ha-menu')?.addEventListener('click',()=>this.openSidebar());
     this.bindStatusTemperatures();
+    this.bindSettingTooltips();
     const statusDetails=this.shadowRoot.querySelector('#status-details');statusDetails?.addEventListener('toggle',()=>{this.statusDetailsOpen=statusDetails.open;});
     const retention=this.shadowRoot.querySelector('#retention-accordion');if(retention)retention.addEventListener('toggle',()=>{this.retentionOpen=retention.open;});
     const retentionHelp=this.shadowRoot.querySelector('#retention-help');retentionHelp?.addEventListener('toggle',()=>{this.retentionHelpOpen=retentionHelp.open;});
@@ -1403,7 +1443,7 @@ details{scroll-margin-block:16px}
       }
       this.render();
     });
-    this.shadowRoot.querySelectorAll('[data-reset]').forEach(b=>b.onclick=async()=>{if(!confirm(this.t('Reset the learned parameters for this room? Observation history will be retained.')))return;try{await this.call('reset',{room_id:b.dataset.reset});this.message='Room learning reset.';this.messageLevel='info';this.saveConfirmation=false;}catch(e){this.message=e.message;this.messageLevel='error';this.saveConfirmation=false;}this.capture();this.render();});
+    this.shadowRoot.querySelectorAll('[data-reset]').forEach(b=>b.onclick=async()=>{const zone=b.dataset.reset.startsWith('zone:')?this.settings.heating_zones?.find(z=>'zone:'+z.id===b.dataset.reset):null;if(!confirm(zone?this.t('Reset learning')+': '+zone.name+'?':this.t('Reset the learned parameters for this room? Observation history will be retained.')))return;try{await this.call('reset',{room_id:b.dataset.reset});this.message=zone?this.t('Learning reset.'):'Room learning reset.';this.messageLevel='info';this.saveConfirmation=false;}catch(e){this.message=e.message;this.messageLevel='error';this.saveConfirmation=false;}this.capture();this.render();});
     const settingsForm=this.shadowRoot.querySelector('#settings');
     const clearSaveMessage=()=>{clearTimeout(this.saveMessageTimer);this.saveConfirmation=false;this.message='';this.shadowRoot.querySelector('.message')?.remove();};
     settingsForm?.addEventListener('input',event=>{
@@ -1434,13 +1474,7 @@ details{scroll-margin-block:16px}
       if(saveButton)saveButton.textContent=this.t('Saving…');
       settingsForm.querySelectorAll('input,select,button').forEach(control=>control.disabled=true);
       try{
-        let saved=await this.call('save',{settings:this.settings,enable_live_control:enableLive});
-        if(saved?.requires_learning_confirmation){
-          const details=(saved.learning_changes||[]).map(change=>change.name+': '+this.t(change.scope==='heating_response'?'heating response will restart; learned heat retention will be kept':'all learned room parameters will reset')).join('\n');
-          if(!confirm(this.t('Saving these changes will reset learning for:')+'\n\n'+details+'\n\n'+this.t('Recorded history will be kept. Save and reset learning?')))return;
-          saved=await this.call('save',{settings:this.settings,enable_live_control:enableLive,confirm_learning_reset:true});
-          if(saved?.requires_learning_confirmation)throw new Error('Learning reset was not confirmed.');
-        }
+        await this.call('save',{settings:this.settings,enable_live_control:enableLive});
         this.settings.live_control_confirmed=!this.settings.simulation_enabled;this.info.settings=structuredClone(this.settings);this.message=`Settings saved at ${new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false})}. Suggestions will update shortly.`;this.saveConfirmation=true;this.messageLevel='info';
         const confirmation=this.message;
         clearTimeout(this.saveMessageTimer);

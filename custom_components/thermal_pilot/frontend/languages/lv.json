@@ -462,7 +462,10 @@
     "Zone name": "Zonas nosaukums",
     "Zone heat pump": "Zonas siltumsūknis",
     "No rooms linked. Zone control is inactive.": "Nav piesaistītu telpu. Zonas vadība ir neaktīva.",
-    "No rooms linked. This zone does not control heating.": "Nav piesaistītu telpu. Zonas vadība ir neaktīva."
+    "No rooms linked. This zone does not control heating.": "Nav piesaistītu telpu. Zonas vadība ir neaktīva.",
+    "Reset learning": "Atiestatīt mācīšanos",
+    "Learning reset.": "Mācīšanās atiestatīta.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Iespējo plānošanu, datu vākšanu un mācīšanos. Izslēgšana aptur šīs funkcijas un saglabā apgūtos datus. Simulācija ir atsevišķa: ieslēgta aprēķina ieteikumus, nepiemērojot plānotās mērķtemperatūras; izslēgta atļauj faktisko vadību pēc apstiprināšanas."
   },
   "legacy": {},
   "cardMessages": {

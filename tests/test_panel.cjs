@@ -705,6 +705,7 @@ const zonePanel=new Component();zonePanel._hass={states:{'climate.pump':{entity_
 zonePanel.settings={rooms:[{id:'g',name:'Garage',thermostat:'climate.pump',is_garage:true,garage_minimum:5,garage_maximum:9,garage_swing:'both'},{id:'room',name:'Room',thermostat:'climate.pump',heat_control:'air_to_air',heating_zone_id:'zone'}],heating_zones:[{id:'zone',name:'House pump',thermostat:'climate.pump',source_type:'air_to_air',main_room_id:'room',temperature_policy:'average'}],air_swing:''};
 zonePanel.info={source_fields:[['air_swing','Heating swing mode','text']],room_fields:[['name','Room name','text'],['is_garage','Garage','bool'],['heating_zone_id','Zone (optional)','text'],['thermostat','Thermostat','climate'],['baseline','Target temperature (°C)','number',5,30],['garage_minimum','Garage lower temperature limit (°C)','number',-5,25],['garage_maximum','Garage upper temperature limit (°C)','number',-5,30],['garage_swing','Garage heating swing mode','text']],zone_fields:[['name','Zone name','text'],['thermostat','Zone heat pump','climate'],['main_room_id','Main room','text'],['temperature_policy','Zone temperature','select:main,average,coldest']],data:{rooms:{}}};
 const zoneHTML=zonePanel.settingsView();
+assert.match(zoneHTML,/data-reset="zone:zone"/);assert.match(zoneHTML,/title="Reset learning"/);
 assert.match(zoneHTML,/<h2>Zones<\/h2>/);assert.match(zoneHTML,/data-field="zone0.main_room_id"/);assert.match(zoneHTML,/data-field="room0.garage_minimum"/);assert.doesNotMatch(zoneHTML,/data-field="room0.baseline"/);assert.doesNotMatch(zoneHTML,/data-field="room1.garage_minimum"/);assert.match(zoneHTML,/data-field="room1.thermostat"/);
 assert.match(zoneHTML,/5–9 °C/);
 const swingHTML=zonePanel.field(['garage_swing','Garage heating swing mode','text'],zonePanel.settings.rooms[0],'room0');
@@ -830,13 +831,11 @@ console.log('Rooms and zones tab passed: ordered navigation, split sections, sav
  warningPanel.info={settings:structuredClone(warningPanel.settings),source_fields:[],room_fields:[],zone_fields:[]};
  const handlers={},form={addEventListener:(key,handler)=>handlers[key]=handler,querySelector:()=>null,querySelectorAll:()=>[]};
  warningPanel.shadowRoot.querySelector=selector=>selector==='#settings'?form:null;
- warningPanel.call=async(type,args)=>{calls.push(args);return args.confirm_learning_reset?{saved:true}:{saved:false,requires_learning_confirmation:true,learning_changes:[{name:'Sadun huone',scope:'heating_response'},{name:'Study',scope:'full'}]};};
+ warningPanel.call=async(type,args)=>{calls.push(args);return {saved:true};};
  warningPanel.render();await handlers.submit({preventDefault(){}});
- assert.equal(calls.length,1);assert.equal(warningPanel.saveConfirmation,false);assert.equal(warningPanel.saving,false);
- assert.match(prompts[0],/Sadun huone: heating response will restart; learned heat retention will be kept/);assert.match(prompts[0],/Study: all learned room parameters will reset/);
- allow=true;await handlers.submit({preventDefault(){}});
- assert.equal(calls.length,3);assert.equal(calls[2].confirm_learning_reset,true);assert.equal(warningPanel.saveConfirmation,true);
- console.log('Learning reset warning passed: named full/partial resets, cancellation without saving and explicit confirmed retry.');
+ assert.equal(calls.length,1);assert.equal(warningPanel.saveConfirmation,true);assert.equal(warningPanel.saving,false);
+ assert.equal(prompts.length,0);assert.equal(calls[0].confirm_learning_reset,undefined);
+ console.log('Settings saves preserve learning without reset prompts or confirmed retry requests.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
 const zoneChartPanel=new Component(),zoneChartNow=Date.now();
 zoneChartPanel.historyHours=24;zoneChartPanel.priceChartWidth=1000;
@@ -1270,4 +1269,31 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  assert.equal(events.length,3);
  for(const fired of events){assert.equal(fired.type,'hass-more-info');assert.equal(fired.detail.entityId,'sensor.flow');assert.equal(fired.bubbles,true);assert.equal(fired.composed,true);}
  console.log('Header temperatures open native HA history with pointer and keyboard actions; missing readings stay inactive.');
+}
+
+{
+ const tooltipPanel=new Component(),style={};
+ let trigger={left:460,top:190,bottom:210,width:20};
+ const box={style,getBoundingClientRect:()=>({width:Math.min(304,parseFloat(style.maxWidth)),height:Math.min(120,parseFloat(style.maxHeight))})};
+ const anchor={getBoundingClientRect:()=>trigger};
+ const help={querySelector:selector=>selector==='.setting-tooltip'?box:anchor};
+ context.window={innerWidth:487,innerHeight:300};
+ tooltipPanel.positionSettingTooltip(help);
+ assert.ok(parseFloat(style.left)>=12);assert.ok(parseFloat(style.left)+304<=475);
+ assert.equal(style.top,'62px');assert.equal(style.bottom,'auto');
+ trigger={left:0,top:2,bottom:22,width:20};tooltipPanel.positionSettingTooltip(help);
+ assert.equal(style.left,'12px');assert.equal(style.top,'30px');
+ // A small visual viewport (zoom or keyboard) still contains long help text.
+ context.window.visualViewport={offsetLeft:30,offsetTop:40,width:220,height:100};
+ tooltipPanel.positionSettingTooltip(help);
+ assert.equal(style.left,'42px');assert.equal(style.top,'52px');assert.equal(style.maxHeight,'76px');assert.equal(style.width,'196px');
+ const handlers={},listeners=[],removed=[];
+ help.addEventListener=(name,fn)=>handlers[name]=fn;
+ context.window={innerWidth:487,innerHeight:300,addEventListener:(...args)=>listeners.push(args),removeEventListener:(...args)=>removed.push(args)};
+ tooltipPanel.shadowRoot.querySelectorAll=()=>[help];tooltipPanel.bindSettingTooltips();
+ assert.ok(handlers.pointerenter&&handlers.focusin&&handlers.click);
+ assert.equal(listeners.length,2);
+ tooltipPanel.bindSettingTooltips();assert.equal(removed.length,2);
+ tooltipPanel.disconnectedCallback();assert.equal(removed.length,4);
+ console.log('Settings tooltips stay within viewport edges, flip below near the top, constrain long text and clean up resize/scroll listeners.');
 }

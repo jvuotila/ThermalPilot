@@ -315,7 +315,10 @@
     "This room belongs to a zone. Removing it also removes its zone membership.": "Tämä huone kuuluu vyöhykkeeseen. Huoneen poistaminen poistaa sen myös vyöhykkeestä.",
     "Use the house heating system, or choose a separate air-to-air heat pump. Rooms linked to a zone share that zone’s pump; only the zone’s main room issues commands.": "Käytä talon lämmitysjärjestelmää tai valitse erillinen ilmalämpöpumppu. Vyöhykkeeseen liitetyt huoneet jakavat vyöhykkeen pumpun. Vain päähuone lähettää komentoja.",
     "No rooms linked. Zone control is inactive.": "Ei liitettyjä huoneita. Vyöhykkeen ohjaus ei ole käytössä.",
-    "Link rooms served by one air-to-air heat pump. The zone has one controller and a choice of main-room, average or coldest-room temperature. Any linked room at the shared upper limit pauses zone heating.": "Yhdistä saman ilmalämpöpumpun vaikutusalueeseen kuuluvat huoneet. Vyöhykkeellä on yksi ohjaus ja valittavissa päähuoneen lämpötila, keskiarvo tai kylmin huone. Yhteisen ylärajan saavuttaminen missä tahansa huoneessa keskeyttää lämmityksen."
+    "Link rooms served by one air-to-air heat pump. The zone has one controller and a choice of main-room, average or coldest-room temperature. Any linked room at the shared upper limit pauses zone heating.": "Yhdistä saman ilmalämpöpumpun vaikutusalueeseen kuuluvat huoneet. Vyöhykkeellä on yksi ohjaus ja valittavissa päähuoneen lämpötila, keskiarvo tai kylmin huone. Yhteisen ylärajan saavuttaminen missä tahansa huoneessa keskeyttää lämmityksen.",
+    "Reset learning": "Nollaa oppiminen",
+    "Learning reset.": "Oppiminen nollattu.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Ottaa suunnittelun, tietojen keruun ja oppimisen käyttöön. Pois käytöstä keskeyttää nämä toiminnot mutta säilyttää opitut tiedot. Simulointi on erillinen valinta: käytössä laskee ehdotuksia muuttamatta suunniteltuja tavoitelämpötiloja; pois käytöstä sallii todellisen ohjauksen vahvistuksen jälkeen."
   },
   "legacy": {
     "Plan": "Suunnitelma",

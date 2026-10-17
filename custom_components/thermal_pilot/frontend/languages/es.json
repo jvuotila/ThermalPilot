@@ -462,7 +462,10 @@
     "Zone name": "Nombre de la zona",
     "Zone heat pump": "Bomba de calor de la zona",
     "No rooms linked. Zone control is inactive.": "No hay habitaciones vinculadas. El control de la zona está inactivo.",
-    "No rooms linked. This zone does not control heating.": "No hay habitaciones vinculadas. El control de la zona está inactivo."
+    "No rooms linked. This zone does not control heating.": "No hay habitaciones vinculadas. El control de la zona está inactivo.",
+    "Reset learning": "Restablecer aprendizaje",
+    "Learning reset.": "Aprendizaje restablecido.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Activa la planificación, la recopilación de datos y el aprendizaje. Desactivarlo pausa estas funciones y conserva los datos aprendidos. La simulación es independiente: activada calcula sugerencias sin aplicar los objetivos programados; desactivada permite el control real tras la confirmación."
   },
   "legacy": {},
   "cardMessages": {

@@ -462,7 +462,10 @@
     "Zone name": "Zonos pavadinimas",
     "Zone heat pump": "Zonos šilumos siurblys",
     "No rooms linked. Zone control is inactive.": "Nėra susietų kambarių. Zonos valdymas neaktyvus.",
-    "No rooms linked. This zone does not control heating.": "Nėra susietų kambarių. Zonos valdymas neaktyvus."
+    "No rooms linked. This zone does not control heating.": "Nėra susietų kambarių. Zonos valdymas neaktyvus.",
+    "Reset learning": "Atkurti mokymąsi",
+    "Learning reset.": "Mokymasis atkurtas.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Įjungia planavimą, duomenų rinkimą ir mokymąsi. Išjungimas pristabdo šias funkcijas ir išsaugo išmoktus duomenis. Modeliavimas yra atskiras: įjungtas skaičiuoja pasiūlymus netaikydamas suplanuotų tikslinių temperatūrų; išjungtas leidžia tikrą valdymą po patvirtinimo."
   },
   "legacy": {},
   "cardMessages": {

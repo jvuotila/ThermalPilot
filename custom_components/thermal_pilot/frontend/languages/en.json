@@ -689,7 +689,10 @@
     "Use the house heating system, or choose a separate air-to-air heat pump. Rooms linked to a zone share that zone’s pump; only the zone’s main room issues commands.": "Use the house heating system, or choose a separate air-to-air heat pump. Rooms linked to a zone share that zone’s pump; only the zone’s main room issues commands.",
     "Zone source": "Zone source",
     "No rooms linked. Zone control is inactive.": "No rooms linked. Zone control is inactive.",
-    "Link rooms served by one air-to-air heat pump. The zone has one controller and a choice of main-room, average or coldest-room temperature. Any linked room at the shared upper limit pauses zone heating.": "Link rooms served by one air-to-air heat pump. The zone has one controller and a choice of main-room, average or coldest-room temperature. Any linked room at the shared upper limit pauses zone heating."
+    "Link rooms served by one air-to-air heat pump. The zone has one controller and a choice of main-room, average or coldest-room temperature. Any linked room at the shared upper limit pauses zone heating.": "Link rooms served by one air-to-air heat pump. The zone has one controller and a choice of main-room, average or coldest-room temperature. Any linked room at the shared upper limit pauses zone heating.",
+    "Reset learning": "Reset learning",
+    "Learning reset.": "Learning reset.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation."
   },
   "legacy": {},
   "cardMessages": {

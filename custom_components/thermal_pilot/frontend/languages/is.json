@@ -462,7 +462,10 @@
     "Zone name": "Heiti svæðis",
     "Zone heat pump": "Varmadæla svæðis",
     "No rooms linked. Zone control is inactive.": "Engin herbergi tengd. Stýring svæðis er óvirk.",
-    "No rooms linked. This zone does not control heating.": "Engin herbergi tengd. Stýring svæðis er óvirk."
+    "No rooms linked. This zone does not control heating.": "Engin herbergi tengd. Stýring svæðis er óvirk.",
+    "Reset learning": "Endurstilla nám",
+    "Learning reset.": "Nám hefur verið endurstillt.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Virkjar áætlanagerð, gagnasöfnun og nám. Slökkt gerir hlé á þessum aðgerðum og varðveitir lærð gögn. Hermun er sérstök stilling: kveikt reiknar tillögur án þess að beita áætluðum markhitastigum; slökkt leyfir raunverulega stýringu eftir staðfestingu."
   },
   "legacy": {},
   "cardMessages": {

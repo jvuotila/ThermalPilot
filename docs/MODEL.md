@@ -144,8 +144,8 @@ Both update/report timestamps, when present, must be within two hours. Invalid
 values, unsupported units and speeds outside 0–60 m/s clear smoothing and are
 ignored. Unchanged calm readings may therefore also be ignored. Missing wind
 never blocks essential-source readiness, planning, base learning or thermostat
-control. Changing the wind entity resets only the wind fit and observation
-continuity, preserving accumulated heating/idle data and the baseline model.
+control. Changing the wind entity preserves all learned coefficients and statistics,
+while clearing observation continuity and temporary wind smoothing.
 
 Forecast wind gradually returns to 3 m/s with a three-hour exponential time
 constant; local gusts are not projected unchanged through the entire horizon.
@@ -173,8 +173,8 @@ and unknown daylight intervals cannot update ordinary loss/wind statistics,
 but still count accepted observations. Existing prior loss statistics are not
 retroactively reinterpreted when the toggle is enabled.
 
-Room direction/exposure, weather source or location changes reset solar fitting
-and previous observation continuity, preserving the ordinary model. Archived
+Room direction/exposure, weather source or location changes preserve solar
+fitting and the ordinary model, while clearing previous observation continuity. Archived
 forecast context includes these settings. Missing solar data never enters the
 essential-input control guards. The ordinary comfort ranking and temperature
 limits remain unchanged. Clouds, blinds, window area, appliance gains and
@@ -195,8 +195,8 @@ or different fuel prices. The cost objective continues to use electricity.
 The legacy water-floor fingerprint is unchanged; no model reset occurs merely
 from adding default house metadata. Other distributions include a distribution
 marker and omit irrelevant water entities from their fingerprint. Switching
-distribution resets affected live model parameters with a save confirmation,
-while stored observations remain. This is an empirical common response model;
+distribution preserves learned parameters and stored observations; learning
+resets are performed only through the explicit room or zone reset action. This is an empirical common response model;
 manufacturer-specific equipment control is outside the current implementation.
 
 Without usable water readings, hydronic systems also use a unit heating factor. Missing water does not force live comfort fallback or pause collection. A measured water reading retains the original bounded water-factor calculation. This removes information about changing flow temperature, so predictions require validation.

@@ -462,7 +462,10 @@
     "Zone name": "Όνομα ζώνης",
     "Zone heat pump": "Αντλία θερμότητας ζώνης",
     "No rooms linked. Zone control is inactive.": "Δεν έχουν συνδεθεί δωμάτια. Ο έλεγχος της ζώνης είναι ανενεργός.",
-    "No rooms linked. This zone does not control heating.": "Δεν έχουν συνδεθεί δωμάτια. Ο έλεγχος της ζώνης είναι ανενεργός."
+    "No rooms linked. This zone does not control heating.": "Δεν έχουν συνδεθεί δωμάτια. Ο έλεγχος της ζώνης είναι ανενεργός.",
+    "Reset learning": "Επαναφορά μάθησης",
+    "Learning reset.": "Η μάθηση επαναφέρθηκε.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Ενεργοποιεί τον σχεδιασμό, τη συλλογή δεδομένων και τη μάθηση. Η απενεργοποίηση διακόπτει αυτές τις λειτουργίες και διατηρεί τα δεδομένα μάθησης. Η προσομοίωση είναι ξεχωριστή: ενεργή υπολογίζει προτάσεις χωρίς εφαρμογή των προγραμματισμένων στόχων· ανενεργή επιτρέπει πραγματικό έλεγχο μετά από επιβεβαίωση."
   },
   "legacy": {},
   "cardMessages": {

@@ -462,7 +462,10 @@
     "Zone name": "Zonenaam",
     "Zone heat pump": "Warmtepomp van de zone",
     "No rooms linked. Zone control is inactive.": "Geen kamers gekoppeld. De zoneregeling is inactief.",
-    "No rooms linked. This zone does not control heating.": "Geen kamers gekoppeld. De zoneregeling is inactief."
+    "No rooms linked. This zone does not control heating.": "Geen kamers gekoppeld. De zoneregeling is inactief.",
+    "Reset learning": "Leerproces resetten",
+    "Learning reset.": "Leerproces gereset.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Schakelt planning, gegevensverzameling en leren in. Uitschakelen pauzeert deze functies en bewaart geleerde gegevens. Simulatie staat hier los van: aan berekent voorstellen zonder geplande doeltemperaturen toe te passen; uit staat echte aansturing toe na bevestiging."
   },
   "legacy": {},
   "cardMessages": {

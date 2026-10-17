@@ -462,7 +462,10 @@
     "Zone name": "Назив зоне",
     "Zone heat pump": "Топлотна пумпа зоне",
     "No rooms linked. Zone control is inactive.": "Нема повезаних соба. Управљање зоном није активно.",
-    "No rooms linked. This zone does not control heating.": "Нема повезаних соба. Управљање зоном није активно."
+    "No rooms linked. This zone does not control heating.": "Нема повезаних соба. Управљање зоном није активно.",
+    "Reset learning": "Ресетуј учење",
+    "Learning reset.": "Учење је ресетовано.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Омогућава планирање, прикупљање података и учење. Искључивање паузира ове функције и чува научене податке. Симулација је засебна: укључена израчунава предлоге без примене планираних циљних температура; искључена омогућава стварно управљање након потврде."
   },
   "legacy": {},
   "cardMessages": {

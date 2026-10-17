@@ -160,8 +160,11 @@ models and aggregate statistics, with a shorter recent raw-history window.
 Expired raw timelines cannot be reconstructed from season summaries. Home
 Assistant Recorder has its own separate retention policy.
 
-Changing a room’s sensor/controller mapping or response assumptions can require
-learning to restart. Review the named-room warning before confirming such changes.
+Settings changes never automatically reset learned data. Sensor/controller,
+heating response, distribution and solar setup changes preserve the learned
+parameters and retained history. Temporary observation tracking is cleared where
+needed so learning does not use an interval spanning a configuration change.
+Use the explicit learning reset button when you want to start a room or zone over.
 Keep Home Assistant backups, including its storage files.
 
 For equations and planner limitations, see [Model assumptions](MODEL.md).

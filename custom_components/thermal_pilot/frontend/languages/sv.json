@@ -462,7 +462,10 @@
     "Zone name": "Zonnamn",
     "Zone heat pump": "Zonens värmepump",
     "No rooms linked. Zone control is inactive.": "Inga rum är anslutna. Zonstyrningen är inaktiv.",
-    "No rooms linked. This zone does not control heating.": "Inga rum är anslutna. Zonstyrningen är inaktiv."
+    "No rooms linked. This zone does not control heating.": "Inga rum är anslutna. Zonstyrningen är inaktiv.",
+    "Reset learning": "Återställ inlärning",
+    "Learning reset.": "Inlärningen har återställts.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Aktiverar planering, datainsamling och inlärning. Av pausar dessa funktioner och behåller inlärda data. Simulering är separat: på beräknar förslag utan att tillämpa schemalagda börvärden; av tillåter verklig styrning efter bekräftelse."
   },
   "legacy": {},
   "cardMessages": {

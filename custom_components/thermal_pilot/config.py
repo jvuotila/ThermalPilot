@@ -227,17 +227,6 @@ def learning_fingerprint(room,settings):
     return fingerprint
 
 
-def learning_reset_scope(room,old,new):
-    if old is None or old==new:return None
-    if not room.get('secondary_zone') and len(old)>12 and len(new)>12 and old[12]==new[12]=='air_to_air' and old[:-1]==new[:-1]:return None
-    if room.get('heating_zone_id') and len(old)>12 and old[12]=='air_to_air' and not room.get('secondary_zone') and len(new)<=12 and old[1]==new[1]:return None
-    # Migration from the former air-response seed changes no learned parameters.
-    if len(new)>12 and new[12]=='air_to_air' and old[:3]+old[4:]==new[:3]+new[4:]:return None
-    stable_indices=(1,4,5,6,7,8,9,10)
-    if room.get('zone_climate_mode')=='cool' and all(len(old)>i and old[i]==new[i] for i in stable_indices):return 'heating_response'
-    return 'full'
-
-
 def water_distribution(settings):
     return settings.get('house_distribution','water_floor') not in ('electric_floor','electric_ceiling','electric_panels','warm_air')
 

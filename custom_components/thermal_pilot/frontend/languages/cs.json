@@ -462,7 +462,10 @@
     "Zone name": "Název zóny",
     "Zone heat pump": "Tepelné čerpadlo zóny",
     "No rooms linked. Zone control is inactive.": "Nejsou přiřazeny žádné místnosti. Řízení zóny je neaktivní.",
-    "No rooms linked. This zone does not control heating.": "Nejsou přiřazeny žádné místnosti. Řízení zóny je neaktivní."
+    "No rooms linked. This zone does not control heating.": "Nejsou přiřazeny žádné místnosti. Řízení zóny je neaktivní.",
+    "Reset learning": "Resetovat učení",
+    "Learning reset.": "Učení bylo resetováno.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Zapíná plánování, sběr dat a učení. Vypnutí tyto funkce pozastaví a zachová naučená data. Simulace je samostatná: zapnutá počítá návrhy bez použití naplánovaných cílových teplot; vypnutá umožňuje skutečné řízení po potvrzení."
   },
   "legacy": {},
   "cardMessages": {

@@ -13,7 +13,7 @@ from .const import DOMAIN, DEFAULTS, RESERVE_HOURS, ARCHIVE_KEEP_DAYS, WATER_REF
 from .history import HistoryDatabase
 from .control import ThermostatControl
 from .air_control import AirHeatPumpControl, zone_temperature, binary
-from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, learning_reset_scope
+from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
 
 _LOGGER = logging.getLogger(__name__)
@@ -233,14 +233,18 @@ class PilotCoordinator(DataUpdateCoordinator):
         return rows
 
     def learning_changes(self,settings):
-        changes=[]
-        for room in resolved_rooms(settings):
-            old=self.config_fingerprint.get(room['id'])
-            scope=learning_reset_scope(room,old,learning_fingerprint(room,settings))
-            model=self.models.get(room['id'],{})
-            evidence=any(model.get(key,0)>0 for key in ('samples','heated_hours','idle_hours','parameter_updates')) or model.get('retention_learned')
-            if scope and evidence:changes.append({'room_id':room['id'],'name':room['name'],'scope':scope})
-        return changes
+        # Kept for compatibility with callers from earlier versions. Settings
+        # saves never request or perform a learned-data reset.
+        return []
+
+    def reset_learning(self,room_id):
+        """Explicit user reset; a zone includes its member response profiles."""
+        ids={room_id}
+        if room_id.startswith('zone:'):
+            ids.update(key for key in self.models if key.startswith(room_id+':'))
+        for key in ids:
+            self.models.pop(key,None)
+            self.previous.pop(key,None)
 
     async def check_temperature_sensors(self, now, active):
         """Warn once per local day after the configured interval of continuous suspect readings."""
@@ -506,34 +510,26 @@ class PilotCoordinator(DataUpdateCoordinator):
             if baseline is not None:
                 room['baseline'] = baseline
             model = self.models.setdefault(rid, initial_model(room))
-            # Reset only affected model when heat source / room / activity / lag mapping changes.
+            # Fingerprints track observation continuity, never permission to
+            # discard learning. Only the explicit reset action removes a model.
             fingerprint=learning_fingerprint(configured_room,self.settings)
             old_fingerprint=self.config_fingerprint.get(rid)
-            reset_scope=learning_reset_scope(configured_room,old_fingerprint,fingerprint)
-            if reset_scope:
-                previous_model=model
-                model = self.models[rid] = initial_model(room)
-                # A cooling-only zone changes the controller and response timing,
-                # not the room's observed passive heat loss. Keep that coefficient
-                # when the temperature sensors and thermal inputs are unchanged.
-                old_loss=number(previous_model.get('loss'))
-                if reset_scope=='heating_response' and old_loss is not None and old_loss>0:
-                    model['loss']=old_loss
-                    model['retention_learned']=bool((heat_retention(previous_model) or {}).get('updated'))
-                self.previous.pop(rid, None)
             # Upgrade only the unchanged default garage prior; never replace a fit
             # or retained room loss, and keep its accepted observations intact.
             if room.get('is_garage') and not model.get('parameter_updates',0) and not model.get('retention_learned') and model.get('loss')==.007:
                 model['loss']=initial_model(room)['loss']
                 model['parameter_updates']=0
+            # Keep learned parameters but never fit an interval across a source
+            # change (including saved fingerprints from earlier versions).
+            if old_fingerprint is not None and old_fingerprint!=fingerprint:
+                self.previous.pop(rid,None)
             self.config_fingerprint[rid] = fingerprint
             if model.get('wind_source','')!=self.settings['wind_entity']:
-                for key in ('wind_loss','wind_statistics','wind_updates'):model.pop(key,None)
                 model['wind_source']=self.settings['wind_entity']
                 self.previous.pop(rid,None)
             solar_context=[room.get('solar_direction','disabled'),room.get('solar_exposure','clear'),self.settings['weather_entity'],latitude,longitude]
-            if model.get('solar_context',['disabled',room.get('solar_exposure','clear'),self.settings['weather_entity'],latitude,longitude])!=solar_context:
-                for key in ('solar_gain','solar_statistics','solar_updates'):model.pop(key,None)
+            old_solar_context=model.get('solar_context',solar_context)
+            if old_solar_context!=solar_context:
                 self.previous.pop(rid,None)
             model['solar_context']=solar_context
             if not self.season['collecting']:

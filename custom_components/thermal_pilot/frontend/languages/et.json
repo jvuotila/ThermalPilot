@@ -462,7 +462,10 @@
     "Zone name": "Tsooni nimi",
     "Zone heat pump": "Tsooni soojuspump",
     "No rooms linked. Zone control is inactive.": "Ühtegi ruumi pole seotud. Tsooni juhtimine pole aktiivne.",
-    "No rooms linked. This zone does not control heating.": "Ühtegi ruumi pole seotud. Tsooni juhtimine pole aktiivne."
+    "No rooms linked. This zone does not control heating.": "Ühtegi ruumi pole seotud. Tsooni juhtimine pole aktiivne.",
+    "Reset learning": "Lähtesta õppimine",
+    "Learning reset.": "Õppimine lähtestatud.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Lubab planeerimise, andmete kogumise ja õppimise. Väljalülitamine peatab need toimingud ja säilitab õpitud andmed. Simulatsioon on eraldi: sisselülitatuna arvutab soovitusi ajastatud sihttemperatuure rakendamata; väljalülitatuna lubab pärast kinnitamist tegelikku juhtimist."
   },
   "legacy": {},
   "cardMessages": {

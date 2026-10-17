@@ -462,7 +462,10 @@
     "Zone name": "Naziv zone",
     "Zone heat pump": "Dizalica topline zone",
     "No rooms linked. Zone control is inactive.": "Nema povezanih prostorija. Upravljanje zonom nije aktivno.",
-    "No rooms linked. This zone does not control heating.": "Nema povezanih prostorija. Upravljanje zonom nije aktivno."
+    "No rooms linked. This zone does not control heating.": "Nema povezanih prostorija. Upravljanje zonom nije aktivno.",
+    "Reset learning": "Poništi učenje",
+    "Learning reset.": "Učenje je poništeno.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Omogućuje planiranje, prikupljanje podataka i učenje. Isključivanje pauzira te funkcije i čuva naučene podatke. Simulacija je zasebna: uključena izračunava prijedloge bez primjene planiranih ciljnih temperatura; isključena omogućuje stvarno upravljanje nakon potvrde."
   },
   "legacy": {},
   "cardMessages": {

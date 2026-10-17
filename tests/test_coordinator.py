@@ -194,7 +194,7 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         rid=self.c.settings['rooms'][0]['id'];self.c.models[rid].update(wind_loss=.001,wind_updates=5,wind_statistics={'old':True})
         self.c.settings['wind_entity']=''
         await self.c._async_update_data()
-        self.assertNotIn('wind_statistics',self.c.models[rid]);self.assertNotIn('wind_loss',self.c.models[rid])
+        self.assertEqual(self.c.models[rid]['wind_statistics'],{'old':True});self.assertEqual(self.c.models[rid]['wind_loss'],.001);self.assertEqual(self.c.models[rid]['wind_updates'],5)
         self.assertGreaterEqual(self.c.models[rid]['samples'],data['rooms'][rid]['model']['samples'])
 
     async def test_chart_prices_are_exposed_and_recorded(self):
@@ -822,14 +822,121 @@ class GarageCoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(after['updated'])
         self.assertEqual(self.c.models[rid]['xx'],100)
         self.assertEqual(self.c.models[rid]['heated_hours'],30)
-        # A different room temperature sensor still requires a fresh model.
+        # A replacement room sensor preserves the existing model.
         self.hass.states['sensor.new_room']=State('20')
         self.floor['temperature_entity']='sensor.new_room'
         await self.c._async_update_data()
-        self.assertEqual(self.c.models[rid]['loss'],.007)
-        self.assertFalse(heat_retention(self.c.models[rid])['updated'])
+        self.assertIs(self.c.models[rid],model)
+        self.assertEqual(self.c.models[rid]['loss'],.008)
+        self.assertTrue(heat_retention(self.c.models[rid])['updated'])
 
-    async def test_reset_warning_uses_actual_learning_fingerprints_without_mutation(self):
+    async def test_entity_replacements_keep_learning_and_resume_after_transition(self):
+        self.hass.services.async_call.return_value={}
+        from unittest.mock import patch
+        from thermal_pilot.model import learn
+        self.c.settings['rooms']=[self.floor]
+        await self.c._async_update_data()
+        rid=self.floor['id'];model=self.c.models[rid]
+        model.update(loss=.008,gain=.42,samples=123,parameter_updates=7,
+                     wind_loss=.001,wind_updates=5,wind_statistics={'retained':True},
+                     solar_gain=.1,solar_updates=6,solar_statistics={'retained':True})
+        for key,source in [('temperature_entity','sensor.new_room'),('thermostat','climate.new_room'),
+                           ('activity_entity','binary_sensor.new_relay'),('outdoor_entity','sensor.new_out'),
+                           ('wind_entity','sensor.new_wind'),('weather_entity','weather.new_home')]:
+            proposed=deepcopy(self.c.settings)
+            target=proposed['rooms'][0] if key in ('temperature_entity','thermostat','activity_entity') else proposed
+            target[key]=source
+            self.assertEqual(self.c.learning_changes(proposed),[],key)
+            self.hass.states[source]=State('heat',{'temperature':20,'hvac_action':'idle','min_temp':5,'max_temp':35}) if key=='thermostat' else State('off' if key=='activity_entity' else '-10' if key=='outdoor_entity' else '20')
+            previous=deepcopy(self.c.previous[rid]);previous['time']-=600
+            self.c.previous[rid]=previous
+            before=deepcopy(model);self.c.settings=proposed
+            with patch('thermal_pilot.coordinator.learn',wraps=learn) as fit:
+                await self.c._async_update_data()
+                fit.assert_not_called()
+            self.assertIs(self.c.models[rid],model)
+            # Source tracking changes, but every learned value stays intact.
+            for context_key in ('wind_source','solar_context'):
+                if context_key in model:before[context_key]=deepcopy(model[context_key])
+            self.assertEqual(model,before,key)
+        # Simultaneous replacements are also compatible with stored fingerprints.
+        proposed=deepcopy(self.c.settings);proposed['outdoor_entity']='sensor.final_out';proposed['rooms'][0]['thermostat']='climate.final_room'
+        self.assertEqual(self.c.learning_changes(proposed),[])
+        # Continue from the first observation of the new sources, with no reset.
+        self.c.previous[rid]['time']-=600
+        with patch('thermal_pilot.coordinator.learn',wraps=learn) as fit:
+            await self.c._async_update_data()
+            fit.assert_called_once()
+        self.assertGreater(model['samples'],123)
+
+    async def test_response_and_solar_setting_changes_preserve_all_learning(self):
+        from unittest.mock import patch
+        from thermal_pilot.model import learn
+        self.c.settings['rooms']=[self.floor]
+        await self.c._async_update_data()
+        rid=self.floor['id'];model=self.c.models[rid]
+        model.update(loss=.008,gain=.42,samples=123,parameter_updates=7,
+                     solar_gain=.1,solar_updates=6,solar_statistics={'retained':True})
+        for key,value in [('lag_hours',9),('curve_cold_temp',-25),('house_distribution','water_radiators'),
+                          ('solar_direction','south'),('solar_exposure','shaded')]:
+            proposed=deepcopy(self.c.settings)
+            target=proposed['rooms'][0] if key.startswith('solar_') else proposed
+            target[key]=value
+            self.assertEqual(self.c.learning_changes(proposed),[])
+            self.c.previous[rid]['time']-=600
+            before=deepcopy(model);self.c.settings=proposed
+            with patch('thermal_pilot.coordinator.learn',wraps=learn) as fit:
+                await self.c._async_update_data()
+                fit.assert_not_called()
+            before['solar_context']=deepcopy(model['solar_context'])
+            self.assertIs(self.c.models[rid],model)
+            self.assertEqual(model,before,key)
+
+    async def test_only_explicit_reset_removes_room_or_zone_learning(self):
+        self.c.settings['rooms']=[self.floor]
+        await self.c._async_update_data()
+        rid=self.floor['id'];room_model=self.c.models[rid]
+        rows=deepcopy(self.c.history_db.read(0))
+        for key in ('zone:sample','zone:sample:member','zone:other'):
+            self.c.models[key]={'samples':100};self.c.previous[key]={'time':now.timestamp()}
+        self.c.reset_learning('zone:sample')
+        self.assertNotIn('zone:sample',self.c.models)
+        self.assertNotIn('zone:sample:member',self.c.models)
+        self.assertNotIn('zone:sample:member',self.c.previous)
+        self.assertIn('zone:other',self.c.models)
+        self.assertIs(self.c.models[rid],room_model)
+        self.c.reset_learning(rid)
+        self.assertNotIn(rid,self.c.models);self.assertNotIn(rid,self.c.previous)
+        self.assertEqual(self.c.history_db.read(0),rows)
+        await self.c._async_update_data()
+        self.assertIsNot(self.c.models[rid],room_model)
+        self.assertEqual(self.c.models[rid]['samples'],0)
+
+    async def test_water_sensor_switch_preserves_learning_and_skips_transition(self):
+        self.c.settings['rooms']=[self.floor]
+        await self.c._async_update_data()
+        rid=self.floor['id'];model=self.c.models[rid]
+        model.update(loss=.008,gain=.42,samples=123,parameter_updates=7)
+        original=deepcopy(model)
+        original_rows=len(self.c.history_db.read(0))
+        for source in ('sensor.replacement_water','','sensor.water'):
+            proposed=deepcopy(self.c.settings);proposed['water_entity']=source
+            self.assertEqual(self.c.learning_changes(proposed),[])
+            # Both sensor and response setting changes preserve learning.
+            changed=deepcopy(proposed);changed['lag_hours']+=1
+            self.assertEqual(self.c.learning_changes(changed),[])
+            self.c.settings=proposed
+            self.hass.states['sensor.replacement_water']=State('35')
+            # If this interval were fitted, samples and statistics would change.
+            self.c.previous[rid]={'time':now.timestamp()-600,'temperature':19,'outdoor':0,'activity':1,'water_factor':1}
+            await self.c._async_update_data()
+            self.assertIs(self.c.models[rid],model)
+            self.assertEqual(model,original)
+            self.assertEqual(self.c.config_fingerprint[rid][11],source)
+            self.assertEqual(self.c.previous[rid]['time'],now.timestamp())
+        self.assertGreaterEqual(len(self.c.history_db.read(0)),original_rows)
+
+    async def test_settings_changes_do_not_request_or_mutate_learning_resets(self):
         from thermal_pilot.const import ZONE_DEFAULTS
         self.c.settings.update(rooms=[self.floor])
         await self.c._async_update_data()
@@ -841,7 +948,9 @@ class GarageCoordinatorTests(unittest.IsolatedAsyncioTestCase):
         proposed['heating_zones']=[{**ZONE_DEFAULTS,'id':'summer','name':'Summer','thermostat':'climate.garage','main_room_id':rid,'climate_mode':'cool'}]
         self.assertEqual(self.c.learning_changes(proposed),[])
         proposed['rooms'][0]['temperature_entity']='sensor.changed'
-        self.assertEqual(self.c.learning_changes(proposed)[0]['scope'],'full')
+        self.assertEqual(self.c.learning_changes(proposed),[])
+        proposed['lag_hours']+=1
+        self.assertEqual(self.c.learning_changes(proposed),[])
         self.assertEqual(self.c.models,original)
 
     async def test_air_room_history_records_heat_cool_idle_and_mode_fallback(self):

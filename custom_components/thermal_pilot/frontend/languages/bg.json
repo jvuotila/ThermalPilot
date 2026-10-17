@@ -462,7 +462,10 @@
     "Zone name": "Име на зоната",
     "Zone heat pump": "Термопомпа на зоната",
     "No rooms linked. Zone control is inactive.": "Няма свързани стаи. Управлението на зоната е неактивно.",
-    "No rooms linked. This zone does not control heating.": "Няма свързани стаи. Управлението на зоната е неактивно."
+    "No rooms linked. This zone does not control heating.": "Няма свързани стаи. Управлението на зоната е неактивно.",
+    "Reset learning": "Нулиране на обучението",
+    "Learning reset.": "Обучението е нулирано.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Активира планирането, събирането на данни и обучението. Изключването спира тези функции и запазва научените данни. Симулацията е отделна: включена изчислява предложения, без да прилага планираните целеви температури; изключена позволява реално управление след потвърждение."
   },
   "legacy": {},
   "cardMessages": {

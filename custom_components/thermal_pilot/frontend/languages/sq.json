@@ -462,7 +462,10 @@
     "Zone name": "Emri i zonës",
     "Zone heat pump": "Pompa e nxehtësisë e zonës",
     "No rooms linked. Zone control is inactive.": "Nuk ka dhoma të lidhura. Kontrolli i zonës është joaktiv.",
-    "No rooms linked. This zone does not control heating.": "Nuk ka dhoma të lidhura. Kontrolli i zonës është joaktiv."
+    "No rooms linked. This zone does not control heating.": "Nuk ka dhoma të lidhura. Kontrolli i zonës është joaktiv.",
+    "Reset learning": "Rivendos mësimin",
+    "Learning reset.": "Mësimi u rivendos.",
+    "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Aktivizon planifikimin, mbledhjen e të dhënave dhe mësimin. Çaktivizimi i pezullon këto funksione dhe ruan të dhënat e mësuara. Simulimi është i veçantë: i aktivizuar llogarit sugjerime pa zbatuar temperaturat e planifikuara; i çaktivizuar lejon kontrollin real pas konfirmimit."
   },
   "legacy": {},
   "cardMessages": {
