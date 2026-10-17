@@ -465,7 +465,9 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         winter=await self.c._async_update_data()
         self.assertEqual(winter['control']['mode'],'paused')
         self.assertEqual(self.hass.services.async_call.call_args.args[2]['temperature'],20)
-        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now.replace(month=5,day=15)):
+        self.hass.config.latitude=60.9
+        self.hass.states['sensor.out'].state='12'
+        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now.replace(month=6,day=1)):
             summer=await self.c._async_update_data()
         self.assertEqual(summer['fallback_season']['season'],'summer')
         self.assertEqual(self.hass.services.async_call.call_args.args[2]['temperature'],10)
@@ -600,10 +602,12 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(restarted.data['source_status']['prices'])
         restarted.stop()
 
-    async def test_restart_passive_recomputes_season_after_calendar_boundary(self):
+    async def test_restart_passive_recomputes_season_from_location_and_current_temperature(self):
         restarted=await self.restarted_live_coordinator(20)
         restarted.settings['heating_enabled']=False
-        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now.replace(month=5,day=15)):
+        self.hass.config.latitude=60.9
+        self.hass.states['sensor.out'].state='12'
+        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now.replace(month=6,day=1)):
             data=await restarted._async_update_data()
         self.assertEqual(data['fallback_season']['season'],'summer')
         self.assertEqual(self.hass.services.async_call.call_args.args[2]['temperature'],10)
@@ -658,10 +662,12 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.c.history_db.size()['rows'],0)
     async def test_summer_target_opt_in(self):
         self.c.settings.update(heating_enabled=False,apply_season_setpoints=True,summer_setpoint=10)
-        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now.replace(month=5,day=15)):
+        self.hass.config.latitude=60.9
+        self.hass.states['sensor.out'].state='12'
+        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now.replace(month=6,day=1)):
             await self.c._async_update_data()
         self.hass.services.async_call.assert_awaited_once_with('climate','set_temperature',{'entity_id':'climate.room','temperature':10},blocking=True)
-        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now.replace(month=5,day=15)):
+        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now.replace(month=6,day=1)):
             await self.c._async_update_data()
         self.assertEqual(self.hass.services.async_call.await_count,1)
     async def test_active_restores_room_target(self):

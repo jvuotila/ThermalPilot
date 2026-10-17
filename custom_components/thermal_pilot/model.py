@@ -636,15 +636,15 @@ def collection_state(previous, outdoor, timestamp, config):
     return state
 
 
-def fallback_season(previous, forecasts, forecast_type, outdoor, now, zone, threshold=6.0):
-    """Summer: May 15–September 30, or a complete day's minimum at or above the configured threshold."""
+def fallback_season(previous, forecasts, forecast_type, outdoor, now, zone, threshold=6.0, latitude=None):
+    """Prefer local temperature evidence; hemisphere supplies only a warm-weather prior."""
     local = now.astimezone(zone)
     date = local.date().isoformat()
     days = {key:dict(value) for key,value in (previous or {}).get('days',{}).items()
             if abs((local.date()-date_type.fromisoformat(key)).days)<=3}
     for item in forecasts:
         moment = stamp(item.get('datetime'))
-        value = number(item.get('templow',item.get('temperature')) if forecast_type in ('daily','twice_daily') else item.get('temperature'))
+        value = number(item.get('templow') if forecast_type=='daily' else item.get('templow',item.get('temperature')) if forecast_type=='twice_daily' else item.get('temperature'))
         if moment is None or value is None:
             continue
         point = moment.astimezone(zone)
@@ -668,10 +668,23 @@ def fallback_season(previous, forecasts, forecast_type, outdoor, now, zone, thre
     today = days.setdefault(date,{})
     if outdoor is not None:
         today['low'] = min(today.get('low',outdoor),outdoor)
-    in_dates = (5,15) <= (local.month,local.day) <= (9,30)
-    summer = bool(in_dates or (today.get('complete') and today.get('low',-100)>=threshold))
-    return {'summer':summer,'date':date,'daily_minimum':today.get('low'),
-            'complete':bool(today.get('complete')),'days':days}
+    latitude=number(latitude)
+    if latitude is not None and not -90<=latitude<=90:latitude=None
+    # Calendar seasons are only a rough prior. In tropical locations, a
+    # northern/southern summer calendar is especially unhelpful: require weather.
+    calendar_summer=bool(latitude is not None and abs(latitude)>=23.44 and
+                         (local.month in (6,7,8) if latitude>0 else local.month in (12,1,2)))
+    low=today.get('low')
+    if low is not None and low<threshold:
+        summer=False;basis='cold_temperature'
+    elif today.get('complete') and low is not None:
+        summer=True;basis='daily_temperature'
+    elif calendar_summer and outdoor is not None and outdoor>=threshold:
+        summer=True;basis='location_estimate'
+    else:
+        summer=False;basis='insufficient_evidence'
+    return {'summer':summer,'date':date,'daily_minimum':low,
+            'complete':bool(today.get('complete')),'days':days,'basis':basis}
 
 
 def garage_cycle_plan(room, model, temperature, outdoors, slots, now, heating=False):

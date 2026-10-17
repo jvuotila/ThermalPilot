@@ -388,7 +388,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         heating_active = self.settings['heating_enabled']
         await self.hass.async_add_executor_job(self.history_db.append_zones,self.zone_observations(now),now.timestamp()-HISTORY_DAYS*86400)
         forecasts = await self.get_forecast(now)
-        self.fallback_state = fallback_season(self.fallback_state,forecasts,self.forecast_type,outdoor,now,ZoneInfo(self.hass.config.time_zone),self.settings['summer_minimum_temperature'])
+        self.fallback_state = fallback_season(self.fallback_state,forecasts,self.forecast_type,outdoor,now,ZoneInfo(self.hass.config.time_zone),self.settings['summer_minimum_temperature'],getattr(self.hass.config,'latitude',None))
         await self.check_temperature_sensors(now,heating_active)
         setpoint_errors = await self.apply_season_targets(heating_active)
         previous_season = dict(self.season)
@@ -648,7 +648,8 @@ class PilotCoordinator(DataUpdateCoordinator):
     def fallback_summary(self):
         return {'season':'summer' if self.fallback_state.get('summer') else 'winter',
                 'daily_minimum':self.fallback_state.get('daily_minimum'),
-                'forecast_complete':self.fallback_state.get('complete',False),'threshold':self.settings['summer_minimum_temperature']}
+                'forecast_complete':self.fallback_state.get('complete',False),'threshold':self.settings['summer_minimum_temperature'],
+                'basis':self.fallback_state.get('basis','insufficient_evidence')}
 
     def fallback_target(self, room):
         return self.settings['summer_setpoint'] if self.fallback_state.get('summer') else room['baseline']

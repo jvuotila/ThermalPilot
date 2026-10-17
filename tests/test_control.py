@@ -66,14 +66,14 @@ class ActivationTests(unittest.TestCase):
 
 
 class FallbackSeasonTests(unittest.TestCase):
-    def test_calendar_is_always_summer_and_temperature_is_an_alternative(self):
+    def test_cold_readings_override_calendar_and_warm_daily_evidence_works_year_round(self):
         from thermal_pilot.model import fallback_season
         from datetime import datetime,timezone
         from zoneinfo import ZoneInfo
         zone=ZoneInfo('Europe/Helsinki')
         for month,day in [(5,15),(7,1),(9,30)]:
             result=fallback_season({},[],None,-10,datetime(2026,month,day,12,tzinfo=zone),zone)
-            self.assertTrue(result['summer'])
+            self.assertFalse(result['summer'])
         for month,day in [(5,14),(10,1),(1,2)]:
             now=datetime(2026,month,day,12,tzinfo=zone)
             forecast=[{'datetime':now.isoformat(),'temperature':12,'templow':7}]
@@ -84,6 +84,43 @@ class FallbackSeasonTests(unittest.TestCase):
             forecast[0]['templow']=7
             self.assertFalse(fallback_season({},forecast,'daily',5,now,zone)['summer'])
             self.assertFalse(fallback_season({},[],None,None,now,zone)['summer'])
+
+    def test_location_prior_respects_hemisphere_and_needs_warm_current_reading(self):
+        from thermal_pilot.model import fallback_season
+        from datetime import datetime,timezone
+        for latitude,summer_month,winter_month in [(60.9,7,1),(52.5,7,1),(-33.9,1,7)]:
+            for month,expected in [(summer_month,True),(winter_month,False)]:
+                now=datetime(2026,month,15,12,tzinfo=timezone.utc)
+                result=fallback_season({},[],None,12,now,timezone.utc,latitude=latitude)
+                self.assertEqual(result['summer'],expected,(latitude,month))
+                self.assertEqual(result['basis'],'location_estimate' if expected else 'insufficient_evidence')
+                self.assertFalse(fallback_season({},[],None,4,now,timezone.utc,latitude=latitude)['summer'])
+                self.assertFalse(fallback_season({},[],None,None,now,timezone.utc,latitude=latitude)['summer'])
+                cold=[{'datetime':now.isoformat(),'temperature':15,'templow':2}]
+                self.assertFalse(fallback_season({},cold,'daily',12,now,timezone.utc,latitude=latitude)['summer'])
+
+    def test_tropics_unknown_location_and_daily_high_without_low(self):
+        from thermal_pilot.model import fallback_season
+        from datetime import datetime,timezone
+        now=datetime(2026,7,1,12,tzinfo=timezone.utc)
+        for latitude in (None,0,1,-1,20,-20,91,float('nan')):
+            self.assertFalse(fallback_season({},[],None,12,now,timezone.utc,latitude=latitude)['summer'])
+            warm=[{'datetime':now.isoformat(),'temperature':20,'templow':10}]
+            self.assertTrue(fallback_season({},warm,'daily',12,now,timezone.utc,latitude=latitude)['summer'])
+        high_only=[{'datetime':now.isoformat(),'temperature':20}]
+        self.assertFalse(fallback_season({},high_only,'daily',12,now,timezone.utc)['complete'])
+
+    def test_warm_spring_and_cold_summer_follow_local_forecast_in_both_hemispheres(self):
+        from thermal_pilot.model import fallback_season
+        from datetime import datetime,timezone
+        for latitude,month in ((60.9,4),(52.5,4),(-33.9,10)):
+            now=datetime(2026,month,15,12,tzinfo=timezone.utc)
+            warm=[{'datetime':now.isoformat(),'temperature':18,'templow':8}]
+            result=fallback_season({},warm,'daily',12,now,timezone.utc,latitude=latitude)
+            self.assertTrue(result['summer']);self.assertEqual(result['basis'],'daily_temperature')
+        # A saved former calendar decision is recomputed from current evidence.
+        july=datetime(2026,7,1,12,tzinfo=timezone.utc)
+        self.assertFalse(fallback_season({'summer':True},[],None,2,july,timezone.utc,latitude=60.9)['summer'])
 
     def test_full_hourly_day_is_retained_but_partial_or_gapped_day_is_not_enough(self):
         from thermal_pilot.model import fallback_season

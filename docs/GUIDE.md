@@ -65,10 +65,19 @@ fallback targets:
 - Summer: the shared summer setpoint, initially 10°C.
 - Winter: each room’s normal target.
 
-15 May–30 September is summer. Outside those dates, a complete day’s minimum
-forecast temperature at or above the configured summer threshold also selects
-summer. The initial threshold is 6°C. Incomplete daily evidence selects winter
-outside the calendar summer period.
+Summer fallback follows local temperature evidence rather than Finnish dates.
+A complete day's minimum forecast at or above the configured summer threshold
+(initially 6°C) selects summer, in either hemisphere. Any observed or forecast
+minimum below that threshold selects winter, including during calendar summer.
+
+When daily evidence is incomplete, Home Assistant's latitude supplies a rough
+estimate: June–August in the north or December–February in the south, only if
+the current outdoor temperature is also at or above the threshold. Tropical
+locations (within 23.44° of the equator) and missing locations use temperature
+evidence only. Without enough evidence, winter fallback keeps normal room targets.
+The selected weather entity should forecast the home's location. No additional
+weather service or account is required. This estimates heating needs, not a
+precise climatological season.
 
 Pump rooms, garages and zones have additional mode-specific standby behavior;
 check their settings before enabling control. Failed writes are reported and
