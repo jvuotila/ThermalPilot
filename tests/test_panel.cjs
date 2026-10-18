@@ -113,7 +113,7 @@ panel.info={settings:panel.settings,source_fields:[['price_entity','Price sensor
 panel.tab='settings';panel.render();assert.match(panel.shadowRoot.innerHTML,/Save settings/);assert.match(panel.shadowRoot.innerHTML,/data-field="source.price_entity"/);assert.match(panel.shadowRoot.innerHTML,/&lt;script&gt;/);assert.doesNotMatch(panel.shadowRoot.innerHTML,/<script>alert/);
 panel.tab='overview';panel.render();assert.match(panel.shadowRoot.innerHTML,/ThermalPilot status/);assert.doesNotMatch(panel.shadowRoot.innerHTML,/Set passive/);assert.match(panel.shadowRoot.innerHTML,/Simulation is active\. ThermalPilot does not control heating\./);
 panel.settings.apply_season_setpoints=true;panel.render();assert.match(panel.shadowRoot.innerHTML,/season transitions can change thermostat targets/);
-panel.tab='history';panel.history=[];panel.render();assert.match(panel.shadowRoot.innerHTML,/Season archives/);assert.doesNotMatch(panel.shadowRoot.innerHTML,/Download observations|id="export"/);
+panel.tab='history';panel.history=[];panel.render();assert.match(panel.shadowRoot.innerHTML,/Last heating season/);assert.doesNotMatch(panel.shadowRoot.innerHTML,/Download observations|id="export"/);
 console.log('Panel template tests passed (settings, status, history, command-mode banner, escaping).');
 
 // Exercise the actual click handler with and without secure-context UUID support.
@@ -1324,4 +1324,120 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  assert.match(narrow,/y1="79"/); // Plot starts beneath the two-line caption.
  priceNow.chartVisibility=()=>({prices:false,weather:true});assert.doesNotMatch(priceNow.priceChart(),/data-current-total-price/);
  console.log('Current total price uses the active published interval, localized decimals, valid zero/negative values and no stale fallback; compact layout reserves space and hidden prices omit the caption.');
+}
+
+{
+ const retained=new Component();retained.settings={rooms:[{id:'room',name:'Kitchen'}]};
+ retained.info={data:{rooms:{room:{name:'Kitchen',heat_retention:{drop_6h:1.23,hours_per_degree:4.8}}},retention_history_entities:{room:{drop_6h:'sensor.loss_renamed',hours_per_degree:'sensor.hours_renamed'}}}};
+ const html=retained.heatRetentionView();
+ assert.match(html,/data-temperature-history-entity="sensor.loss_renamed"[^>]*style="cursor:pointer"/);
+ assert.match(html,/data-temperature-history-entity="sensor.hours_renamed"/);
+ assert.doesNotMatch(html,/text-decoration|color:#3498DB/);
+ const listeners={},events=[];retained.dispatchEvent=event=>events.push(event);
+ retained.shadowRoot.querySelectorAll=selector=>{assert.match(selector,/retention-card/);return [{addEventListener:(name,fn)=>listeners[name]=fn}];};
+ retained.bindStatusTemperatures();
+ const event={target:{closest:()=>({dataset:{temperatureHistoryEntity:'sensor.hours_renamed'}})},preventDefault(){},stopPropagation(){}};
+ listeners.click(event);listeners.keydown({...event,key:'Enter'});listeners.keydown({...event,key:' '});
+ assert.equal(events.length,3);assert(events.every(e=>e.type==='hass-more-info'&&e.detail.entityId==='sensor.hours_renamed'&&e.bubbles&&e.composed));
+}
+
+{
+ const archives=new Component();archives.settings={language:'en',rooms:[{id:'b',name:'Bedroom'},{id:'a',name:'A <room>'},{id:'g',name:'Garage',is_garage:true}]};
+ archives.info={data:{season_summaries:[{season:'2024-2025',room_id:'b',statistics:{samples:1000},model:{loss:.0032,gain:.08}},{season:'2025-2026',room_id:'g',statistics:{samples:2345},model:{loss:.004,gain:.12}},{season:'2025-2026',room_id:'a',statistics:{samples:55000},model:{loss:.0022,gain:.068}}]}};
+ const html=archives.seasonArchivesView();assert.match(html,/<table>/);assert.equal((html.match(/scope="col"/g)||[]).length,5);assert.match(html,/55\u00a0000/);assert.match(html,/0.39 °C/);assert.match(html,/15.4 hours/);assert.match(html,/A &lt;room&gt;/);
+ assert(html.indexOf('A &lt;room&gt;')<html.indexOf('Garage'));assert.doesNotMatch(html,/2024-2025|Bedroom/);assert.match(html,/<h2>Last heating season<\/h2>/);assert.doesNotMatch(html,/2025-2026/);assert.match(html,/6-hour loss/);assert.match(html,/1°C drop/);assert.doesNotMatch(html,/1\/h|°C\/h/);assert.doesNotMatch(html,/55,000/);
+ archives.info.data.season_summaries.push(...Array.from({length:9},(_,i)=>({season:`${2015+i}-${2016+i}`,room_id:'b',statistics:{samples:100},model:{loss:.007,gain:.1}})));
+ assert.equal((archives.seasonArchivesView().match(/<tr(?: [^>]*)?>/g)||[]).length,3);
+ archives.settings.language='fi';assert.match(archives.seasonArchivesView(),/Lämpötilan lasku 6 tunnissa/);assert.match(archives.seasonArchivesView(),/0,39 °C/);
+ archives.info.data.season_summaries=[];assert.doesNotMatch(archives.seasonArchivesView(),/<table>/);
+ archives.settings.language='en';assert.match(archives.seasonArchivesView(),/No completed heating season yet/);
+}
+
+{
+ const archive=new Component();archive.settings={language:'en',rooms:[{id:'a',name:'Alpha'},{id:'b',name:'Beta'},{id:'c',name:'Missing'},{id:'g',name:'Garage',is_garage:true}]};
+ archive.info={data:{season_summaries:[{season:'2025-2026',room_id:'a',statistics:{samples:200},model:{loss:.005,gain:.1}},{season:'2025-2026',room_id:'b',statistics:{samples:1000},model:{loss:.002,gain:.2}},{season:'2025-2026',room_id:'c',model:{}},{season:'2025-2026',room_id:'g',statistics:{samples:10},model:{loss:.001,gain:.03}}]}};
+ const order=()=>Array.from(archive.seasonArchivesView().matchAll(/<td data-user-text>([^<]+)<\/td>/g),m=>m[1]);
+ let focused;archive.render=()=>{};archive.shadowRoot.querySelector=selector=>({focus(){focused=selector;}});
+ assert.deepEqual(order(),['Alpha','Beta','Missing','Garage']);
+ for(const [key,ascending,descending] of [['observations',['Alpha','Beta','Missing','Garage'],['Beta','Alpha','Missing','Garage']],['drop_6h',['Beta','Alpha','Missing','Garage'],['Alpha','Beta','Missing','Garage']],['hours_per_degree',['Alpha','Beta','Missing','Garage'],['Beta','Alpha','Missing','Garage']]]){
+  archive.sortArchives(key);assert.deepEqual(order(),ascending);assert.match(archive.seasonArchivesView(),/aria-sort="ascending"/);
+  archive.sortArchives(key);assert.deepEqual(order(),descending);assert.match(archive.seasonArchivesView(),/aria-sort="descending"/);assert.equal(focused,`[data-archive-sort="${key}"]`);
+ }
+ archive.sortArchives('room');assert.deepEqual(order(),['Alpha','Beta','Missing','Garage']);
+ archive.sortArchives('room');assert.deepEqual(order(),['Missing','Beta','Alpha','Garage']);
+ assert.equal((archive.seasonArchivesView().match(/data-archive-sort=/g)||[]).length,5);
+}
+
+{
+ const periods=new Component();periods.settings={language:'en',rooms:[]};periods.info={data:{}};periods.history=[];
+ for(const [hours,label] of [[24,'1 day'],[48,'2 days'],[72,'3 days'],[120,'5 days'],[168,'1 week']]){
+  periods.historyHours=hours;const html=periods.historyView();
+  assert.match(html,new RegExp('<option value="'+hours+'" selected>'+label+'</option>'));
+  const options=Array.from(html.match(/<select id="history-hours"[^>]*>([\s\S]*?)<\/select>/)[1].matchAll(/value="(\d+)"/g),m=>Number(m[1]));assert.deepEqual(options,[24,48,72,120,168]);
+ }
+ periods.settings.language='fi';assert.match(periods.historyView(),/>3 päivää<\/option>/);
+}
+
+{
+ const explanation=new Component();explanation.settings={language:'en',rooms:[]};explanation.info={data:{}};explanation.history=[];
+ const html=explanation.historyView();const help=html.match(/<dl class="history-explanation">([\s\S]*?)<\/dl>/)[1];
+ assert.equal((help.match(/<dt>/g)||[]).length,3);assert.equal((help.match(/<dd>/g)||[]).length,3);
+ assert.match(help,/Recorded data/);assert.match(help,/Forecast accuracy/);assert.match(help,/During simulation/);assert.match(help,/temperature would stay unchanged/);assert.match(help,/existing controls may heat differently/);
+ assert.doesNotMatch(html,/Compare recorded temperatures with forecasts saved hours earlier/);
+ explanation.settings.language='fi';const finnish=explanation.historyView();assert.match(finnish,/Mitatut tiedot/);assert.match(finnish,/Ennusteen tarkkuus/);assert.match(finnish,/Simuloinnin aikana/);
+}
+
+{
+ const archived=new Component();archived.settings={language:'en',rooms:[{id:'room',name:'Kitchen'}]};
+ archived.info={data:{rooms:{room:{model:{loss:.05},heat_retention:{drop_6h:99,hours_per_degree:99}}},season_summaries:[{season:'2025-2026',room_id:'room',model:{loss:.007,gain:3}}]}};
+ const html=archived.seasonArchivesView();assert.match(html,/1.23 °C/);assert.match(html,/4.8 hours/);assert.match(html,/20°C indoors/);assert.match(html,/−10°C outdoors/);assert.doesNotMatch(html,/99|Heating gain|1\/h|°C\/h/);
+ archived.info.data.season_summaries[0].model.loss=null;const missing=archived.seasonArchivesView();assert.match(missing,/—/);assert.doesNotMatch(missing,/NaN|Infinity|width:NaN/);
+}
+
+{
+ const badges=new Component();badges.settings={language:'en',rooms:[]};badges.info={data:{season_summaries:[{season:'2025-2026',room_id:'quick',model:{loss:.04,retention_learned:true}},{season:'2025-2026',room_id:'slow',model:{loss:.002,parameter_updates:2}},{season:'2025-2026',room_id:'initial',model:{loss:.007}}]}};
+ badges.render=()=>{};badges.shadowRoot.querySelector=()=>null;
+ const html=badges.seasonArchivesView();assert.match(html,/Cooling speed/);assert.match(html,/retention-rating-very-fast/);assert.match(html,/retention-rating-very-slow/);assert.match(html,/retention-rating-learning/);
+ badges.sortArchives('speed');const order=()=>Array.from(badges.seasonArchivesView().matchAll(/<td data-user-text>([^<]+)<\/td>/g),m=>m[1]);assert.deepEqual(order(),['quick','slow','initial']);
+ badges.sortArchives('speed');assert.deepEqual(order(),['slow','quick','initial']);
+}
+
+{
+ const history=new Component();history.settings={language:'en',rooms:[],house_heat_source:'air_to_water'};history.info={data:{}};history.history=[];
+ const html=history.historyView();assert(html.indexOf('id="price-accordion"')<html.indexOf('class="history-summary"'));assert.match(html,/About this history/);assert.doesNotMatch(html,/Observations and suggestions/);
+ assert.equal((html.match(/id="history-hours"/g)||[]).length,1);assert(html.indexOf('id="history-hours"')<html.indexOf('class="history-summary"'));
+ assert.doesNotMatch(history.priceChart(false),/id="history-hours"/);
+ history.settings.house_heat_source='none';assert.equal((history.historyView().match(/id="history-hours"/g)||[]).length,1);
+}
+
+{
+ const shared=new Component();shared.settings={language:'en',rooms:[{id:'one',name:'One'},{id:'two',name:'Two'}]};shared.info={data:{}};shared.history=[];
+ shared.roomDisclosureState.set('history:one',true);shared.tab='history';shared.historyHours=72;
+ const html=shared.historyView();assert.equal((html.match(/data-history-period/g)||[]).length,3);
+ for(const id of ['history-hours','room-history-hours-one','room-history-hours-two'])assert.match(html,new RegExp('<select id="'+id+'" data-history-period>[^]*?<option value="72" selected>3 days</option>'));
+ const selects=[{value:'72'},{value:'72'},{value:'72'}];let requested,focus;
+ shared.shadowRoot.querySelectorAll=selector=>{assert.equal(selector,'[data-history-period]');return selects;};
+ shared.shadowRoot.getElementById=id=>({focus:options=>{focus={id,options};}});
+ shared.load=async()=>{requested=shared.historyHours;};
+ shared.setHistoryPeriod('120','room-history-hours-one').then(()=>{assert.equal(requested,120);assert(selects.every(s=>s.value==='120'));assert(shared.roomDisclosureOpen('one'));assert.equal(focus.id,'room-history-hours-one');assert(focus.options.preventScroll);});
+}
+
+{
+ const stored=new Map();context.localStorage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)};
+ const makeDetails=(owner,dataset={},id='')=>({dataset,id,open:true,classList:{contains:()=>false},getRootNode:()=>owner.shadowRoot,addEventListener(type,fn){this.toggle=fn;}});
+ const first=new Component();first._panel={config:{entry_id:'home'}};first.tab='overview';
+ const room=makeDetails(first,{roomAccordion:'kitchen'}),price=makeDetails(first,{},'price-accordion'),retention=makeDetails(first,{},'retention-accordion');
+ first.shadowRoot.querySelectorAll=()=>[room,price,retention];first.bindHistorySections();
+ for(const d of [room,price,retention]){d.open=false;d.toggle();}
+ const reloaded=new Component();reloaded._panel={config:{entry_id:'home'}};reloaded.tab='overview';
+ const nextRoom=makeDetails(reloaded,{roomAccordion:'kitchen'}),nextPrice=makeDetails(reloaded,{},'price-accordion'),nextRetention=makeDetails(reloaded,{},'retention-accordion');
+ reloaded.shadowRoot.querySelectorAll=()=>[nextRoom,nextPrice,nextRetention];reloaded.bindHistorySections();assert(!nextRoom.open&&!nextPrice.open&&!nextRetention.open);
+ reloaded.tab='history';const historyRoom=makeDetails(reloaded,{roomAccordion:'kitchen'}),about=makeDetails(reloaded,{historySection:'about'}),season=makeDetails(reloaded,{historySection:'season'});
+ reloaded.shadowRoot.querySelectorAll=()=>[historyRoom,about,season];reloaded.bindHistorySections();assert(historyRoom.open);
+ about.open=false;about.toggle();season.open=false;season.toggle();assert.equal(reloaded.historySectionOpen('about'),false);assert.equal(reloaded.historySectionOpen('season'),false);
+ const third=new Component();third._panel={config:{entry_id:'home'}};assert.equal(third.historySectionOpen('about'),false);assert.equal(third.historySectionOpen('season'),false);
+ third._panel={config:{entry_id:'other'}};assert.equal(third.historySectionOpen('about'),true);
+ context.localStorage={getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}};
+ const blocked=new Component();assert.equal(blocked.historySectionOpen('about'),true);const detail=makeDetails(blocked,{historySection:'about'});blocked.shadowRoot.querySelectorAll=()=>[detail];blocked.bindHistorySections();detail.open=false;assert.doesNotThrow(()=>detail.toggle());assert.equal(blocked.historySectionOpen('about'),false);
+ delete context.localStorage;
 }

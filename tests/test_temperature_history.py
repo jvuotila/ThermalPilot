@@ -40,3 +40,25 @@ class TemperatureHistoryTests(unittest.TestCase):
         self.assertEqual(result['zones'],{'main':'sensor.room','avg':'sensor.entry_zone_avg_current_temperature','cold':'sensor.entry_zone_cold_current_temperature'})
         registry.async_get_entity_id=lambda *args:None
         self.assertEqual(ns['chart_history_entities'](None,coordinator)['zones'],{'main':'sensor.room'})
+
+    def test_retention_sensors_record_both_reference_metrics_and_missing_values(self):
+        self.namespace['SensorDeviceClass'].DURATION='duration'
+        tree=ast.parse((ROOT/'sensor.py').read_text());sensor=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='RetentionSensor')
+        exec(compile(ast.Module(body=[sensor],type_ignores=[]),'sensor.py','exec'),self.namespace)
+        coordinator=types.SimpleNamespace(entry=types.SimpleNamespace(entry_id='entry'),data={'rooms':{'room':{'heat_retention':{'drop_6h':1.23,'hours_per_degree':4.8}}}})
+        for metric,unit,value in [('drop_6h','°C',1.23),('hours_per_degree','h',4.8)]:
+            entity=self.namespace['RetentionSensor'](coordinator,{'id':'room','name':'Kitchen'},metric)
+            self.assertEqual(entity._attr_unique_id,'entry_room_retention_'+metric)
+            self.assertEqual(entity._attr_native_unit_of_measurement,unit)
+            self.assertEqual(entity.native_value,value);self.assertTrue(entity.available)
+            self.assertTrue(entity.extra_state_attributes['model_estimate'])
+            coordinator.data['rooms']['room']['heat_retention'][metric]=None
+            self.assertIsNone(entity.native_value);self.assertFalse(entity.available)
+
+    def test_retention_links_resolve_registered_ids_and_omit_missing_entities(self):
+        registry=types.SimpleNamespace(async_get_entity_id=lambda domain,integration,unique_id:'sensor.renamed' if unique_id.endswith('drop_6h') else None)
+        ns={'DOMAIN':'thermal_pilot','er':types.SimpleNamespace(async_get=lambda hass:registry)}
+        tree=ast.parse((ROOT/'__init__.py').read_text());fn=next(n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='retention_history_entities')
+        exec(compile(ast.Module(body=[fn],type_ignores=[]),'__init__.py','exec'),ns)
+        coordinator=types.SimpleNamespace(settings={'rooms':[{'id':'room'}]},entry=types.SimpleNamespace(entry_id='entry'))
+        self.assertEqual(ns['retention_history_entities'](None,coordinator),{'room':{'drop_6h':'sensor.renamed'}})

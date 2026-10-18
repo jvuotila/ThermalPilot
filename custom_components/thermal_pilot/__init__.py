@@ -97,6 +97,14 @@ def chart_history_entities(hass, coordinator):
     return {'rooms':rooms,'zones':zones}
 
 
+def retention_history_entities(hass, coordinator):
+    """Resolve registered entity IDs so renamed sensors still open correctly."""
+    registry=er.async_get(hass)
+    return {room['id']:{metric:entity for metric in ('drop_6h','hours_per_degree')
+                       if (entity:=registry.async_get_entity_id('sensor',DOMAIN,f'{coordinator.entry.entry_id}_{room["id"]}_retention_{metric}'))}
+            for room in coordinator.settings['rooms']}
+
+
 @websocket_api.websocket_command({vol.Required('type'):'thermal_pilot/get', vol.Required('entry_id'):str})
 @websocket_api.require_admin
 @callback
@@ -107,7 +115,7 @@ def ws_get(hass, connection, msg):
             'suggested':registry.async_get_entity_id('binary_sensor',DOMAIN,f'{c.entry.entry_id}_{room["id"]}_heat'),
             'actual':room['activity_entity'] or registry.async_get_entity_id('binary_sensor',DOMAIN,f'{c.entry.entry_id}_{room["id"]}_activity'),
         } for room in c.settings['rooms']}
-        connection.send_result(msg['id'], {'settings':c.settings, 'data':{**(c.data or {}),'chart_temperatures':c.chart_temperatures(),'temperature_history_entities':chart_history_entities(hass,c)}, 'room_entities':room_entities,
+        connection.send_result(msg['id'], {'settings':c.settings, 'data':{**(c.data or {}),'chart_temperatures':c.chart_temperatures(),'temperature_history_entities':chart_history_entities(hass,c),'retention_history_entities':retention_history_entities(hass,c)}, 'room_entities':room_entities,
             'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS})
 
 
@@ -127,9 +135,10 @@ def ws_retention(hass, connection, msg):
         connection.send_error(msg['id'],'not_loaded','Integration is not loaded.')
         return
     settings={room['id']:room for room in coordinator.settings['rooms']}
+    history_entities=retention_history_entities(hass,coordinator)
     rooms=[{'id':room_id,'name':settings.get(room_id,{}).get('name',room.get('name','')),
             'is_garage':bool(settings.get(room_id,{}).get('is_garage',room.get('is_garage',False))),
-            'heat_retention':room['heat_retention']}
+            'heat_retention':room['heat_retention'],'history_entities':history_entities.get(room_id,{})}
            for room_id,room in (coordinator.data or {}).get('rooms',{}).items() if room.get('heat_retention')]
     connection.send_result(msg['id'],{'entry_id':entry_id,'entries':entries,'rooms':rooms,
                                     'language':coordinator.settings.get('language','en')})

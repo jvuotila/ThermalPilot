@@ -8,6 +8,8 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([PilotSensor(coordinator, room, metric) for room in coordinator.settings['rooms']
                         for metric in ('setpoint', 'temperature', 'error', 'hours')]+
+                       [RetentionSensor(coordinator,room,metric) for room in coordinator.settings['rooms']
+                        for metric in ('drop_6h','hours_per_degree')]+
                        [ZoneTemperatureSensor(coordinator,zone) for zone in coordinator.settings.get('heating_zones',[])
                         if zone.get('source_type','air_to_air')=='air_to_air'])
 
@@ -75,3 +77,30 @@ class ZoneTemperatureSensor(CoordinatorEntity, SensorEntity):
     @property
     def available(self):
         return super().available and self.native_value is not None
+
+
+class RetentionSensor(CoordinatorEntity, SensorEntity):
+    """Recorder history of the modeled reference cooling test, not measured cooling."""
+    _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, room, metric):
+        super().__init__(coordinator)
+        self.room_id,self.metric=room['id'],metric
+        self._attr_unique_id=f'{coordinator.entry.entry_id}_{room["id"]}_retention_{metric}'
+        self._attr_name=f'{room["name"]} '+('Modelled 6-hour temperature loss' if metric=='drop_6h' else 'Modelled time for 1°C drop')
+        self._attr_native_unit_of_measurement='°C' if metric=='drop_6h' else 'h'
+        if metric=='hours_per_degree':self._attr_device_class=SensorDeviceClass.DURATION
+        self._attr_device_info={'identifiers':{(DOMAIN,coordinator.entry.entry_id)},'name':'ThermalPilot','manufacturer':'ThermalPilot'}
+
+    @property
+    def native_value(self):
+        return ((self.coordinator.data or {}).get('rooms',{}).get(self.room_id,{}).get('heat_retention') or {}).get(self.metric)
+
+    @property
+    def available(self):
+        return super().available and self.native_value is not None
+
+    @property
+    def extra_state_attributes(self):
+        return {'reference_indoor_temperature':20,'reference_outdoor_temperature':-10,'reference_heating':'off','model_estimate':True}

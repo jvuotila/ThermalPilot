@@ -18,13 +18,13 @@ class EndpointTests(unittest.TestCase):
     def setUp(self):
         tree=ast.parse(SOURCE.read_text());handler=next(item for item in tree.body if isinstance(item,ast.FunctionDef) and item.name=='ws_retention')
         self.assertFalse(any(isinstance(item,ast.Attribute) and item.attr=='require_admin' for item in handler.decorator_list))
-        handler.decorator_list=[];module=ast.Module(body=[handler],type_ignores=[]);namespace={'PilotCoordinator':Coordinator,'DOMAIN':'thermal_pilot'}
+        handler.decorator_list=[];module=ast.Module(body=[handler],type_ignores=[]);namespace={'PilotCoordinator':Coordinator,'DOMAIN':'thermal_pilot','retention_history_entities':lambda hass,c:{'room':{'drop_6h':'sensor.room_loss'}}}
         exec(compile(module,str(SOURCE),'exec'),namespace);self.handler=namespace['ws_retention'];self.connection=Connection();self.hass=types.SimpleNamespace(data={'thermal_pilot':{'_registered':True,'one':Coordinator()}})
     def test_only_dashboard_data_and_integration_language(self):
         self.handler(self.hass,self.connection,{'id':1})
         data=self.connection.result
         self.assertEqual(data['language'],'fi');self.assertEqual(data['entry_id'],'one')
-        self.assertEqual(data['rooms'],[{'id':'room','name':'Garage','is_garage':True,'heat_retention':{'drop_6h':1.49,'hours_per_degree':4}}])
+        self.assertEqual(data['rooms'],[{'id':'room','name':'Garage','is_garage':True,'heat_retention':{'drop_6h':1.49,'hours_per_degree':4},'history_entities':{'drop_6h':'sensor.room_loss'}}])
         self.assertNotIn('settings',data);self.assertNotIn('model',data['rooms'][0])
     def test_multiple_integrations_require_selection(self):
         self.hass.data['thermal_pilot']['two']=Coordinator('Garage')

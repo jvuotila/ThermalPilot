@@ -58,6 +58,12 @@ const sample={language:'fi',entries:[{entry_id:'one',title:'Home'}],rooms:[room(
   const value={hours_per_degree:hours,reference_hours:reference,updated};const expected=vm.runInContext('retentionRating('+JSON.stringify(value)+').level',panelContext);
   const html=card.cell('cooling_speed',{heat_retention:value},1);assert.match(html,/<svg class="status-info"/);assert.match(html,/tabindex="0"/);assert.match(html,new RegExp('rating '+expected+'"'));
  }
+ const linked=room('Kitchen',4);linked.history_entities={drop_6h:'sensor.loss',hours_per_degree:'sensor.hours'};
+ assert.match(card.cell('loss_6h',linked,2),/data-retention-history="sensor.loss"[^>]*style="cursor:pointer;color:inherit"/);
+ assert.match(card.cell('drop_1c',linked,2),/data-retention-history="sensor.hours"/);
+ const handlers={};card.shadowRoot.querySelectorAll=selector=>selector==='[data-retention-history]'?[{dataset:{retentionHistory:'sensor.hours'},addEventListener:(name,fn)=>handlers[name]=fn}]:[];
+ card.render();handlers.keydown({key:'Enter',preventDefault(){},stopPropagation(){}});
+ assert.equal(card.event.type,'hass-more-info');assert.equal(card.event.detail.entityId,'sensor.hours');assert(card.event.bubbles&&card.event.composed);
  assert.equal(context.customCards.length,1);vm.runInContext(src,context);assert.equal(context.customCards.length,1);
  console.log('Dashboard card passed: columns, sorting, garage grouping, integration language, escaping, read-only polling, cleanup, response races, editor and badge parity.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

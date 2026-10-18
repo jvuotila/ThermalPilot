@@ -46,11 +46,15 @@ class RetentionCard extends HTMLElement{
   const valid=v=>this._sort.key==='room'?true:Number.isFinite(v);
   return [...(this._data?.rooms||[])].sort((a,b)=>Number(Boolean(a.is_garage))-Number(Boolean(b.is_garage))||Number(!valid(value(a)))-Number(!valid(value(b)))||(valid(value(a))&&valid(value(b))?this._sort.direction*(this._sort.key==='room'?String(value(a)).localeCompare(String(value(b))):value(a)-value(b)):0)||String(a.name).localeCompare(String(b.name)));
  }
+ historyValue(room,metric,value){
+  const entity=room.history_entities?.[metric];
+  return entity?`<span data-retention-history="${esc(entity)}" role="button" tabindex="0" aria-label="${esc(room.name+': '+value)}" style="cursor:pointer;color:inherit">${value}</span>`:value;
+ }
  cell(key,room,max){
   const v=room.heat_retention||{},badge=rating(v),number=value=>Number.isFinite(value)?value.toFixed(key==='loss_6h'?2:1):'—';
   if(key==='room')return esc(room.name);
-  if(key==='loss_6h')return `<span class="bar" aria-hidden="true"><i style="width:${Number.isFinite(v.drop_6h)?Math.max(0,Math.min(100,100*v.drop_6h/max)):0}%"></i></span><span class="loss">${number(v.drop_6h)}${Number.isFinite(v.drop_6h)?' °C':''}</span>`;
-  if(key==='drop_1c')return `${number(v.hours_per_degree)}${Number.isFinite(v.hours_per_degree)?' '+esc(this.t('hours')):''}`;
+  if(key==='loss_6h')return `<span class="bar" aria-hidden="true"><i style="width:${Number.isFinite(v.drop_6h)?Math.max(0,Math.min(100,100*v.drop_6h/max)):0}%"></i></span><span class="loss">${this.historyValue(room,'drop_6h',number(v.drop_6h))}${Number.isFinite(v.drop_6h)?' °C':''}</span>`;
+  if(key==='drop_1c')return `${this.historyValue(room,'hours_per_degree',number(v.hours_per_degree))}${Number.isFinite(v.hours_per_degree)?' '+esc(this.t('hours')):''}`;
   if(key==='cooling_speed')return `<span class="rating ${badge.level}" tabindex="0" title="${esc(this.t(badge.level==='learning'?'Waiting for learned heat-loss parameters.':'Not an energy-efficiency or insulation class.'))}">${esc(this.t(badge.label))}${tooltipInfoIcon}</span>`;
   return `<span class="model ${v.updated?'adapting':''}">${esc(this.t(v.updated?'Adapting':'Initial estimate'))}</span>`;
  }
@@ -60,6 +64,10 @@ class RetentionCard extends HTMLElement{
   const max=Math.max(.01,...rooms.map(room=>Number.isFinite(room.heat_retention?.drop_6h)?room.heat_retention.drop_6h:0));
   const message=this._error||(this._data?.requires_selection?'Choose a ThermalPilot integration in the card settings.':!this._data?'Loading…':!this._data.entries?.length?'ThermalPilot is not loaded.':'No room estimates yet.');
   this.shadowRoot.innerHTML=`<style>${styles}</style><ha-card>${this._config.title?.trim()?`<h2 class="title">${esc(this._config.title)}</h2>`:''}<div class="scroll"><table><thead><tr>${columns.map(key=>key==='model'?`<th scope="col">${esc(this.t(labels[key]))}</th>`:`<th scope="col" data-column="${key}" aria-sort="${this._sort.key===key?(this._sort.direction===1?'ascending':'descending'):'none'}"><button data-sort="${key}"><span>${esc(this.t(labels[key]))}</span><span aria-hidden="true">${this._sort.key===key?(this._sort.direction===1?'↑':'↓'):'↕'}</span></button></th>`).join('')}</tr></thead><tbody>${!this._error&&rooms.length?rooms.map(room=>`<tr class="${room.is_garage?'garage':''}">${columns.map(key=>`<td data-column="${key}">${this.cell(key,room,max)}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty" colspan="${columns.length}">${esc(this.t(message))}</td></tr>`}</tbody></table></div></ha-card>`;
+  this.shadowRoot.querySelectorAll('[data-retention-history]').forEach(value=>{
+   const open=event=>{event.preventDefault();event.stopPropagation();this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:value.dataset.retentionHistory},bubbles:true,composed:true}));};
+   value.addEventListener('click',open);value.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')open(event);});
+  });
   this.shadowRoot.querySelectorAll('[data-sort]').forEach(button=>button.addEventListener('click',()=>{const key=button.dataset.sort;this._sort={key,direction:this._sort.key===key?-this._sort.direction:1};this.render();this.shadowRoot.querySelector(`[data-sort="${key}"]`)?.focus({preventScroll:true});}));
  }
 }
