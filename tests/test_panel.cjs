@@ -1441,3 +1441,15 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  const blocked=new Component();assert.equal(blocked.historySectionOpen('about'),true);const detail=makeDetails(blocked,{historySection:'about'});blocked.shadowRoot.querySelectorAll=()=>[detail];blocked.bindHistorySections();detail.open=false;assert.doesNotThrow(()=>detail.toggle());assert.equal(blocked.historySectionOpen('about'),false);
  delete context.localStorage;
 }
+
+{
+ const stored=new Map();context.localStorage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)};
+ const first=new Component();first._panel={config:{entry_id:'home'}};first.loading=true;first.shadowRoot.querySelectorAll=()=>[];
+ first.setHistoryPeriod(120,'room-history-hours-kitchen');assert.equal(stored.get('thermal_pilot:home:history-period'),'120');
+ const reopened=new Component();reopened._panel={config:{entry_id:'home'}};reopened.restoreHistoryPeriod();assert.equal(reopened.historyHours,120);
+ reopened._panel={config:{entry_id:'other'}};reopened.restoreHistoryPeriod();assert.equal(reopened.historyHours,48);
+ stored.set('thermal_pilot:bad:history-period','999');reopened._panel={config:{entry_id:'bad'}};reopened.restoreHistoryPeriod();assert.equal(reopened.historyHours,48);
+ context.localStorage={getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}};
+ const blocked=new Component();blocked.loading=true;blocked.shadowRoot.querySelectorAll=()=>[];assert.doesNotThrow(()=>blocked.restoreHistoryPeriod());assert.equal(blocked.historyHours,48);blocked.setHistoryPeriod(72);assert.equal(blocked.historyHours,72);
+ delete context.localStorage;
+}

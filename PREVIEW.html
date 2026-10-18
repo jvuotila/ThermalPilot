@@ -450,6 +450,7 @@ class ThermalPilotPanel extends HTMLElement {
   async call(type,extra={}){return this._hass.callWS({type:`thermal_pilot/${type}`,entry_id:this.entry,...extra});}
   async load(){
     if(!this.entry || this.loading)return;
+    this.restoreHistoryPeriod();
     this.loading=true;
     try{
       const response=await this.call('get');
@@ -1150,9 +1151,17 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     const number=(value,digits)=>value!==null&&value!==undefined&&Number.isFinite(Number(value))?escapeHTML(new Intl.NumberFormat(language,{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(value))):'—';
     return `<section class="season-archives"><details class="observation-accordion" data-history-section="season" ${this.historySectionOpen('season')?'open':''}><summary><h2>${escapeHTML(title)}</h2></summary><div class="observation-content"><p>${escapeHTML(this.t('Modelled cooling: 20°C indoors · −10°C outdoors · heating off'))}</p>${rows.length?`<div class="scroll"><table><thead><tr>${[['room','Room',''],['observations','Observations',''],['drop_6h','6-hour loss',''],['hours_per_degree','1°C drop',''],['speed','Cooling speed','']].map(([key,label,unit],index)=>`<th scope="col"${index>0&&index<4?' class="archive-numeric"':''} aria-sort="${sort.key===key?(sort.direction===1?'ascending':'descending'):'none'}"><button type="button" class="retention-sort" data-archive-sort="${key}"><span>${escapeHTML(this.t(label))}${unit}</span> <span aria-hidden="true">${sort.key===key?(sort.direction===1?'↑':'↓'):'↕'}</span></button></th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr${room(row)?.is_garage?' class="garage-archive-row"':''}><td data-user-text>${escapeHTML(room(row)?.name||row.room_id)}</td><td class="archive-numeric">${observations(row.statistics?.samples)}</td><td class="archive-numeric">${retention.get(row).drop_6h!=null?`<span class="retention-bar" aria-hidden="true"><i style="width:${100*retention.get(row).drop_6h/max}%"></i></span>`:''}${number(retention.get(row).drop_6h,2)}${retention.get(row).drop_6h!=null?' °C':''}</td><td class="archive-numeric">${number(retention.get(row).hours_per_degree,1)}${retention.get(row).hours_per_degree!=null?' '+escapeHTML(this.t('hours')):''}</td><td>${badge(row)}</td></tr>`).join('')}</tbody></table></div>`:`<p>${escapeHTML(this.t('No completed heating season yet.'))}</p>`}</div></details></section>`;
   }
+  restoreHistoryPeriod(){
+    const key=`thermal_pilot:${this.entry||'preview'}:history-period`;
+    if(this.historyPeriodStorageKey===key)return;
+    this.historyPeriodStorageKey=key;this.historyHours=48;
+    try{const hours=Number(globalThis.localStorage?.getItem(key));if([24,48,72,120,168].includes(hours))this.historyHours=hours;}catch(error){}
+  }
   async setHistoryPeriod(hours,controlId){
     hours=Number(hours);if(![24,48,72,120,168].includes(hours))return;
+    this.restoreHistoryPeriod();
     this.historyHours=hours;
+    try{globalThis.localStorage?.setItem(this.historyPeriodStorageKey,String(hours));}catch(error){}
     this.shadowRoot.querySelectorAll('[data-history-period]').forEach(select=>select.value=String(hours));
     this.historyPeriodFocus=controlId;
     if(this.loading){this.historyPeriodReload=true;return;}
@@ -1781,6 +1790,8 @@ demo.data.season_summaries=demo.settings.rooms.map((room,index)=>({
  model:{retention_learned:true,loss:room.is_garage?.0065:.0022+(index%6)*.0006,gain:room.is_garage?.156:.068+(index%7)*.007}
 }));
 // END richer preview activity
+
+
 
 
 
