@@ -731,7 +731,7 @@ class ThermalPilotPanel extends HTMLElement {
    const measured=chartReading(item,zone);
    const entity=this.info.data?.temperature_history_entities?.[zone?'zones':'rooms']?.[item.id];
    const historyAction=entity?` data-temperature-history-entity="${escapeHTML(entity)}" role="button" tabindex="0" aria-label="${escapeHTML(this.t('History')+': '+item.name+' '+value)}"`:'';
-   const color=validTemperature(target)&&validTemperature(measured)?Number(measured)<Number(target)?'#3498DB':Number(measured)>Number(target)?priceColor(0):'#526b75':'#526b75';
+   const color=validTemperature(target)&&validTemperature(measured)?Number(measured)<Number(target)?'#3498DB':Number(measured)>Number(target)?priceColor(0):'var(--primary-text-color,#213547)':'var(--primary-text-color,#213547)';
    return value?`<text data-current-temperature="${escapeHTML(item.id)}"${historyAction} data-user-text x="${compact?viewWidth-20:left-12}" y="${y+(compact?14:11)}" text-anchor="end" fill="${color}" style="fill:${color};font-size:13px;font-variant-numeric:tabular-nums;${entity?'cursor:pointer':''}">${escapeHTML(value)}</text>`:'';
   };
   const detailAttributes=text=>`data-chart-detail="${escapeHTML(text)}" tabindex="0" role="img" aria-label="${escapeHTML(text)}"`;
@@ -1635,12 +1635,22 @@ demo.data.weather_forecast=Array.from({length:48},(_,hour)=>({datetime:new Date(
 demo.data.warnings=['Offline preview: zone activity, future heating windows and room heat-retention ratings are illustrative examples.'];
 // BEGIN richer preview activity
 // Offline examples only: stagger room demand and include visible cooling periods.
-// Illustrative daily price shape: cheap nights, morning demand and a strong evening peak.
-const previewPrice=time=>{const date=new Date(time),hour=date.getHours()+date.getMinutes()/60;return Math.round((6+4*Math.sin(hour*1.7)**2+23*Math.exp(-(((hour-8)/2.2)**2))+59*Math.exp(-(((hour-18.5)/2.4)**2)))*100)/100;};
-for(const slot of demo.data.price_chart||[])slot.price=previewPrice(new Date(slot.start).getTime());
+// Illustrative prices for exactly two local calendar days.
+const previewDayStart=new Date(previewNow);previewDayStart.setHours(0,0,0,0);
+const previewTomorrow=new Date(previewDayStart);previewTomorrow.setDate(previewTomorrow.getDate()+1);
+const previewRangeEnd=new Date(previewDayStart);previewRangeEnd.setDate(previewRangeEnd.getDate()+2);
+const previewBump=(hour,start,end,height)=>hour>start&&hour<end?height*Math.sin(Math.PI*(hour-start)/(end-start))**2:0;
+const previewPrice=time=>{
+ const date=new Date(time),hour=date.getHours()+date.getMinutes()/60,tomorrow=time>=previewTomorrow.getTime();
+ const base=6+4*Math.sin(hour*1.7)**2;
+ const peak=tomorrow?previewBump(hour,8,12,59)+previewBump(hour,17,18.5,20):previewBump(hour,6,10,15)+previewBump(hour,16,21,32);
+ return Math.round((base+peak)*100)/100;
+};
+demo.data.price_chart=[];
+for(let time=previewDayStart.getTime();time<previewRangeEnd.getTime();time+=900000)demo.data.price_chart.push({start:new Date(time).toISOString(),end:new Date(Math.min(time+900000,previewRangeEnd.getTime())).toISOString(),price:previewPrice(time)});
 
 const previewHour=time=>{const date=new Date(time);return date.getHours()+date.getMinutes()/60;};
-const previewWindows=index=>{const quarters=16+2*(index%7),night=Math.round(quarters*.6),nightStart=.25+(index%3)*.25,dayStart=11.5+(index%2)*.25;return [[nightStart,nightStart+night/4],[dayStart,dayStart+(quarters-night)/4]];};
+const previewWindows=index=>{const quarters=16+2*(index%7),night=Math.round(quarters*.6),nightStart=.25+(index%3)*.25,dayStart=13+(index%2)*.25;return [[nightStart,nightStart+night/4],[dayStart,dayStart+(quarters-night)/4]];};
 const previewWindowActive=(time,index,lag=0)=>previewWindows(index).some(([start,end])=>previewHour(time)>=start+lag&&previewHour(time)<end+lag)&&previewPrice(time)<15;
 const previewRoomIds=new Set(demo.settings.rooms.map(room=>room.id));
 for(let i=previewHistory.length-1;i>=0;i--)if(previewRoomIds.has(previewHistory[i].room_id)&&!previewHistory[i].zone_id)previewHistory.splice(i,1);
@@ -1684,6 +1694,10 @@ for(const zone of demo.settings.heating_zones){
 demo.data.chart_temperatures.targets={rooms:Object.fromEntries(demo.settings.rooms.map(room=>[room.id,demo.data.rooms[room.id]?.actual_setpoint??room.baseline??null])),zones:Object.fromEntries(demo.settings.heating_zones.map(zone=>[zone.id,zone.source_type==='fireplace'?null:zone.climate_mode==='cool'?zone.cooling_target:demo.settings.air_heat_target]))};
 demo.data.temperature_history_entities={rooms:Object.fromEntries(demo.settings.rooms.map(room=>[room.id,room.temperature_entity])),zones:Object.fromEntries(demo.settings.heating_zones.filter(zone=>zone.source_type!=='fireplace').map(zone=>[zone.id,zone.temperature_policy&&zone.temperature_policy!=='main'?'sensor.preview_zone_'+zone.id:demo.settings.rooms.find(room=>room.id===zone.main_room_id)?.temperature_entity]))};
 // END richer preview activity
+
+
+
+
 
 
 

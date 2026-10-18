@@ -634,7 +634,7 @@ class ThermalPilotPanel extends HTMLElement {
    const measured=chartReading(item,zone);
    const entity=this.info.data?.temperature_history_entities?.[zone?'zones':'rooms']?.[item.id];
    const historyAction=entity?` data-temperature-history-entity="${escapeHTML(entity)}" role="button" tabindex="0" aria-label="${escapeHTML(this.t('History')+': '+item.name+' '+value)}"`:'';
-   const color=validTemperature(target)&&validTemperature(measured)?Number(measured)<Number(target)?'#3498DB':Number(measured)>Number(target)?priceColor(0):'#526b75':'#526b75';
+   const color=validTemperature(target)&&validTemperature(measured)?Number(measured)<Number(target)?'#3498DB':Number(measured)>Number(target)?priceColor(0):'var(--primary-text-color,#213547)':'var(--primary-text-color,#213547)';
    return value?`<text data-current-temperature="${escapeHTML(item.id)}"${historyAction} data-user-text x="${compact?viewWidth-20:left-12}" y="${y+(compact?14:11)}" text-anchor="end" fill="${color}" style="fill:${color};font-size:13px;font-variant-numeric:tabular-nums;${entity?'cursor:pointer':''}">${escapeHTML(value)}</text>`:'';
   };
   const detailAttributes=text=>`data-chart-detail="${escapeHTML(text)}" tabindex="0" role="img" aria-label="${escapeHTML(text)}"`;

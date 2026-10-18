@@ -1211,9 +1211,9 @@ assert.match(finnishNotesPanel.priceChart(false), /fill="url\(#suggested-heating
  assert.match(currentChart.priceChart(false,true),/>20,7 °C<\/text>/);
  currentChart.info.data.chart_temperatures.targets={rooms:{kitchen:21,garage:7.5},zones:{pump:18}};
  const markColor=id=>currentChart.priceChart(false).match(new RegExp('data-current-temperature="'+id+'"[^>]*fill="([^"]+)"'))[1];
- assert.equal(markColor('kitchen'),'#3498DB');assert.match(currentChart.priceChart(false),/data-current-temperature="kitchen"[^>]*style="fill:#3498DB;/);assert.equal(markColor('pump'),'#88ad91');assert.equal(markColor('garage'),'#526b75');
+ assert.equal(markColor('kitchen'),'#3498DB');assert.match(currentChart.priceChart(false),/data-current-temperature="kitchen"[^>]*style="fill:#3498DB;/);assert.equal(markColor('pump'),'#88ad91');assert.equal(markColor('garage'),'var(--primary-text-color,#213547)');
  currentChart.info.data.chart_temperatures.targets.rooms.kitchen=20;assert.equal(markColor('kitchen'),'#88ad91');
- currentChart.info.data.chart_temperatures.targets.rooms.kitchen=null;assert.equal(markColor('kitchen'),'#526b75');
+ currentChart.info.data.chart_temperatures.targets.rooms.kitchen=null;assert.equal(markColor('kitchen'),'var(--primary-text-color,#213547)');
  currentChart.settings.language='en';assert.match(currentChart.priceChart(false),/>20\.7 °C<\/text>/);
  currentChart.priceChartWidth=390;assert.match(currentChart.priceChart(false),/>20\.7 °C<\/text>/);
  console.log('Plan labels show localized current room/zone temperatures, hide missing values, and leave History labels unchanged.');
