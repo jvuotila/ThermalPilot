@@ -366,6 +366,28 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(self.c._command_timer)
         self.hass.services.async_call.assert_not_awaited()
 
+    async def test_simulation_never_applies_boost_or_reduction_even_with_stale_confirmation(self):
+        from thermal_pilot.model import thermostat_timing
+        self.c.settings.update(simulation_enabled=True,live_control_confirmed=True,
+                               apply_season_setpoints=False,boost=2,setback=-1)
+        rid=self.c.settings['rooms'][0]['id']
+        rows=[{'start':now.isoformat(),'end':(now+timedelta(hours=1)).isoformat(),'heat':True,'mode':'boost'},
+              {'start':(now+timedelta(hours=1)).isoformat(),'end':(now+timedelta(hours=2)).isoformat(),'heat':False,'mode':'reduced'},
+              {'start':(now+timedelta(hours=2)).isoformat(),'end':(now+timedelta(hours=3)).isoformat(),'heat':False,'mode':'normal'}]
+        timing={**thermostat_timing(rows,self.c.settings,20,now),'slots':rows}
+        self.c._plan_settings=deepcopy(self.c.settings)
+        self.c.data={'rooms':{rid:{'plan':timing}}}
+        for moment in (now,now+timedelta(hours=1),now+timedelta(hours=2)):
+            await self.c.update_command_state(moment)
+        self.hass.services.async_call.assert_not_awaited()
+        self.assertFalse(self.c.managed_rooms)
+        # The independent opt-in can apply normal season targets in simulation,
+        # but it must never use either scheduled adjustment.
+        self.c.settings['apply_season_setpoints']=True
+        await self.c.apply_season_targets(True)
+        self.hass.services.async_call.assert_awaited_once_with('climate','set_temperature',
+            {'entity_id':'climate.room','temperature':20},blocking=True)
+
     async def test_live_control_applies_offsets_and_releases_on_simulation(self):
         from thermal_pilot.model import thermostat_timing
         self.c.settings.update(simulation_enabled=False,live_control_confirmed=True)

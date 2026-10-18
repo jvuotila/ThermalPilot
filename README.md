@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.41 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.42 — experimental simulation-first Home Assistant custom integration**.
 
 ![Electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -71,6 +71,7 @@ Zones are secondary sources: adding a heat-pump zone preserves each room’s
 primary thermostat and heating plan. New zones are observation-only until their
 own control switch is enabled.
 
+
 ## Before enabling control
 
 Initial collection reaches 100% after at least 12 heating hours and 12 idle hours.
@@ -96,6 +97,12 @@ card picker:
 
 Both support an optional title and language override.
 [Card configuration and YAML examples](docs/DASHBOARD-CARDS.md).
+
+## Configuration examples and helpers
+
+[Optional examples and helpers](docs/configuration-examples/README.md) to adapt to
+your installation, including a Panasonic Aquarea / HeishaMon heating-water sensor
+that filters tank-cycle spikes.
 
 ## More information
 
