@@ -101,8 +101,8 @@ Both support an optional title and language override.
 ## Configuration examples and helpers
 
 [Optional examples and helpers](docs/configuration-examples/README.md) to adapt to
-your installation: total electricity prices, outdoor and garage temperatures,
-and Panasonic Aquarea / HeishaMon heating-water filtering.
+your installation: room thermostats, total electricity prices, outdoor and garage
+temperatures, and Panasonic Aquarea / HeishaMon heating-water filtering.
 
 ## More information
 

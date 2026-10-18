@@ -7,6 +7,7 @@ When editing a helper within the same integration, retain its `unique_id`.
 Moving between integrations (for example, Template to Min/Max) can create a new
 entity; check its ID and update the ThermalPilot selection.
 
+- [Room thermostat](room-thermostat.md) — connects a room temperature sensor and heating relay through Home Assistant Generic Thermostat.
 - [Total electricity price](total-electricity-price.md) — adds day/night transfer fees and supplier margin to current and timestamped prices.
 - [Lowest outdoor temperature](outdoor-temperature.md) — uses the coolest of three outdoor probes to reduce direct-sun bias.
 - [Average garage temperature](average-garage-temperature.md) — uses Home Assistant’s Min/Max helper with type Mean to average measured temperatures.
@@ -14,5 +15,5 @@ entity; check its ID and update the ThermalPilot selection.
 - [Integration-provided sources](integration-sources.md) — Netatmo wind and Nordpool Predict FI; no replacement template is needed.
 
 YAML examples show their top-level configuration keys for context. Merge list
-items into existing `sensor:` or `template:` sections rather than duplicating
+items into existing `climate:`, `sensor:` or `template:` sections rather than duplicating
 those keys. The example names and placeholder entity IDs are in English.
