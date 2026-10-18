@@ -349,15 +349,15 @@ for(const screen of [320,390,600]){
   assert.equal(width,mobile.priceChartWidth);assert.doesNotMatch(html,/min-width:900px|NaN/);
   assert.equal((html.match(/<foreignObject/g)||[]).length,10);
   // Mobile names sit above their own lanes; no left column eats the chart width.
-  assert.match(html,/foreignObject x="20" y="209"/);
-  const firstLane=html.match(/<rect x="(\d+)" y="234" width="([\d.]+)" height="14"/);
+  assert.match(html,/foreignObject x="20" y="273"/);
+  const firstLane=html.match(/<rect x="(\d+)" y="298" width="([\d.]+)" height="14"/);
   assert.ok(firstLane);assert.ok(Number(firstLane[1])+Number(firstLane[2])<=width);
  }
  const temperature=mobile.chart(samples,'temperature','prediction');
  const width=Number(temperature.match(/viewBox="0 0 (\d+)/)[1]);
  assert.ok(width<=screen);assert.doesNotMatch(temperature,/NaN/);
 }
-resizeCallback([{contentRect:{width:280}}]);assert.match(replacedHTML,/viewBox="0 0 280 836"/);
+resizeCallback([{contentRect:{width:280}}]);assert.match(replacedHTML,/viewBox="0 0 280 900"/);
 resizeCallback([{contentRect:{width:1800}}]);assert.match(replacedHTML,/viewBox="0 0 1800 596"/);
 console.log('Mobile checks passed: bubbling Home Assistant menu event, ten readable room lanes, narrow temperature charts and desktop/mobile resizing.');
 
@@ -1211,8 +1211,8 @@ assert.match(finnishNotesPanel.priceChart(false), /fill="url\(#suggested-heating
  assert.match(currentChart.priceChart(false,true),/>20,7 °C<\/text>/);
  currentChart.info.data.chart_temperatures.targets={rooms:{kitchen:21,garage:7.5},zones:{pump:18}};
  const markColor=id=>currentChart.priceChart(false).match(new RegExp('data-current-temperature="'+id+'"[^>]*fill="([^"]+)"'))[1];
- assert.equal(markColor('kitchen'),'#3498DB');assert.match(currentChart.priceChart(false),/data-current-temperature="kitchen"[^>]*style="fill:#3498DB;/);assert.equal(markColor('pump'),'#EC7063');assert.equal(markColor('garage'),'#526b75');
- currentChart.info.data.chart_temperatures.targets.rooms.kitchen=20;assert.equal(markColor('kitchen'),'#EC7063');
+ assert.equal(markColor('kitchen'),'#3498DB');assert.match(currentChart.priceChart(false),/data-current-temperature="kitchen"[^>]*style="fill:#3498DB;/);assert.equal(markColor('pump'),'#88ad91');assert.equal(markColor('garage'),'#526b75');
+ currentChart.info.data.chart_temperatures.targets.rooms.kitchen=20;assert.equal(markColor('kitchen'),'#88ad91');
  currentChart.info.data.chart_temperatures.targets.rooms.kitchen=null;assert.equal(markColor('kitchen'),'#526b75');
  currentChart.settings.language='en';assert.match(currentChart.priceChart(false),/>20\.7 °C<\/text>/);
  currentChart.priceChartWidth=390;assert.match(currentChart.priceChart(false),/>20\.7 °C<\/text>/);
@@ -1298,4 +1298,30 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  tooltipPanel.bindSettingTooltips();assert.equal(removed.length,2);
  tooltipPanel.disconnectedCallback();assert.equal(removed.length,4);
  console.log('Settings tooltips stay within viewport edges, flip below near the top, constrain long text and clean up resize/scroll listeners.');
+}
+
+{
+ const priceNow=new Component(),moment=Date.now();
+ priceNow.settings={language:'fi',rooms:[{id:'current',name:'Room'}],heating_zones:[]};
+ const interval=(a,b,price)=>({start:new Date(moment+a).toISOString(),end:new Date(moment+b).toISOString(),price});
+ priceNow.info={data:{rooms:{},price_chart:[interval(-3600000,3600000,15.12)]}};
+ priceNow.priceChartWidth=1200;
+ const full=priceNow.priceChart(false);
+ assert.match(full,/data-current-total-price="15.12"/);assert.match(full,/Kokonaishinta nyt/);
+ assert.match(full,/15,12<tspan[^>]*> c\/kWh<\/tspan>/);
+ assert.match(full,/Sähkön kokonaishinta ja lämmitys/);
+ priceNow.history=[{time:moment/1000-600,price:99}];
+ assert.match(priceNow.priceChart(true),/data-current-total-price="15.12"/);
+ for(const value of [0,-2.5]){
+  priceNow.info.data.price_chart=[interval(-3600000,3600000,value)];
+  assert.match(priceNow.priceChart(),new RegExp('data-current-total-price="'+value+'"'));
+ }
+ priceNow.info.data.price_chart=[interval(-7200000,-3600000,18),interval(-1000,3600000,null),interval(3600000,7200000,25)];
+ const missing=priceNow.priceChart();assert.match(missing,/data-current-total-price=""/);assert.match(missing,/>—<tspan/);
+ priceNow.info.data.price_chart=[interval(-3600000,3600000,15.12)];
+ priceNow.priceChartWidth=280;
+ const narrow=priceNow.priceChart();assert.match(narrow,/y="47" style="font-size:22px/);
+ assert.match(narrow,/y1="79"/); // Plot starts beneath the two-line caption.
+ priceNow.chartVisibility=()=>({prices:false,weather:true});assert.doesNotMatch(priceNow.priceChart(),/data-current-total-price/);
+ console.log('Current total price uses the active published interval, localized decimals, valid zero/negative values and no stale fallback; compact layout reserves space and hidden prices omit the caption.');
 }

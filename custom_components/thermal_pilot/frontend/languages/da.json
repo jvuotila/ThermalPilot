@@ -466,7 +466,9 @@
     "Reset learning": "Nulstil læring",
     "Learning reset.": "Læringen er nulstillet.",
     "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Aktiverer planlægning, dataindsamling og læring. Fra sætter disse funktioner på pause og bevarer lærte data. Simulering er separat: til beregner forslag uden at anvende planlagte måltemperaturer; fra tillader faktisk styring efter bekræftelse.",
-    "Summer fallback follows the daily minimum temperature. With incomplete forecasts, Home Assistant location provides a warm-weather estimate: June–August north or December–February south, outside the tropics. Colder readings override the estimate; insufficient evidence selects winter. Summer uses the shared summer setpoint; winter uses normal room targets.": "Sommerreserve følger døgnets laveste temperatur. Ved ufuldstændig prognose giver Home Assistants placering et skøn i varmt vejr: juni–august i nord eller december–februar i syd, uden for troperne. Koldere målinger tilsidesætter skønnet; utilstrækkelige data vælger vinter. Sommer bruger fælles sommermål; vinter normale rummål."
+    "Summer fallback follows the daily minimum temperature. With incomplete forecasts, Home Assistant location provides a warm-weather estimate: June–August north or December–February south, outside the tropics. Colder readings override the estimate; insufficient evidence selects winter. Summer uses the shared summer setpoint; winter uses normal room targets.": "Sommerreserve følger døgnets laveste temperatur. Ved ufuldstændig prognose giver Home Assistants placering et skøn i varmt vejr: juni–august i nord eller december–februar i syd, uden for troperne. Koldere målinger tilsidesætter skønnet; utilstrækkelige data vælger vinter. Sommer bruger fælles sommermål; vinter normale rummål.",
+    "Total price": "Samlet pris",
+    "Total electricity price and heating": "Samlet elpris og opvarmning"
   },
   "legacy": {},
   "cardMessages": {

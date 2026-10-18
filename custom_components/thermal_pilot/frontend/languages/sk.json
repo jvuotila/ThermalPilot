@@ -466,7 +466,9 @@
     "Reset learning": "Resetovať učenie",
     "Learning reset.": "Učenie bolo resetované.",
     "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Zapína plánovanie, zber údajov a učenie. Vypnutie tieto funkcie pozastaví a zachová naučené údaje. Simulácia je samostatná: zapnutá počíta návrhy bez použitia naplánovaných cieľových teplôt; vypnutá umožňuje skutočné riadenie po potvrdení.",
-    "Summer fallback follows the daily minimum temperature. With incomplete forecasts, Home Assistant location provides a warm-weather estimate: June–August north or December–February south, outside the tropics. Colder readings override the estimate; insufficient evidence selects winter. Summer uses the shared summer setpoint; winter uses normal room targets.": "Letný záložný režim vychádza z denného minima. Pri neúplnej predpovedi poskytuje poloha Home Assistant odhad za teplého počasia: jún–august na severe alebo december–február na juhu, mimo trópov. Chladnejšie hodnoty majú prednosť; nedostatok údajov volí zimu. Leto používa spoločný letný cieľ, zima bežné ciele miestností."
+    "Summer fallback follows the daily minimum temperature. With incomplete forecasts, Home Assistant location provides a warm-weather estimate: June–August north or December–February south, outside the tropics. Colder readings override the estimate; insufficient evidence selects winter. Summer uses the shared summer setpoint; winter uses normal room targets.": "Letný záložný režim vychádza z denného minima. Pri neúplnej predpovedi poskytuje poloha Home Assistant odhad za teplého počasia: jún–august na severe alebo december–február na juhu, mimo trópov. Chladnejšie hodnoty majú prednosť; nedostatok údajov volí zimu. Leto používa spoločný letný cieľ, zima bežné ciele miestností.",
+    "Total price": "Celková cena",
+    "Total electricity price and heating": "Celková cena elektriny a vykurovanie"
   },
   "legacy": {},
   "cardMessages": {

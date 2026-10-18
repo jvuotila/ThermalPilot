@@ -466,7 +466,9 @@
     "Reset learning": "Resetovat učení",
     "Learning reset.": "Učení bylo resetováno.",
     "Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.": "Zapíná plánování, sběr dat a učení. Vypnutí tyto funkce pozastaví a zachová naučená data. Simulace je samostatná: zapnutá počítá návrhy bez použití naplánovaných cílových teplot; vypnutá umožňuje skutečné řízení po potvrzení.",
-    "Summer fallback follows the daily minimum temperature. With incomplete forecasts, Home Assistant location provides a warm-weather estimate: June–August north or December–February south, outside the tropics. Colder readings override the estimate; insufficient evidence selects winter. Summer uses the shared summer setpoint; winter uses normal room targets.": "Letní záložní režim vychází z denního minima. Při neúplné předpovědi poskytuje poloha Home Assistant odhad za teplého počasí: červen–srpen na severu nebo prosinec–únor na jihu, mimo tropy. Chladnější hodnoty mají přednost; nedostatek údajů volí zimu. Léto používá společný letní cíl, zima běžné cíle místností."
+    "Summer fallback follows the daily minimum temperature. With incomplete forecasts, Home Assistant location provides a warm-weather estimate: June–August north or December–February south, outside the tropics. Colder readings override the estimate; insufficient evidence selects winter. Summer uses the shared summer setpoint; winter uses normal room targets.": "Letní záložní režim vychází z denního minima. Při neúplné předpovědi poskytuje poloha Home Assistant odhad za teplého počasí: červen–srpen na severu nebo prosinec–únor na jihu, mimo tropy. Chladnější hodnoty mají přednost; nedostatek údajů volí zimu. Léto používá společný letní cíl, zima běžné cíle místností.",
+    "Total price": "Celková cena",
+    "Total electricity price and heating": "Celková cena elektřiny a vytápění"
   },
   "legacy": {},
   "cardMessages": {
