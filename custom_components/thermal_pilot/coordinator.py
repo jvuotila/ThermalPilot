@@ -37,6 +37,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.forecast_error = None
         self.config_fingerprint = {}
         self.suggested_runs = {}
+        self.session_plans = {}
         self.season = {}
         self.applied_season_targets = {}
         self.sensor_health = {'rooms': {}, 'last_notification_day': None}
@@ -188,6 +189,19 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.sensor_health = saved.get('sensor_health', {'rooms': {}, 'last_notification_day': None})
         await self.hass.async_add_executor_job(self.history_db.initialize)
         self.config_fingerprint = saved.get('fingerprints', {})
+        # Session checkpoints are local control continuity, not learned parameters.
+        self.session_plans = {}
+        self.suggested_runs = {}
+        for room in resolved_rooms(self.settings) + zone_rooms(self.settings):
+            checkpoint = saved.get('heating_sessions', {}).get(room['id'])
+            if not checkpoint or checkpoint.get('fingerprint') != self.session_fingerprint(room):
+                continue
+            cutoff = dt_util.utcnow() - timedelta(minutes=15)
+            windows = checkpoint.get('thermostat_windows', [])
+            sessions = checkpoint.get('sessions', [])
+            if any(stamp(item['end']) > cutoff for item in windows + sessions):
+                self.session_plans[room['id']] = checkpoint
+                self.suggested_runs[room['id']] = deepcopy(checkpoint.get('run', {}))
 
     def chart_temperatures(self) -> dict[str, Any]:
         """Read current values even in passive mode; zone policy matches live control."""
@@ -281,7 +295,8 @@ class PilotCoordinator(DataUpdateCoordinator):
     def storage_data(self):
         return {'models':self.models,'season':self.season,'zone_seasons':self.air_control.zone_seasons,'pump_thermal_modes':self.air_control.thermal_modes,'pump_reversals':self.air_control.reversals,
                 'applied_season_targets':self.applied_season_targets,
-                'fingerprints':self.config_fingerprint,'sensor_health':self.sensor_health,'managed_rooms':self.managed_rooms,'fallback_state':self.fallback_state}
+                'fingerprints':self.config_fingerprint,'sensor_health':self.sensor_health,'managed_rooms':self.managed_rooms,'fallback_state':self.fallback_state,
+                'heating_sessions':self.session_plans}
 
     def zone_observations(self, now):
         rows = []
@@ -437,10 +452,96 @@ class PilotCoordinator(DataUpdateCoordinator):
                           'condition':condition if isinstance(condition,str) and condition in conditions else ''}
         return [rows[date] for date in sorted(rows)][:168]
 
+    def session_fingerprint(self, room: dict[str, Any]) -> list:
+        """Invalidate a checkpoint when device mapping or heating policy changes."""
+        effective = room_settings(room, self.settings)
+        return learning_fingerprint(room, self.settings) + [
+            effective.get('heat_control'), effective.get('minimum'), effective.get('maximum'),
+            effective.get('boost'), effective.get('setback'), room.get('garage_strategy'),
+            room.get('zone_control_enabled'), room.get('zone_climate_mode'),
+            room.get('zone_heating_strategy'), room.get('zone_policy'),
+            sorted(item['id'] for item in self.settings['rooms']
+                   if room.get('secondary_zone') and item.get('heating_zone_id') == room.get('heating_zone_id')),
+            self.settings['house_heat_source'],
+            self.settings['house_distribution'], self.settings['pricing_mode'],
+            self.settings['minimum_run_minutes'], self.settings['start_offset_minutes'],
+            self.settings['stop_offset_minutes'], self.settings['heating_enabled'],
+            self.settings['simulation_enabled'],
+        ]
+
+    def previous_session_plan(self, room_id: str) -> dict[str, Any]:
+        """Use the persisted last plan when HA has not published data since startup."""
+        checkpoint = self.session_plans.get(room_id)
+        if checkpoint is not None:
+            configured = next((room for room in resolved_rooms(self.settings) + zone_rooms(self.settings)
+                               if room['id'] == room_id), None)
+            if configured and checkpoint.get('fingerprint') == self.session_fingerprint(configured):
+                return checkpoint
+            self.suggested_runs.pop(room_id, None)
+            return {}
+        data = getattr(self, 'data', None) or {}
+        if room_id.startswith('zone:'):
+            previous_room = data.get('zones', {}).get(room_id[5:], {})
+        else:
+            previous_room = data.get('rooms', {}).get(room_id, {})
+        return previous_room.get('plan') or {}
+
+    async def save_heating_sessions(self, data: dict[str, Any], now: datetime) -> None:
+        """Persist published timing before any associated device command is sent.
+
+        Save future windows too: HA may be offline at their opening time. Keep a
+        recently ended window for fifteen minutes so a restart cannot erase its
+        minimum pause. Missing inputs may suspend control without losing a still
+        valid commitment; the normal fallback checks continue to govern writes.
+        """
+        checkpoints = {}
+        cutoff = now - timedelta(minutes=15)
+        for room in resolved_rooms(self.settings) + zone_rooms(self.settings):
+            room_id = room['id']
+            if room.get('heat_control') == 'zone_member':
+                continue
+            if room.get('secondary_zone'):
+                published = data.get('zones', {}).get(room['heating_zone_id'], {})
+            else:
+                published = data.get('rooms', {}).get(room_id, {})
+            planned = published.get('plan')
+            fingerprint = self.session_fingerprint(room)
+            if not planned:
+                previous = self.session_plans.get(room_id, {})
+                if previous.get('fingerprint') != fingerprint:
+                    continue
+                planned = previous
+            windows = [window for window in planned.get('thermostat_windows', [])
+                       if stamp(window['end']) > cutoff]
+            sessions = [session for session in planned.get('sessions', [])
+                        if stamp(session['end']) > cutoff]
+            # A newly normal plan no longer contains the window that just ended.
+            # Retain that boundary until the restart-safe pause has elapsed.
+            previous = self.session_plans.get(room_id, {})
+            if previous.get('fingerprint') == fingerprint:
+                for window in previous.get('thermostat_windows', []):
+                    if cutoff < stamp(window['end']) <= now and window not in windows:
+                        windows.append(deepcopy(window))
+            if not windows and not sessions:
+                continue
+            checkpoints[room_id] = {
+                'fingerprint': fingerprint,
+                'sessions': deepcopy(sessions),
+                'thermostat_windows': deepcopy(windows),
+                'run': deepcopy(self.suggested_runs.get(room_id, {})),
+            }
+        if checkpoints != self.session_plans:
+            # The usual delayed model save is not enough here: an immediate
+            # reload after a target change must still find the matching timing.
+            saved = self.storage_data()
+            saved['heating_sessions'] = checkpoints
+            await self.store.async_save(saved)
+            # Commit memory only after disk succeeds, so failures retry before writes.
+            self.session_plans = checkpoints
+
     def committed_session(self, rid, now):
         """Keep a published session once its advance opening time has arrived."""
-        previous_data = getattr(self, 'data', None) or {}
-        previous_plan = (previous_data.get('zones', {}).get(rid[5:], {}) if rid.startswith('zone:') else previous_data.get('rooms', {}).get(rid, {})).get('plan') or {}
+        previous_plan = self.previous_session_plan(rid)
         for session in previous_plan.get('sessions',[]):
             start, end = (stamp(session['start']), stamp(session['end']))
             configured = next(
@@ -456,8 +557,7 @@ class PilotCoordinator(DataUpdateCoordinator):
 
     def boost_resume_after(self, rid, now):
         """Keep a known boost-closing boundary across successive replans."""
-        data = getattr(self, 'data', None) or {}
-        previous_plan = (data.get('zones', {}).get(rid[5:], {}) if rid.startswith('zone:') else data.get('rooms', {}).get(rid, {})).get('plan') or {}
+        previous_plan = self.previous_session_plan(rid)
         run = self.suggested_runs.setdefault(rid, {})
         ended = [stamp(window['end']).timestamp() for window in previous_plan.get('thermostat_windows', []) if stamp(window['end']) <= now]
         if ended:
@@ -512,11 +612,12 @@ class PilotCoordinator(DataUpdateCoordinator):
         if not heating_active:
             self.previous.clear()
             self.suggested_runs.clear()
+            self.session_plans.clear()
             for model in self.models.values():
                 model['response'] = 0.0
             cutoff = now.timestamp() - HISTORY_DAYS * 86400
             await self.hass.async_add_executor_job(self.history_db.append, [], cutoff, self.season['season_id'])
-            self.store.async_delay_save(self.storage_data,20)
+            await self.store.async_save(self.storage_data())
             data = {'updated':now.isoformat(),'simulation_only':not self.live_enabled() and not self.settings['apply_season_setpoints'],'heating_active':False,
                 'collection':self.season,'zones':{},'collection_evidence':self.collection_evidence(),'warnings':['ThermalPilot is passive. Planning, collection and learning are stopped.']+setpoint_errors,
                 'rooms':{},'outdoor':outdoor,'water':None,'weather_forecast':self.weather_chart_forecast(now),
@@ -861,6 +962,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                     'water_required':False
                 },
                 'fallback_season':self.fallback_summary()}
+        await self.save_heating_sessions(data, now)
         self._plan_settings = plan_settings
         data['control'] = await self.apply_live_targets(data, now)
         data['warnings'].extend(f'Thermostat control: {w}' for w in data['control']['errors'])

@@ -18,6 +18,7 @@
     "3 days": "3 дана",
     "3-hour forecast error": "Одступање прогнозе за 3 сата",
     "5 days": "5 дана",
+    "7 days": "7 дана",
     "6-hour loss": "Губитак за 6 сати",
     "A door/window contact sensor can monitor the fireplace damper position. Select the sensor state that means the fireplace is in use. For a damper contact sensor, Open normally means active and Closed means inactive. Door/window labels are converted to Home Assistant’s underlying on/off values. Other sensors show their declared options, current valid state and any saved value. A contact state indicates the damper position; it does not prove that a fire is burning.": "Контакт врата/прозора на клапни: Отворено обично активно, Затворено неактивно. Чува on/off. Други сензори показују опције. Положај не доказује ватру.",
     "About ": "О подешавању: ",

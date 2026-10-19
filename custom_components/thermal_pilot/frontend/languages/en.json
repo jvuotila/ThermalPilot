@@ -18,6 +18,7 @@
     "3 days": "3 days",
     "3-hour forecast error": "3-hour forecast error",
     "5 days": "5 days",
+    "7 days": "7 days",
     "6-hour loss": "6-hour loss",
     "A door/window contact sensor can monitor the fireplace damper position. Select the sensor state that means the fireplace is in use. For a damper contact sensor, Open normally means active and Closed means inactive. Door/window labels are converted to Home Assistant’s underlying on/off values. Other sensors show their declared options, current valid state and any saved value. A contact state indicates the damper position; it does not prove that a fire is burning.": "A door/window contact sensor can monitor the fireplace damper position. Select the sensor state that means the fireplace is in use. For a damper contact sensor, Open normally means active and Closed means inactive. Door/window labels are converted to Home Assistant’s underlying on/off values. Other sensors show their declared options, current valid state and any saved value. A contact state indicates the damper position; it does not prove that a fire is burning.",
     "About ": "About ",

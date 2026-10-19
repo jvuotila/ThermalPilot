@@ -1252,10 +1252,10 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     const key=`thermal_pilot:${this.entry||'preview'}:history-period`;
     if(this.historyPeriodStorageKey===key)return;
     this.historyPeriodStorageKey=key;this.historyHours=48;
-    try{const hours=Number(globalThis.localStorage?.getItem(key));if([24,48,72,120,168].includes(hours))this.historyHours=hours;}catch(error){}
+    try{const hours=Number(globalThis.localStorage?.getItem(key));if([24,48,96,144].includes(hours))this.historyHours=hours;}catch(error){}
   }
   async setHistoryPeriod(hours,controlId){
-    hours=Number(hours);if(![24,48,72,120,168].includes(hours))return;
+    hours=Number(hours);if(![24,48,96,144].includes(hours))return;
     this.restoreHistoryPeriod();
     this.historyHours=hours;
     try{globalThis.localStorage?.setItem(this.historyPeriodStorageKey,String(hours));}catch(error){}
@@ -1266,7 +1266,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     this.shadowRoot.getElementById?.(this.historyPeriodFocus)?.focus({preventScroll:true});
   }
   historyPeriodSelector(roomId=null){
-    return `<label class="history-period">${escapeHTML(this.t('Period'))}<select id="${roomId===null?'history-hours':'room-history-hours-'+escapeHTML(roomId)}" data-history-period>${[[24,'1 day'],[48,'2 days'],[72,'3 days'],[120,'5 days'],[168,'1 week']].map(([hours,label])=>`<option value="${hours}" ${hours===this.historyHours?'selected':''}>${escapeHTML(this.t(label))}</option>`).join('')}</select></label>`;
+    return `<label class="history-period">${escapeHTML(this.t('Period'))}<select id="${roomId===null?'history-hours':'room-history-hours-'+escapeHTML(roomId)}" data-history-period>${[[24,'2 days'],[48,'3 days'],[96,'5 days'],[144,'7 days']].map(([hours,label])=>`<option value="${hours}" ${hours===this.historyHours?'selected':''}>${escapeHTML(this.t(label))}</option>`).join('')}</select></label>`;
   }
   historyView(){
     return `${(electricHeating(this.settings)||(this.settings.heating_zones||[]).length)?this.priceChart(true):this.historyPeriodSelector()}<div class="history-summary"><section><details class="observation-accordion" data-history-section="about" ${this.historySectionOpen('about')?'open':''}><summary><h2>${escapeHTML(this.t('About this history'))}</h2></summary><div class="observation-content"><dl class="history-explanation"><div><dt>${escapeHTML(this.t("Recorded data"))}</dt><dd>${escapeHTML(this.t("Room sensors provide the temperatures that were actually measured. The charts also show recorded heating activity and earlier heating suggestions."))}</dd></div><div><dt>${escapeHTML(this.t("Forecast accuracy"))}</dt><dd>${escapeHTML(this.t("Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better."))}</dd></div><div><dt>${escapeHTML(this.t("During simulation"))}</dt><dd>${escapeHTML(this.t("Forecasts assume that ThermalPilot\u2019s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model."))}</dd></div></dl></div></details></section>

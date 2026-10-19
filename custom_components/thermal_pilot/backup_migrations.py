@@ -81,6 +81,9 @@ def normalize_learning(raw, settings):
     if not isinstance(raw, dict) or not isinstance(raw.get('models'), dict):
         raise ValueError('Invalid learning state.')
     state = deepcopy(raw)
+    # A restored archive is not a continuation of the installation's current run.
+    # Old plans may refer to different devices or heating that never took place.
+    state.pop('heating_sessions', None)
     for key,default in STATE_DEFAULTS.items():
         state.setdefault(key,deepcopy(default))
         if not isinstance(state[key], dict):

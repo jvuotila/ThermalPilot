@@ -43,17 +43,46 @@ class PlanChartCard extends Panel{
 class PlanChartEditor extends HTMLElement{
  constructor(){super();this.attachShadow({mode:'open'});this._entries=[];}
  setConfig(value){const next=validate(value),previous=this._config;this._config=next;if(previous&&previous.title===next.title&&previous.entry_id===next.entry_id&&(previous.language||'auto')===(next.language||'auto')&&previous.show_weather===next.show_weather&&previous.show_prices===next.show_prices)return;this.render();}
- set hass(value){this._hass=value;if(!this._asked&&value?.callWS){this._asked=true;value.callWS({type:'thermal_pilot/retention'}).then(result=>{this._entries=result.entries||[];this._integrationLanguage=result.language;this.render();}).catch(()=>{});}}
+ set hass(value){this._hass=value;const form=this.shadowRoot.querySelector('ha-form');if(form)form.hass=value;if(!this._asked&&value?.callWS){this._asked=true;value.callWS({type:'thermal_pilot/retention'}).then(result=>{this._entries=result.entries||[];this._integrationLanguage=result.language;this.render();}).catch(()=>{});}}
  update(patch){this._config={...this._config,...patch};this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:this._config},bubbles:true,composed:true}));}
  render(){
-  if(!this._config)return;const input=this.shadowRoot.activeElement,focus=input?.matches?.('[data-title]')?{start:input.selectionStart,end:input.selectionEnd,direction:input.selectionDirection}:null,language=(this._config.language&&this._config.language!=='auto'?this._config.language:this._integrationLanguage||this._hass?.language||'en'),t=text=>tpI18n.cardText(text,language);tpI18n.watch(this,language);
-  this.shadowRoot.innerHTML=`<style>:host{display:block;color:var(--primary-text-color);font:14px system-ui}label{display:flex;align-items:center;gap:12px;padding:12px 0}input,select{font:inherit;padding:8px;max-width:100%}</style><label>${t("Title (optional)")}<input data-title type="text" value="${esc(this._config.title||'')}"></label><label>${t("Integration")}<select data-entry><option value="">${t("Automatic (single integration)")}</option>${this._entries.map(entry=>`<option value="${esc(entry.entry_id)}" ${entry.entry_id===this._config.entry_id?'selected':''}>${esc(entry.title)}</option>`).join('')}</select></label><label>${t("Language")} <select data-language><option value="auto" ${!this._config.language||this._config.language==='auto'?'selected':''}>${t("Use integration language")}</option>${Object.entries(cardLanguages).sort((a,b)=>a[1].localeCompare(b[1],'en')).map(([code,name])=>`<option value="${code}" ${this._config.language===code?'selected':''}>${esc(name)}</option>`).join('')}</select></label><label><input type="checkbox" data-show-weather ${this._config.show_weather!==false?'checked':''}>${t('Show weather forecast')}</label><label><input type="checkbox" data-show-prices ${this._config.show_prices!==false?'checked':''}>${t('Show electricity prices')}</label>`;
-  this.shadowRoot.querySelector('[data-show-weather]')?.addEventListener('change',event=>this.update({show_weather:event.target.checked}));
-  this.shadowRoot.querySelector('[data-show-prices]')?.addEventListener('change',event=>this.update({show_prices:event.target.checked}));
-  this.shadowRoot.querySelector('[data-title]')?.addEventListener('input',event=>this.update({title:event.target.value}));
-  this.shadowRoot.querySelector('[data-entry]')?.addEventListener('change',event=>this.update({entry_id:event.target.value}));
- this.shadowRoot.querySelector('[data-language]')?.addEventListener('change',event=>this.update({language:event.target.value}));
-  if(focus){const title=this.shadowRoot.querySelector('[data-title]');title?.focus({preventScroll:true});title?.setSelectionRange(focus.start,focus.end,focus.direction);}
+  if(!this._config)return;
+  const language=this._config.language&&this._config.language!=='auto'?this._config.language:this._integrationLanguage||this._hass?.language||'en';
+  const t=text=>tpI18n.cardText(text,language);
+  tpI18n.watch(this,language);
+  const schema=[
+   {name:'title',selector:{text:{}}},
+   ...(this._entries.length>1?[{name:'entry_id',selector:{select:{mode:'dropdown',options:[
+    {value:'',label:t('Automatic (single integration)')},
+    ...this._entries.map(entry=>({value:entry.entry_id,label:entry.title}))
+   ]}}}]:[]),
+   {name:'language',selector:{select:{mode:'dropdown',options:[
+    {value:'auto',label:t('Use integration language')},
+    ...Object.entries(cardLanguages).sort((a,b)=>a[1].localeCompare(b[1],'en')).map(([value,label])=>({value,label}))
+   ]}}},
+   {name:'show_weather',selector:{boolean:{}}},
+   {name:'show_prices',selector:{boolean:{}}}
+  ];
+  const fieldLabels={title:'Title (optional)',entry_id:'Integration',language:'Language',show_weather:'Show weather forecast',show_prices:'Show electricity prices'};
+  const data={title:this._config.title||'',entry_id:this._config.entry_id||'',language:this._config.language||'auto',show_weather:this._config.show_weather!==false,show_prices:this._config.show_prices!==false};
+  // Keep the HA form mounted: rebuilding it during config echoes or a late
+  // integration-list response would interrupt typing and close open menus.
+  let form=this.shadowRoot.querySelector('ha-form');
+  if(!form){
+   this.shadowRoot.innerHTML='<style>:host{display:block;color:var(--primary-text-color)}ha-form{display:block}</style><ha-form></ha-form>';
+   form=this.shadowRoot.querySelector('ha-form');
+   form.addEventListener('value-changed',event=>{
+    event.stopPropagation();
+    const languageChanged=event.detail.value.language!==this._config.language;
+    form.data=event.detail.value;
+    this.update(event.detail.value);
+    if(languageChanged)this.render();
+   });
+  }
+  form.hass=this._hass;
+  form.schema=schema;
+  form.data=data;
+  form.computeLabel=field=>t(fieldLabels[field.name]||field.name);
  }
 }
 if(!customElements.get('thermal-pilot-plan-chart-card'))customElements.define('thermal-pilot-plan-chart-card',PlanChartCard);

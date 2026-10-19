@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.56 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.57 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 

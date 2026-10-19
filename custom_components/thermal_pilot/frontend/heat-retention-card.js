@@ -22,7 +22,21 @@ function config(value){
  if(value.sort_direction!==undefined&&!['asc','desc'].includes(value.sort_direction))throw Error('sort_direction must be asc or desc.');
  return {...value,columns:['room',...new Set((value.columns??optionalColumns).filter(key=>key!=='room'))]};
 }
-const styles=`[data-column="loss_6h"],[data-column="drop_1c"]{text-align:right;font-variant-numeric:tabular-nums}th[data-column="loss_6h"] button,th[data-column="drop_1c"] button{justify-content:flex-end;text-align:right;width:100%}th,td{vertical-align:middle}.status-info{display:inline-block;vertical-align:middle;width:14px;height:14px;margin-left:6px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}.status-info-dot{fill:currentColor;stroke:none}.rating:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:2px}:host{display:block;color:var(--primary-text-color,#213547);font:var(--paper-font-body1_-_font-size,14px) var(--paper-font-body1_-_font-family,system-ui)}ha-card{display:block;overflow:hidden;background:var(--ha-card-background,var(--card-background-color,#f5f9f8));border-radius:var(--ha-card-border-radius,12px);border:1px solid var(--ha-card-border-color,var(--divider-color,#d6dfe2));box-shadow:var(--ha-card-box-shadow,0 2px 5px #0000000a)}.title{font-size:var(--ha-card-header-font-size,20px);font-weight:500;line-height:1.4;margin:0;padding:20px 20px 4px;overflow-wrap:anywhere}.scroll{overflow-x:auto;padding:12px}table{width:100%;border-collapse:collapse;font:inherit;color:inherit}th,td{padding:10px 9px;text-align:left;border-bottom:1px solid var(--divider-color,#d6dfe2);white-space:nowrap}th{background:linear-gradient(#00857714,#00857714),var(--card-background-color,#f5f9f8);font-weight:600}tbody tr:nth-child(even){background:#0085770a}tbody tr.garage{background:linear-gradient(#91785e38,#91785e38),var(--card-background-color,#f5f9f8)}tbody tr:last-child td{border-bottom:0}button{font:inherit;color:inherit;font-weight:inherit;background:none;border:0;padding:0;cursor:pointer;display:inline-flex;gap:6px;align-items:center;text-align:left}button:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:4px}.rating{font-size:12px;font-weight:600;display:inline-block;padding:6px 18px 6px 9px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,0 100%)}.very-fast{background:#f7d5da;color:#922030}.fast{background:#ffdfb0;color:#78410d}.moderate{background:#fff2ac;color:#685614}.slow{background:#dcedc6;color:#375421}.very-slow{background:#bce8cc;color:#1b5935}.learning{background:#e6ecee;color:#526b75;clip-path:none;border-radius:4px;padding-right:9px}.model{padding:5px 9px;border-radius:6px;background:#829aa310}.model.adapting{border-left:3px solid #008577;background:#00857714}.loss{display:inline-block;min-width:0;text-align:right}.bar{display:inline-block;width:60px;height:6px;background:#829aa320;border-radius:6px;margin-right:10px;vertical-align:middle;overflow:hidden}.bar i{display:block;height:100%;background:#438fa5;border-radius:6px}.empty{text-align:center;color:var(--secondary-text-color,#60737b);white-space:normal;padding:20px}@media(max-width:500px){th,td{padding:9px 7px}.bar{display:none}}`;
+const styles=`[data-column="loss_6h"],[data-column="drop_1c"]{text-align:right;font-variant-numeric:tabular-nums}th[data-column="loss_6h"] button,th[data-column="drop_1c"] button{justify-content:flex-end;text-align:right;width:100%}th,td{vertical-align:middle}.status-info{display:inline-block;vertical-align:middle;width:14px;height:14px;margin-left:6px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}.status-info-dot{fill:currentColor;stroke:none}.rating:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:2px}:host{display:block;min-width:0;container-type:inline-size;color:var(--primary-text-color,#213547);font:var(--paper-font-body1_-_font-size,14px) var(--paper-font-body1_-_font-family,system-ui)}ha-card{display:block;overflow:hidden;background:var(--ha-card-background,var(--card-background-color,#f5f9f8));border-radius:var(--ha-card-border-radius,12px);border:1px solid var(--ha-card-border-color,var(--divider-color,#d6dfe2));box-shadow:var(--ha-card-box-shadow,0 2px 5px #0000000a)}.title{font-size:var(--ha-card-header-font-size,20px);font-weight:500;line-height:1.4;margin:0;padding:20px 20px 4px;overflow-wrap:anywhere}.scroll{overflow-x:auto;padding:12px}table{width:100%;border-collapse:collapse;font:inherit;color:inherit}th,td{padding:10px 9px;text-align:left;border-bottom:1px solid var(--divider-color,#d6dfe2);white-space:nowrap}th{background:linear-gradient(#00857714,#00857714),var(--card-background-color,#f5f9f8);font-weight:600}tbody tr:nth-child(even){background:#0085770a}tbody tr.garage{background:linear-gradient(#91785e38,#91785e38),var(--card-background-color,#f5f9f8)}tbody tr:last-child td{border-bottom:0}button{font:inherit;color:inherit;font-weight:inherit;background:none;border:0;padding:0;cursor:pointer;display:inline-flex;gap:6px;align-items:center;text-align:left}button:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:4px}.rating{font-size:12px;font-weight:600;display:inline-block;padding:6px 18px 6px 9px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,0 100%)}.very-fast{background:#f7d5da;color:#922030}.fast{background:#ffdfb0;color:#78410d}.moderate{background:#fff2ac;color:#685614}.slow{background:#dcedc6;color:#375421}.very-slow{background:#bce8cc;color:#1b5935}.learning{background:#e6ecee;color:#526b75;clip-path:none;border-radius:4px;padding-right:9px}.model{padding:5px 9px;border-radius:6px;background:#829aa310}.model.adapting{border-left:3px solid #008577;background:#00857714}.loss{display:inline-block;min-width:0;text-align:right}.bar{display:inline-block;width:60px;height:6px;background:#829aa320;border-radius:6px;margin-right:10px;vertical-align:middle;overflow:hidden}.bar i{display:block;height:100%;background:#438fa5;border-radius:6px}.empty{text-align:center;color:var(--secondary-text-color,#60737b);white-space:normal;padding:20px}`;
+// HA's editor preview can be narrow even on a wide desktop screen. Base the
+// compact table on the card width so selected columns remain visible there too.
+const compactStyles=`@container(max-width:650px){
+ .scroll{padding:8px}
+ table{table-layout:fixed;font-size:12px}
+ th,td{padding:9px 5px;white-space:normal;overflow-wrap:anywhere}
+ th button{width:100%;gap:3px;align-items:flex-start}
+ th button span:first-child{min-width:0}
+ th button span[aria-hidden]{flex-shrink:0}
+ .bar{display:none}
+ .rating,.model{box-sizing:border-box;max-width:100%;padding:5px 6px;white-space:normal}
+ .rating{clip-path:none;border-radius:4px}
+ .status-info{margin-left:3px;width:12px;height:12px}
+}`;
 class RetentionCard extends HTMLElement{
  constructor(){super();this.attachShadow({mode:'open'});this._config=config({});this._sort={key:'loss_6h',direction:1};this._request=0;this._connected=false;}
  static getConfigElement(){return document.createElement('thermal-pilot-heat-retention-card-editor');}
@@ -63,7 +77,7 @@ class RetentionCard extends HTMLElement{
   if(!this.shadowRoot)return;const columns=this._config.columns,rooms=this.sortedRooms();
   const max=Math.max(.01,...rooms.map(room=>Number.isFinite(room.heat_retention?.drop_6h)?room.heat_retention.drop_6h:0));
   const message=this._error||(this._data?.requires_selection?'Choose a ThermalPilot integration in the card settings.':!this._data?'Loading…':!this._data.entries?.length?'ThermalPilot is not loaded.':'No room estimates yet.');
-  this.shadowRoot.innerHTML=`<style>${styles}</style><ha-card>${this._config.title?.trim()?`<h2 class="title">${esc(this._config.title)}</h2>`:''}<div class="scroll"><table><thead><tr>${columns.map(key=>key==='model'?`<th scope="col">${esc(this.t(labels[key]))}</th>`:`<th scope="col" data-column="${key}" aria-sort="${this._sort.key===key?(this._sort.direction===1?'ascending':'descending'):'none'}"><button data-sort="${key}"><span>${esc(this.t(labels[key]))}</span><span aria-hidden="true">${this._sort.key===key?(this._sort.direction===1?'↑':'↓'):'↕'}</span></button></th>`).join('')}</tr></thead><tbody>${!this._error&&rooms.length?rooms.map(room=>`<tr class="${room.is_garage?'garage':''}">${columns.map(key=>`<td data-column="${key}">${this.cell(key,room,max)}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty" colspan="${columns.length}">${esc(this.t(message))}</td></tr>`}</tbody></table></div></ha-card>`;
+  this.shadowRoot.innerHTML=`<style>${styles}${compactStyles}</style><ha-card>${this._config.title?.trim()?`<h2 class="title">${esc(this._config.title)}</h2>`:''}<div class="scroll"><table><thead><tr>${columns.map(key=>key==='model'?`<th scope="col">${esc(this.t(labels[key]))}</th>`:`<th scope="col" data-column="${key}" aria-sort="${this._sort.key===key?(this._sort.direction===1?'ascending':'descending'):'none'}"><button data-sort="${key}"><span>${esc(this.t(labels[key]))}</span><span aria-hidden="true">${this._sort.key===key?(this._sort.direction===1?'↑':'↓'):'↕'}</span></button></th>`).join('')}</tr></thead><tbody>${!this._error&&rooms.length?rooms.map(room=>`<tr class="${room.is_garage?'garage':''}">${columns.map(key=>`<td data-column="${key}">${this.cell(key,room,max)}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty" colspan="${columns.length}">${esc(this.t(message))}</td></tr>`}</tbody></table></div></ha-card>`;
   this.shadowRoot.querySelectorAll('[data-retention-history]').forEach(value=>{
    const open=event=>{event.preventDefault();event.stopPropagation();this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:value.dataset.retentionHistory},bubbles:true,composed:true}));};
    value.addEventListener('click',open);value.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')open(event);});
@@ -80,15 +94,48 @@ class RetentionEditor extends HTMLElement{
   if(previous&&previous.title===next.title&&previous.entry_id===next.entry_id&&(previous.language||'auto')===(next.language||'auto')&&JSON.stringify(previous.columns)===JSON.stringify(next.columns))return;
   this.render();
  }
- set hass(value){this._hass=value;if(!this._asked&&value?.callWS){this._asked=true;value.callWS({type:'thermal_pilot/retention'}).then(data=>{this._entries=data.entries||[];this._integrationLanguage=data.language;this.render();}).catch(()=>{});}}
+ set hass(value){this._hass=value;const form=this.shadowRoot.querySelector('ha-form');if(form)form.hass=value;if(!this._asked&&value?.callWS){this._asked=true;value.callWS({type:'thermal_pilot/retention'}).then(data=>{this._entries=data.entries||[];this._integrationLanguage=data.language;this.render();}).catch(()=>{});}}
  update(patch){this._config={...this._config,...patch};this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:{...this._config,columns:this._config.columns.filter(key=>key!=='room')}},bubbles:true,composed:true}));}
- render(){if(!this._config)return;const active=this.shadowRoot.activeElement;const titleFocus=active?.matches?.('[data-title]')?{start:active.selectionStart,end:active.selectionEnd,direction:active.selectionDirection}:null;const language=this._config.language&&this._config.language!=='auto'?this._config.language:this._integrationLanguage||this._hass?.language||'en',t=text=>tpI18n.cardText(text,language);tpI18n.watch(this,language);
- this.shadowRoot.innerHTML=`<style>:host{display:block;color:var(--primary-text-color);font:14px system-ui}label{display:flex;gap:10px;align-items:center;padding:10px 0}select,input[type=text]{padding:8px;max-width:100%;font:inherit}fieldset{border:1px solid var(--divider-color,#aaa);margin:12px 0;padding:12px}</style><label>${t("Title (optional)")} <input type="text" data-title value="${esc(this._config.title||'')}"></label><label>${t("Integration")} <select data-entry><option value="">${t("Automatic (single integration)")}</option>${this._entries.map(entry=>`<option value="${esc(entry.entry_id)}" ${entry.entry_id===this._config.entry_id?'selected':''}>${esc(entry.title)}</option>`).join('')}</select></label><label>${t("Language")} <select data-language><option value="auto" ${!this._config.language||this._config.language==='auto'?'selected':''}>${t("Use integration language")}</option>${Object.entries(cardLanguages).sort((a,b)=>a[1].localeCompare(b[1],'en')).map(([code,name])=>`<option value="${code}" ${this._config.language===code?'selected':''}>${esc(name)}</option>`).join('')}</select></label><fieldset><legend>${t("Visible columns")}</legend><label><input type="checkbox" checked disabled>${t('Room')} (${t("required")})</label>${optionalColumns.map(key=>`<label><input type="checkbox" data-column="${key}" ${this._config.columns.includes(key)?'checked':''}>${t(labels[key])}</label>`).join('')}</fieldset>`;
- this.shadowRoot.querySelector('[data-title]')?.addEventListener('input',event=>this.update({title:event.target.value}));
- this.shadowRoot.querySelector('[data-entry]')?.addEventListener('change',event=>this.update({entry_id:event.target.value}));
- this.shadowRoot.querySelector('[data-language]')?.addEventListener('change',event=>this.update({language:event.target.value}));
- this.shadowRoot.querySelectorAll('[data-column]').forEach(input=>input.addEventListener('change',()=>this.update({columns:['room',...Array.from(this.shadowRoot.querySelectorAll('[data-column]')).filter(item=>item.checked).map(item=>item.dataset.column)]})));
- if(titleFocus){const input=this.shadowRoot.querySelector('[data-title]');input?.focus({preventScroll:true});input?.setSelectionRange(titleFocus.start,titleFocus.end,titleFocus.direction);}
+ render(){
+  if(!this._config)return;
+  const language=this._config.language&&this._config.language!=='auto'?this._config.language:this._integrationLanguage||this._hass?.language||'en';
+  const t=text=>tpI18n.cardText(text,language);
+  tpI18n.watch(this,language);
+  const schema=[
+   {name:'title',selector:{text:{}}},
+   ...(this._entries.length>1?[{name:'entry_id',selector:{select:{mode:'dropdown',options:[
+    {value:'',label:t('Automatic (single integration)')},
+    ...this._entries.map(entry=>({value:entry.entry_id,label:entry.title}))
+   ]}}}]:[]),
+   {name:'language',selector:{select:{mode:'dropdown',options:[
+    {value:'auto',label:t('Use integration language')},
+    ...Object.entries(cardLanguages).sort((a,b)=>a[1].localeCompare(b[1],'en')).map(([value,label])=>({value,label}))
+   ]}}},
+   {name:'columns',selector:{select:{multiple:true,mode:'list',options:
+    optionalColumns.map(value=>({value,label:t(labels[value])}))
+   }}}
+  ];
+  const fieldLabels={title:'Title (optional)',entry_id:'Integration',language:'Language',columns:'Visible columns'};
+  const data={title:this._config.title||'',entry_id:this._config.entry_id||'',language:this._config.language||'auto',columns:this._config.columns.filter(key=>key!=='room')};
+  // Keep the HA form mounted: rebuilding it during config echoes or a late
+  // integration-list response would interrupt typing and close open menus.
+  let form=this.shadowRoot.querySelector('ha-form');
+  if(!form){
+   this.shadowRoot.innerHTML='<style>:host{display:block;color:var(--primary-text-color)}ha-form{display:block}</style><ha-form></ha-form>';
+   form=this.shadowRoot.querySelector('ha-form');
+   form.addEventListener('value-changed',event=>{
+    event.stopPropagation();
+    const languageChanged=event.detail.value.language!==this._config.language;
+    form.data=event.detail.value;
+    this.update(event.detail.value);
+    if(languageChanged)this.render();
+   });
+  }
+  form.hass=this._hass;
+  form.schema=schema;
+  form.data=data;
+  form.computeLabel=field=>t(fieldLabels[field.name]||field.name);
+  form.computeHelper=field=>field.name==='columns'?`${t('Room')} (${t('required')})`:'';
  }
 }
 if(!customElements.get('thermal-pilot-heat-retention-card'))customElements.define('thermal-pilot-heat-retention-card',RetentionCard);

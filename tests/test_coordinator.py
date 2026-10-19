@@ -304,6 +304,151 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.c.forecast_type,'daily')
         self.assertEqual([call.args[2]['type'] for call in self.hass.services.async_call.await_args_list],['hourly','twice_daily','daily'])
 
+    async def checkpointed_restart(self, live=False):
+        """Restart ten minutes into a published one-hour target window."""
+        from thermal_pilot.model import thermostat_timing
+        self.c.settings.update(simulation_enabled=not live, live_control_confirmed=live)
+        room_id = self.c.settings['rooms'][0]['id']
+        start = now + timedelta(minutes=15)
+        end = start + timedelta(hours=1)
+        current = start + timedelta(minutes=10)
+        planned = thermostat_timing(
+            [{'start': start.isoformat(), 'end': end.isoformat(), 'heat': True, 'mode': 'boost'}],
+            self.c.settings, 20, current,
+        )
+        self.c.suggested_runs[room_id] = {
+            'heat': True, 'mode': 'boost', 'since': start.timestamp(),
+        }
+        await self.c.save_heating_sessions({'rooms': {room_id: {'plan': planned}}}, current)
+        self.assertIn(room_id, self.c.store.saved['heating_sessions'])
+        entry = types.SimpleNamespace(entry_id='test', data=deepcopy(self.c.settings), options={})
+        restarted = PilotCoordinator(self.hass, entry)
+        restarted.store.saved = deepcopy(self.c.store.saved)
+        await restarted.load()
+        return restarted, room_id, start, end, current
+
+    async def test_restart_keeps_started_session_in_simulation_and_live_control(self):
+        for live in (False, True):
+            restarted, room_id, start, end, current = await self.checkpointed_restart(live)
+            self.hass.states['sensor.room'].state = '22'
+            self.hass.states['sensor.price'].attributes['today'] = [100] * 96
+            self.hass.services.async_call.reset_mock()
+            self.assertEqual(restarted.committed_session(room_id, current)['start'], start.isoformat())
+            with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=current):
+                data = await restarted._async_update_data()
+            planned = data['rooms'][room_id]['plan']
+            self.assertTrue(planned['heat'])
+            self.assertEqual(planned['sessions'][0]['start'], start.isoformat())
+            self.assertGreaterEqual(datetime.fromisoformat(planned['sessions'][0]['end']), end)
+            if live:
+                self.assertEqual(self.hass.services.async_call.call_args.args[2]['temperature'], planned['setpoint'])
+            else:
+                self.hass.services.async_call.assert_not_awaited()
+
+    async def test_restart_after_session_closing_preserves_pause_then_expires(self):
+        restarted, room_id, start, end, current = await self.checkpointed_restart()
+        closing = end - timedelta(minutes=restarted.settings['stop_offset_minutes'])
+        paused_at = closing + timedelta(minutes=2)
+        self.assertIsNone(restarted.committed_session(room_id, paused_at))
+        self.assertEqual(restarted.boost_resume_after(room_id, paused_at),
+                         (closing + timedelta(minutes=15)).isoformat())
+        # A new off plan must not erase the just-ended window from disk.
+        await restarted.save_heating_sessions({'rooms': {room_id: {'plan': {
+            'sessions': [], 'thermostat_windows': []}}}}, paused_at)
+        reloaded = PilotCoordinator(self.hass, restarted.entry)
+        reloaded.store.saved = deepcopy(restarted.store.saved)
+        await reloaded.load()
+        self.assertEqual(reloaded.boost_resume_after(room_id, paused_at),
+                         (closing + timedelta(minutes=15)).isoformat())
+        self.assertIsNone(reloaded.boost_resume_after(room_id, closing + timedelta(minutes=15)))
+        self.assertIsNone(reloaded.committed_session(room_id, end + timedelta(hours=1)))
+
+    async def test_failed_checkpoint_save_does_not_publish_unpersisted_session(self):
+        from thermal_pilot.model import thermostat_timing
+        room_id = self.c.settings['rooms'][0]['id']
+        planned = thermostat_timing(
+            [{'start': now.isoformat(), 'end': (now + timedelta(hours=1)).isoformat(),
+              'heat': True, 'mode': 'boost'}], self.c.settings, 20, now,
+        )
+        data = {'rooms': {room_id: {'plan': planned}}}
+        self.c.store.async_save = AsyncMock(side_effect=OSError('disk unavailable'))
+        with self.assertRaises(OSError):
+            await self.c.save_heating_sessions(data, now)
+        self.assertEqual(self.c.session_plans, {})
+        self.c.store.async_save.side_effect = None
+        await self.c.save_heating_sessions(data, now)
+        self.assertEqual(self.c.store.async_save.await_count, 2)
+        self.assertIn(room_id, self.c.session_plans)
+
+    async def test_secondary_zone_session_uses_stable_zone_identity_after_restart(self):
+        from thermal_pilot.const import ZONE_DEFAULTS
+        from thermal_pilot.model import thermostat_timing
+        zone_id = '22222222-2222-4222-8222-222222222222'
+        primary_room = self.c.settings['rooms'][0]
+        primary_room['heating_zone_id'] = zone_id
+        self.c.settings['heating_zones'] = [{
+            **ZONE_DEFAULTS, 'id': zone_id, 'name': 'Zone', 'source_type': 'air_to_air',
+            'thermostat': 'climate.zone', 'main_room_id': primary_room['id'],
+        }]
+        start = now + timedelta(minutes=15)
+        end = start + timedelta(hours=1)
+        current = start + timedelta(minutes=10)
+        planned = thermostat_timing(
+            [{'start': start.isoformat(), 'end': end.isoformat(), 'heat': True, 'mode': 'boost'}],
+            {**self.c.settings, 'start_offset_minutes': 0, 'stop_offset_minutes': 0}, 20, current,
+        )
+        await self.c.save_heating_sessions({'zones': {zone_id: {'plan': planned}}}, current)
+        entry = types.SimpleNamespace(entry_id='test', data=deepcopy(self.c.settings), options={})
+        restarted = PilotCoordinator(self.hass, entry)
+        restarted.store.saved = deepcopy(self.c.store.saved)
+        await restarted.load()
+        self.assertEqual(restarted.committed_session('zone:' + zone_id, current)['end'], end.isoformat())
+
+    async def test_long_outage_discards_expired_session_checkpoint(self):
+        restarted, room_id, start, end, current = await self.checkpointed_restart()
+        entry = types.SimpleNamespace(entry_id='test', data=deepcopy(restarted.settings), options={})
+        expired = PilotCoordinator(self.hass, entry)
+        expired.store.saved = deepcopy(restarted.store.saved)
+        with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=end + timedelta(hours=1)):
+            await expired.load()
+        self.assertEqual(expired.session_plans, {})
+        self.assertNotIn(room_id, expired.suggested_runs)
+
+    async def test_changed_heating_policy_does_not_reuse_restart_commitment(self):
+        for change in ('thermostat', 'baseline', 'minimum_run_minutes'):
+            restarted, room_id, start, end, current = await self.checkpointed_restart()
+            saved = deepcopy(restarted.store.saved)
+            settings = deepcopy(restarted.settings)
+            if change == 'thermostat':
+                settings['rooms'][0]['thermostat'] = 'climate.replacement'
+            elif change == 'baseline':
+                settings['rooms'][0]['baseline'] = 21
+            else:
+                settings['minimum_run_minutes'] = 90
+            entry = types.SimpleNamespace(entry_id='test', data=settings, options={})
+            changed = PilotCoordinator(self.hass, entry)
+            changed.store.saved = saved
+            await changed.load()
+            self.assertIsNone(changed.committed_session(room_id, current))
+            self.assertNotIn(room_id, changed.suggested_runs)
+
+    async def test_disabling_heating_clears_persisted_session(self):
+        restarted, room_id, start, end, current = await self.checkpointed_restart()
+        restarted.settings['heating_enabled'] = False
+        with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=current):
+            data = await restarted._async_update_data()
+        self.assertFalse(data['heating_active'])
+        self.assertEqual(restarted.store.saved['heating_sessions'], {})
+
+    async def test_missing_inputs_still_use_fallback_during_restored_session(self):
+        restarted, room_id, start, end, current = await self.checkpointed_restart(live=True)
+        self.hass.states['sensor.out'].state = 'unavailable'
+        self.hass.services.async_call.reset_mock()
+        with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=current):
+            data = await restarted._async_update_data()
+        self.assertIn('Study', data['control']['fallback_rooms'])
+        self.assertEqual(self.hass.services.async_call.call_args.args[2]['temperature'], 20)
+
     async def asyncSetUp(self):
         self.temp=tempfile.TemporaryDirectory();self.hass=Hass(self.temp.name)
         room={**ROOM_DEFAULTS,'id':'11111111-1111-4111-8111-111111111111','name':'Study','thermostat':'climate.room','temperature_entity':'sensor.room'}

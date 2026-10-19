@@ -48,3 +48,9 @@ They check identities, learning evidence, history, missing fields, simulated fut
 settings, renamed-setting migration, history-column migration, and rejection of
 unsupported schemas and broken references. Every breaking schema change must extend
 these tests and restore **all earlier fixtures through the complete import path**.
+
+Local HA restarts retain optional `heating_sessions` checkpoints so published
+session windows and recent pause boundaries survive reloads. These are transient
+control state, not learned model parameters. Backup restore discards them: an
+archive must never resume an old session on a potentially different installation.
+Older backups without this field remain supported without a schema migration.

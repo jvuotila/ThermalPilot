@@ -1,7 +1,7 @@
 const {readFrontendSource}=require('./frontend_source.cjs');
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
 const definitions=new Map(),timers=new Set();let timer=0;
-class Element{attachShadow(){this.shadowRoot={innerHTML:'',querySelector:()=>null,querySelectorAll:()=>[]};}dispatchEvent(event){this.event=event;}}
+class Element{attachShadow(){this.form={addEventListener(type,handler){this[type]=handler;}};this.shadowRoot={innerHTML:'',querySelector:selector=>selector==='ha-form'&&this.shadowRoot.innerHTML.includes('<ha-form>')?this.form:null,querySelectorAll:()=>[]};}dispatchEvent(event){this.event=event;}}
 const context={HTMLElement:Element,customElements:{get:name=>definitions.get(name),define:(name,value)=>definitions.set(name,value)},setInterval:()=>{timers.add(++timer);return timer;},clearInterval:id=>timers.delete(id),console,CustomEvent:class{constructor(type,options){this.type=type;Object.assign(this,options);}},Date,structuredClone};vm.createContext(context);
 const base=path.join(__dirname,'../custom_components/thermal_pilot/frontend/');vm.runInContext(readFrontendSource(base+'panel.js'),context);vm.runInContext(readFrontendSource(base+'plan-chart-card.js').replace(/^await import\(.*$/m,''),context);
 const Card=definitions.get('thermal-pilot-plan-chart-card'),Editor=definitions.get('thermal-pilot-plan-chart-card-editor'),now=Date.now();
@@ -29,7 +29,23 @@ response.data.zones={zone:{plan:structuredClone(response.data.rooms.room.plan)}}
  languageCard._config.language='auto';languageCard.render();assert.equal(languageCard.t('Rooms'),'Huoneet');
  languageCard._config.language='de';languageCard.render();assert.notEqual(languageCard.t('Rooms'),'Rooms');
  assert.equal(response.settings.language,'en');assert.throws(()=>languageCard.setConfig({language:'invalid'}),/Invalid card language/);
- const languageEditor=new Editor();languageEditor.setConfig({language:'fi'});assert.match(languageEditor.shadowRoot.innerHTML,/data-language/);assert.match(languageEditor.shadowRoot.innerHTML,/value="fi" selected/);assert.match(languageEditor.shadowRoot.innerHTML,/value="auto"/);assert.match(languageEditor.shadowRoot.innerHTML,/value="hu"/);
+ // Hide the integration choice until there is a real choice; retain saved selection.
+ const integrationEditor=new Editor();integrationEditor.setConfig({entry_id:'home'});
+ for(const entries of [[],[{entry_id:'home',title:'Home'}]]){
+  integrationEditor._entries=entries;integrationEditor.render();
+  assert.ok(!integrationEditor.form.schema.some(field=>field.name==='entry_id'));
+  assert.equal(integrationEditor.form.data.entry_id,'home');
+ }
+ integrationEditor._entries=[{entry_id:'home',title:'Home'},{entry_id:'second',title:'Second'}];integrationEditor.render();
+ assert.ok(integrationEditor.form.schema.some(field=>field.name==='entry_id'));
+ const languageEditor=new Editor();languageEditor.setConfig({language:'fi'});
+ assert.equal(languageEditor.form.data.language,'fi');assert.equal(languageEditor.form.computeLabel({name:'language'}),'Kieli');
+ const options=languageEditor.form.schema.find(field=>field.name==='language').selector.select.options;
+ assert.ok(options.some(option=>option.value==='auto'));assert.ok(options.some(option=>option.value==='hu'));
+ assert.ok(languageEditor.form.schema.find(field=>field.name==='show_prices').selector.boolean);
+ languageEditor.form['value-changed']({stopPropagation(){},detail:{value:{title:'Plan',show_weather:false,show_prices:true,language:'fi',entry_id:'home'}}});
+ assert.equal(languageEditor.event.detail.config.show_weather,false);assert.equal(languageEditor.event.detail.config.entry_id,'home');
+
  console.log('Plan dashboard card passed: shared renderer, compact content, title, timelines and plans, resizing, language, read-only refresh, cleanup and stable editor.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
 
@@ -58,7 +74,7 @@ for(const weather of [false,true])for(const prices of [false,true]){
 }
 for(const key of ['show_weather','show_prices'])assert.throws(()=>weatherCard.setConfig({[key]:'false'}),/must be a boolean/);
 const weatherEditor=new Editor();weatherEditor.setConfig({show_weather:false,show_prices:true});
-assert.match(weatherEditor.shadowRoot.innerHTML,/data-show-weather/);assert.match(weatherEditor.shadowRoot.innerHTML,/data-show-prices checked/);
-weatherEditor.setConfig({show_weather:true,show_prices:false});assert.match(weatherEditor.shadowRoot.innerHTML,/data-show-weather checked/);
-assert.doesNotMatch(weatherEditor.shadowRoot.innerHTML,/data-show-prices checked/);
+assert.equal(weatherEditor.form.data.show_weather,false);assert.equal(weatherEditor.form.data.show_prices,true);
+weatherEditor.setConfig({show_weather:true,show_prices:false});assert.equal(weatherEditor.form.data.show_weather,true);
+assert.equal(weatherEditor.form.data.show_prices,false);
 console.log('Plan card independently configures weather and electricity prices; all four combinations preserve heating timelines and editor state.');

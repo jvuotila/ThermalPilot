@@ -183,6 +183,15 @@ class BackupCompatibilityTests(unittest.TestCase):
                 for table,count in [('observations',2),('zone_observations',1),('forecasts',1),('season_accumulators',1),('season_summaries',1)]:
                     self.assertEqual(db.execute(f'SELECT COUNT(*) FROM {table}').fetchone()[0],count)
                 self.assertEqual(db.execute('SELECT zone_id FROM zone_observations').fetchone()[0],zone_id)
+    def test_backup_restore_discards_runtime_heating_sessions(self):
+        from thermal_pilot.backup_migrations import migrate_document
+        from copy import deepcopy
+        document = deepcopy(self.legacy)
+        document['state']['heating_sessions'] = {'old-room': {'sessions': [{'start': 'old'}]}}
+        restored = migrate_document(document)
+        self.assertNotIn('heating_sessions', restored['state'])
+        self.assertEqual(restored['state']['models'].keys(), self.legacy['state']['models'].keys())
+
     def test_missing_optional_fields_and_learning_sections_get_safe_defaults(self):
         from thermal_pilot.backup_migrations import migrate_document
         old=json.loads(json.dumps(self.legacy))
