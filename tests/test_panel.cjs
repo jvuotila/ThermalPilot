@@ -1490,3 +1490,16 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  width=400;notify([{target:svg}]);assert.equal(svg.attributes.viewBox,'0 0 400 195');assert.equal(label.attributes.x,'380');assert.equal(line.attributes.points,'70,150 380,40');
  responsive.shadowRoot.querySelectorAll=()=>[];responsive.bindResponsiveTemperatureCharts();assert.equal(disconnected,true);context.ResizeObserver=previous;
 }
+
+// Routine scheduling explanations stay hidden; actionable warnings and errors remain visible.
+{
+ const room=Object.values(compactPlanPanel.info.data.rooms).find(room=>room.plan);
+ const original=room.plan.reason,originalError=room.error;
+ for(const reason of ['Heat storage or a bridging run ahead of predicted cooling.','Heating is planned later; no boost is suggested now.']){
+  room.plan.reason=reason;assert(!compactPlanPanel.overview().includes(reason));
+ }
+ room.plan.reason='Temperature limit risk: review model assumptions and heating capacity.';
+ assert.match(compactPlanPanel.overview(),/Temperature limit risk:/);
+ room.error='Thermostat unavailable';assert.match(compactPlanPanel.overview(),/Thermostat unavailable/);
+ room.plan.reason=original;room.error=originalError;
+}
