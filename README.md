@@ -6,7 +6,7 @@ response and shows proposed schedules before you enable real control.
 
 Version **0.9.52 — experimental simulation-first Home Assistant custom integration**.
 
-![Electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
+![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
 ## Why I built this
 

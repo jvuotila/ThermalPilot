@@ -23,7 +23,7 @@ defaults or measured performance claims.
 
 ### Room history
 
-![Observed heating and saved one-, three- and six-hour forecast accuracy](screenshots/room-history.png)
+![Measured temperatures, saved forecasts, current plan forecasts and mean errors for one-, three- and six-hour horizons](screenshots/room-history.png)
 
 </details>
 
@@ -44,7 +44,7 @@ defaults or measured performance claims.
 
 ### Rooms
 
-![Room settings with an expanded room and the architectural floor-plan background](screenshots/rooms-settings.png)
+![Room settings with expanded room and garage controls](screenshots/rooms-settings.png)
 
 ### Zones
 
