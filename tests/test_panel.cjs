@@ -561,6 +561,10 @@ assert.match(initialBadgePanel.learningBadge(forecastBadgeRoom),/not a live-cont
 assert.doesNotMatch(initialBadgePanel.learningBadge(forecastBadgeRoom),/100% initial data/);
 initialBadgePanel.settings={language:'fi'};
 assert.match(initialBadgePanel.learningBadge(forecastBadgeRoom),/Ennuste: Kohtalainen · 0,10 °C/);
+assert.match(initialBadgePanel.learningBadge(forecastBadgeRoom),/Muuttumattoman lämpötilan oletus oli yhtä hyvä tai parempi/);
+assert.doesNotMatch(initialBadgePanel.learningBadge(forecastBadgeRoom),/Assuming no temperature change/);
+const missingBenchmarkRoom=structuredClone(forecastBadgeRoom);delete missingBenchmarkRoom.forecast_accuracy['3'].persistence_mae;
+assert.match(initialBadgePanel.learningBadge(missingBenchmarkRoom),/Vertailutulos puuttuu, joten luokitus ei ole vihreä/);
 initialBadgePanel.settings.house_heat_source='gas_boiler';assert.equal(initialBadgePanel.learningBadge(forecastBadgeRoom),'');
 console.log('Completed collection forecast badges passed: measured MAE, evidence context, benchmark, Finnish and no readiness claim.');
 
@@ -1437,7 +1441,7 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
    const html=projected.forecastHistoryView(history,'room');assert.match(html,/data-current-plan-forecast/);assert.match(html,/data-temperature-now/);assert.match(html,/Current plan forecast/);
    const ticks=Array.from(html.matchAll(/data-temperature-time-tick="([^"]+)"/g),m=>Number(m[1]));assert(ticks.length>=12&&ticks.length<=16);
    for(const tick of ticks){const date=new Date(tick*1000);assert.equal(date.getMinutes(),0);assert.equal(date.getHours()%2,0);}
-   assert.doesNotMatch(html,/data-forecast-scroll|min-width:[1-9][0-9]+px/);
+   assert.doesNotMatch(html,/data-forecast-scroll|min-width:[1-9][0-9]+px/);assert.match(html,/data-responsive-temperature/);
   }
   projected.forecastHours=3;projected.historyHours=168;
   const week=projected.forecastHistoryView(history,'room');
@@ -1449,7 +1453,7 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
   projected.forecastHistoryView([...history,{time:fixed/1000-86400,temperature:19},{time:fixed/1000+60,temperature:30}],'room');
   assert.equal(selectedRows.length,2);assert.equal(range.rangeStart,fixed/1000-86400);assert.equal(range.rangeEnd,fixed/1000+3*3600);
   projected.chart=renderChart;projected.clientWidth=375;
-  const mobile=projected.forecastHistoryView(history,'room');assert.match(mobile,/viewBox="0 0 247 195"/);assert.doesNotMatch(mobile,/min-width:|data-forecast-scroll/);
+  const mobile=projected.forecastHistoryView(history,'room');assert.match(mobile,/viewBox="0 0 247 195"/);assert.doesNotMatch(mobile,/min-width:[1-9][0-9]*px|data-forecast-scroll|preserveAspectRatio="none"/);assert.match(mobile,/data-responsive-temperature/);
   projected.clientWidth=0;
   assert.equal(JSON.stringify(history),unchanged);
   projected.info.data.rooms.room.plan.slots=slots.slice(0,2);assert.equal(projected.currentPlanForecast('room',6).at(-1).time,Date.parse(slots[1].end)/1000);

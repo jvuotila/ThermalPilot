@@ -29,6 +29,13 @@ function runtime(fetch){
    assert.ok(catalog[section]);assert.ok(Object.values(catalog[section]).every(value=>typeof value==='string'));
   }
  }
+ for(const code of Object.keys(catalogs)){
+  await i18n.load(code);
+  for(const key of ['Assuming no temperature change performed equally well or better, so the rating is not green.','The benchmark is unavailable, so the rating is not green.']){
+   assert.equal(i18n.translateText(key,code),catalogs[code].messages[key],code+' forecast rating explanation');
+   if(code!=='en')assert.notEqual(i18n.translateText(key,code),key);
+  }
+ }
  const zoneWords={en:'Zones',fi:'Vyöhykkeet',sv:'Zoner',nb:'Soner',da:'Zoner',de:'Zonen',pt:'Zonas',es:'Zonas',fr:'Zones',et:'Tsoonid',lv:'Zonas',lt:'Zonos',pl:'Strefy',it:'Zone',nl:'Zones',is:'Svæði',ro:'Zone',cs:'Zóny',sk:'Zóny',bg:'Зони',sr:'Зоне',hr:'Zone',el:'Ζώνες',sq:'Zonat',hu:'Zónák'};
  const zoneRuntime=runtime(async url=>{const code=new URL(url).pathname.split('/').at(-1).replace('.json','');return {ok:true,json:async()=>catalogs[code]};});
  for(const [code,word] of Object.entries(zoneWords)){
