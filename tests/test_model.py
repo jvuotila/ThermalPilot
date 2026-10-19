@@ -490,3 +490,34 @@ class FireplaceStateSettingsTests(unittest.TestCase):
         for value in ['on','off']:
             self.assertEqual(validate({**payload,'fireplace_active_state':value},hass)['fireplace_active_state'],value)
         with self.assertRaises(ValueError):validate({**payload,'fireplace_active_state':'Open'},hass)
+
+
+class MinimumPauseTests(unittest.TestCase):
+    room=PlannerTests.room
+    slots=PlannerTests.slots
+    def test_advance_offsets_never_shorten_planned_pause_below_fifteen_minutes(self):
+        slots=self.slots(([1]*4+[80])*6,15)
+        for start_offset,stop_offset in [(0,0),(5,5),(20,0),(7,12)]:
+            room=self.room(minimum_pause_minutes=15,start_offset_minutes=start_offset,stop_offset_minutes=stop_offset,terminal_reserve_hours=0)
+            result=plan(room,initial_model(room),20.5,[-15]*len(slots),slots,NOW,20)
+            windows=result['thermostat_windows']
+            self.assertGreaterEqual(len(windows),2)
+            for left,right in zip(windows,windows[1:]):
+                self.assertGreaterEqual((datetime.fromisoformat(right['start'])-datetime.fromisoformat(left['end'])).total_seconds(),15*60)
+
+    def test_recent_closing_command_cannot_reopen_at_next_five_minute_replan(self):
+        current=NOW+timedelta(minutes=7);resume=NOW+timedelta(minutes=20)
+        slots=self.slots(([1]*4+[80])*6,15);slots=[slot for slot in slots if slot.end>current]
+        room=self.room(minimum_pause_minutes=15,start_offset_minutes=5,stop_offset_minutes=5,terminal_reserve_hours=0,previous_suggested_heat=True,previous_control_mode='boost',previous_run_hours=.9,boost_resume_after=resume.isoformat())
+        result=plan(room,initial_model(room),20.5,[-15]*len(slots),slots,current,20)
+        self.assertTrue(result['thermostat_windows'])
+        self.assertFalse(result['heat'])
+        self.assertTrue(all(datetime.fromisoformat(window['start'])>=resume for window in result['thermostat_windows']))
+
+    def test_elapsed_pause_counts_actual_minutes_not_slot_count(self):
+        current=NOW+timedelta(minutes=12)
+        slots=self.slots(([1]*4+[80])*6,15);slots=[slot for slot in slots if slot.end>current]
+        room=self.room(start_offset_minutes=0,stop_offset_minutes=0,previous_suggested_heat=False,previous_pause_hours=2/60,terminal_reserve_hours=0)
+        result=plan(room,initial_model(room),20.5,[-15]*len(slots),slots,current,20)
+        self.assertTrue(result['thermostat_windows'])
+        self.assertTrue(all(datetime.fromisoformat(window['start'])>=NOW+timedelta(minutes=25) for window in result['thermostat_windows']))

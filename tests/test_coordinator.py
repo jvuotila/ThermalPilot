@@ -333,15 +333,39 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['control']['mode'],'simulation')
         self.hass.services.async_call.assert_not_awaited()
 
-    async def test_session_commits_at_opening_and_expires_after_delivery_end(self):
+    async def test_session_commits_at_opening_and_expires_at_closing_command(self):
         start=now+timedelta(minutes=15);end=start+timedelta(hours=1)
         session={'start':start.isoformat(),'end':end.isoformat()}
         self.c.data={'rooms':{'test':{'plan':{'sessions':[session]}}}}
         self.assertIsNone(self.c.committed_session('test',now+timedelta(minutes=9)))
         self.assertEqual(self.c.committed_session('test',now+timedelta(minutes=10)),session)
-        # Keep the closing offset stable even during the final delivery minutes.
-        self.assertEqual(self.c.committed_session('test',end-timedelta(minutes=5)),session)
+        # A completed early-closing command must not be reopened by a replan.
+        closing=end-timedelta(minutes=self.c.settings['stop_offset_minutes'])
+        self.assertEqual(self.c.committed_session('test',closing-timedelta(seconds=1)),session)
+        self.assertIsNone(self.c.committed_session('test',closing))
+        self.assertIsNone(self.c.committed_session('test',end-timedelta(minutes=5)))
         self.assertIsNone(self.c.committed_session('test',end))
+
+    async def test_pause_deadline_remembers_actual_window_end_across_replans(self):
+        end=now-timedelta(minutes=4)
+        self.c.data={'rooms':{'test':{'plan':{'thermostat_windows':[{'start':(end-timedelta(hours=1)).isoformat(),'end':end.isoformat()}]}}}}
+        expected=(end+timedelta(minutes=15)).isoformat()
+        self.assertEqual(self.c.boost_resume_after('test',now),expected)
+        self.c.data={'rooms':{'test':{'plan':{'thermostat_windows':[]}}}}
+        self.assertEqual(self.c.boost_resume_after('test',now+timedelta(minutes=5)),expected)
+        self.assertIsNone(self.c.boost_resume_after('test',end+timedelta(minutes=15)))
+        self.c.data={'zones':{'pump':{'plan':{'thermostat_windows':[{'start':(end-timedelta(hours=1)).isoformat(),'end':end.isoformat()}]}}}}
+        self.assertEqual(self.c.boost_resume_after('zone:pump',now),expected)
+
+    async def test_all_tariff_heating_types_receive_same_pause_floor(self):
+        from thermal_pilot.model import plan as actual_plan
+        for heat_source,distribution in [('air_to_water','water_floor'),('ground_source','water_radiators'),('electric_resistance','electric_floor'),('electric_resistance','electric_panels'),('air_to_air','warm_air')]:
+            with self.subTest(source=heat_source,distribution=distribution):
+                self.c.settings.update(house_heat_source=heat_source,house_distribution=distribution)
+                with patch('thermal_pilot.coordinator.plan',wraps=actual_plan) as planner:
+                    await self.c._async_update_data()
+                self.assertTrue(planner.called)
+                for call in planner.call_args_list:self.assertEqual(call.args[0]['minimum_pause_minutes'],15)
 
     async def test_read_only_default(self):
         result=await self.c._async_update_data()

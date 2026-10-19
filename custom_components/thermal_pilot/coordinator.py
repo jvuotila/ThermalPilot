@@ -371,9 +371,21 @@ class PilotCoordinator(DataUpdateCoordinator):
             start, end = stamp(session['start']), stamp(session['end'])
             configured=next((r for r in resolved_rooms(self.settings)+zone_rooms(self.settings) if r['id']==rid),{})
             opening = start-timedelta(minutes=self.settings['start_offset_minutes'] if water_distribution(self.settings) and not air_room(configured,self.settings) and configured.get('heat_control')!='zone_member' else 0)
-            if opening <= now < end:
+            water=water_distribution(self.settings) and not air_room(configured,self.settings) and configured.get('heat_control')!='zone_member'
+            closing=end-timedelta(minutes=self.settings['stop_offset_minutes'] if water else 0)
+            if opening <= now < closing:
                 return deepcopy(session)
         return None
+
+    def boost_resume_after(self, rid, now):
+        """Keep a known boost-closing boundary across successive replans."""
+        data=getattr(self,'data',None) or {}
+        previous_plan=((data.get('zones',{}).get(rid[5:],{}) if rid.startswith('zone:') else data.get('rooms',{}).get(rid,{})).get('plan') or {})
+        run=self.suggested_runs.setdefault(rid,{})
+        ended=[stamp(window['end']).timestamp() for window in previous_plan.get('thermostat_windows',[]) if stamp(window['end'])<=now]
+        if ended:run['last_boost_end']=max(run.get('last_boost_end',0),max(ended))
+        end=run.get('last_boost_end')
+        return datetime.fromtimestamp(end+15*60,now.tzinfo).isoformat() if end is not None and end<=now.timestamp()<end+15*60 else None
 
     async def _async_update_data(self):
         async with self.backup_lock:
@@ -570,12 +582,16 @@ class PilotCoordinator(DataUpdateCoordinator):
                 else:
                     self.previous.pop(rid,None)
                 if room_electric(room,self.settings) and room.get('heat_control')!='zone_member' and not (room.get('secondary_zone') and (room.get('zone_heating_strategy')=='temperature' or room.get('zone_climate_mode')=='cool' or self.air_control.zone_season(room['heating_zone_id'],self.fallback_state.get('summer',False),now.timestamp()))) and slots and all(t is not None for t in outdoors):
+                    resume_after=self.boost_resume_after(rid,now)
                     run = self.suggested_runs.get(rid,{})
                     settings = {**room, 'terminal_reserve_hours':price_outlook['reserve_hours'],
                         'wind_speed':wind_status['speed'], 'solar_forecast':[value*solar_facing(slot.start+(slot.end-slot.start)/2,latitude,longitude,room.get('solar_direction','south')) if value is not None else None for value,slot in zip(solar_forecast,slots)],
                         'start_offset_minutes':self.settings['start_offset_minutes'] if room_water else 0, 'stop_offset_minutes':self.settings['stop_offset_minutes'] if room_water else 0,
                         'boost':room['boost'], 'setback':room['setback'],
                         'minimum_run_minutes':self.settings['minimum_run_minutes'] if self.settings['pricing_mode']=='flexible' else 60 if self.settings['pricing_mode']=='hourly' else 15,
+                        'minimum_pause_minutes':15,
+                        'boost_resume_after':resume_after,
+                        'previous_pause_hours':max(0,(now.timestamp()-run.get('since',now.timestamp()))/3600) if run and not run.get('heat') else 1,
                         'committed_session':self.committed_session(rid,now),
                         'previous_suggested_heat':run.get('heat',False),
                         'previous_control_mode':run.get('mode','boost' if run.get('heat') else 'normal'),
@@ -598,7 +614,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                 if result['plan']:
                     heat = result['plan']['scheduled_heat']
                     old = self.suggested_runs.get(rid,{})
-                    self.suggested_runs[rid] = {'heat':heat,'mode':result['plan'].get('scheduled_mode','boost' if heat else 'normal'),'reduction_available':result['plan'].get('reduction_available',heat),'since':old.get('since',now.timestamp()) if old.get('heat')==heat else now.timestamp()}
+                    self.suggested_runs[rid] = {**old,'heat':heat,'mode':result['plan'].get('scheduled_mode','boost' if heat else 'normal'),'reduction_available':result['plan'].get('reduction_available',heat),'since':old.get('since',now.timestamp()) if old.get('heat')==heat else now.timestamp()}
                 result['model'] = deepcopy(model)
                 result['one_step_prediction'] = prediction
                 if self.season['collecting'] and not room.get('secondary_zone'):

@@ -10,29 +10,6 @@ const context={HTMLElement:Element,customElements:{get:()=>undefined,define:(nam
 vm.createContext(context);
 vm.runInContext(readFrontendSource(path.join(__dirname,'../custom_components/thermal_pilot/frontend/panel.js')),context);
 const panel=new Component();
-(async()=>{
- const graphPanel=new Component();graphPanel.tab='history';graphPanel.historyHours=48;graphPanel._hass={states:{}};
- const room={id:'native-room',name:'Study',activity_entity:'switch.floor_valve'};
- graphPanel.settings={rooms:[room]};graphPanel.info={room_entities:{'native-room':{suggested:'binary_sensor.renamed_suggestion',actual:'binary_sensor.observed_demand'}}};
- let createdConfig,mounted;const links=[];
- const host={dataset:{roomHistory:'native-room'},isConnected:true,replaceChildren:card=>mounted=card,append:link=>links.push(link)};
- graphPanel.shadowRoot.querySelectorAll=()=>[host];
- context.loadCardHelpers=async()=>({createCardElement:config=>{createdConfig=config;return {};}});
- context.document={createElement:()=>({})};
- await graphPanel.mountHistoryGraphs();
- assert.equal(createdConfig.type,'history-graph');assert.equal(createdConfig.hours_to_show,48);
- assert.equal(createdConfig.entities[0].entity,'binary_sensor.renamed_suggestion');
- assert.equal(createdConfig.entities[1].entity,'switch.floor_valve');assert.equal(mounted.hass,graphPanel._hass);
- assert.match(links[0].href,/entity_id=binary_sensor.renamed_suggestion%2Cswitch.floor_valve/);
- room.activity_entity='';assert.equal(graphPanel.historyGraphConfig(room).entities[1].entity,'binary_sensor.observed_demand');
- graphPanel.settings.language='fi';graphPanel._hass.locale={language:'en'};graphPanel._hass.localize=()=> 'Off';
- await graphPanel.mountHistoryGraphs();
- assert.equal(createdConfig.entities[0].name,'Suunniteltu lämmitysjakso');
- assert.equal(mounted.hass.locale.language,'fi');assert.equal(mounted.hass.localize('state.off'),'Pois');
- assert.equal(graphPanel._hass.locale.language,'en');
- assert.equal(links.at(-1).textContent,'Avaa Home Assistantin koko historia');
- console.log('Native history tests passed (renamed entity IDs, relay comparison, thermostat fallback, period and full-history link).');
-})().catch(error=>{console.error(error);process.exitCode=1;});
 const quarterRows=vm.runInContext('quarterHourObservations',context);
 const hour=new Date(2026,9,10,0,0,0).getTime()/1000;
 const samples=[
@@ -47,7 +24,7 @@ const readableHistory=historyPanel.historyView();
 assert.match(readableHistory,/Measured temperature/);assert.match(readableHistory,/Saved 3-hour forecast/);assert.match(readableHistory,/No completed 3-hour forecasts/);
 assert.match(readableHistory,/00:00/);assert.match(readableHistory,/00:15/);assert.match(readableHistory,/00:30/);
 assert.doesNotMatch(readableHistory,/<th>15-minute interval<|Each row shows the latest observation|Table shows up to 288 intervals/);
-assert.match(readableHistory,/data-room-history="history-room"/);
+assert.doesNotMatch(readableHistory,/data-room-history|Suggested heating and relay history|Loading Home Assistant history|Relay On means/);assert.match(readableHistory,/data-history-period/);assert.doesNotMatch(readableHistory,/Open full Home Assistant history|room-history-link/);
 assert.doesNotMatch(readableHistory,/Suggested thermostat target \(°C\)|not an average/);
 assert.doesNotMatch(readableHistory,/>Idle<|>Inactive<|>Heating</);
 const chartWithLargePrediction=historyPanel.chart([{time:hour,temperature:20,prediction:25}],'temperature','prediction');
@@ -665,11 +642,8 @@ for(const [code,catalog] of Object.entries(catalogs)){
  assert.ok(removal.includes('South <test>'));assert.doesNotMatch(removal,/Save settings/);
  // Parentheses in source text must be literal, and replacements must be single-pass.
  assert.ok(translate('Target (°C): 20',code).includes(catalog['Target (°C)']));
- langPanel._hass={locale:{language:'en'},localize:()=> 'Off'};
- assert.equal(langPanel.historyCardHass().locale.language,code);
- assert.equal(langPanel.historyCardHass().localize('off'),catalog.Off);assert.equal(langPanel._hass.locale.language,'en');
 }
-console.log('All 25 language options passed: catalog coverage, SVG flags, selection, parameterized room messages and isolated HA history locale.');
+console.log('All 25 language options passed: catalog coverage, SVG flags, selection, parameterized room messages.');
 
 const planImage=fs.readFileSync(path.join(__dirname,'../custom_components/thermal_pilot/frontend/rooms-floor-plan.png'));
 assert.equal(planImage.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
@@ -1410,17 +1384,6 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  history.settings.house_heat_source='none';assert.equal((history.historyView().match(/id="history-hours"/g)||[]).length,1);
 }
 
-{
- const shared=new Component();shared.settings={language:'en',rooms:[{id:'one',name:'One'},{id:'two',name:'Two'}]};shared.info={data:{}};shared.history=[];
- shared.roomDisclosureState.set('history:one',true);shared.tab='history';shared.historyHours=72;
- const html=shared.historyView();assert.equal((html.match(/data-history-period/g)||[]).length,3);
- for(const id of ['history-hours','room-history-hours-one','room-history-hours-two'])assert.match(html,new RegExp('<select id="'+id+'" data-history-period>[^]*?<option value="72" selected>3 days</option>'));
- const selects=[{value:'72'},{value:'72'},{value:'72'}];let requested,focus;
- shared.shadowRoot.querySelectorAll=selector=>{assert.equal(selector,'[data-history-period]');return selects;};
- shared.shadowRoot.getElementById=id=>({focus:options=>{focus={id,options};}});
- shared.load=async()=>{requested=shared.historyHours;};
- shared.setHistoryPeriod('120','room-history-hours-one').then(()=>{assert.equal(requested,120);assert(selects.every(s=>s.value==='120'));assert(shared.roomDisclosureOpen('one'));assert.equal(focus.id,'room-history-hours-one');assert(focus.options.preventScroll);});
-}
 
 {
  const stored=new Map();context.localStorage={getItem:key=>stored.get(key)||null,setItem:(key,value)=>stored.set(key,value)};
@@ -1452,4 +1415,10 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  context.localStorage={getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}};
  const blocked=new Component();blocked.loading=true;blocked.shadowRoot.querySelectorAll=()=>[];assert.doesNotThrow(()=>blocked.restoreHistoryPeriod());assert.equal(blocked.historyHours,48);blocked.setHistoryPeriod(72);assert.equal(blocked.historyHours,72);
  delete context.localStorage;
+}
+
+{
+ const history=new Component();history.settings={language:'en',rooms:[{id:'one',name:'One'},{id:'two',name:'Two'}]};history.info={data:{}};history.history=[];
+ const html=history.historyView();assert.equal((html.match(/data-history-period/g)||[]).length,1);assert.doesNotMatch(html,/room-history-hours-|room-history-toolbar/);
+ assert.match(html,/Forecast accuracy/);
 }

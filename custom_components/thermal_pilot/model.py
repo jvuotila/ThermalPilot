@@ -542,10 +542,18 @@ ending the known-price horizon with insufficient estimated thermal reserve.
         loss *= 1 + room['fireplace_reduction']/100
     # safety violation, target shortfall, objective, temperature, response, last_on, run, path
     minimum_run = room.get('minimum_run_minutes',60)/60
+    minimum_pause=max(15,room.get('minimum_pause_minutes',15))
+    # Advance opening/closing offsets must not shorten the thermostat-target pause.
+    pause_hours=max(0,minimum_pause+room.get('start_offset_minutes',0)-room.get('stop_offset_minutes',0))/60 if minimum_pause else 0
+    resume_after=stamp(room['boost_resume_after']) if room.get('boost_resume_after') else None
     last_on = room.get('previous_suggested_heat',False)
     run_hours = room.get('previous_run_hours',0.0) if last_on else 0.0
     previous_mode=room.get('previous_control_mode','boost' if last_on else 'normal')
     initial_mode={'normal':0,'reduced':1,'boost':2}.get(previous_mode,0)
+    if resume_after is not None and now<resume_after:
+        # The prior advance-closing command has already ended the boost.
+        initial_mode=0;last_on=False
+    if not last_on:run_hours=-min(pause_hours,max(0,room.get('previous_pause_hours',pause_hours)))
     known_prices=sorted(slot.price for slot in slots)
     high_price=(known_prices[(len(known_prices)-1)//2]+known_prices[len(known_prices)//2])/2
     reduction_available=bool(room.get('reduction_available',previous_mode in ('boost','reduced')))
@@ -568,12 +576,16 @@ ending the known-price horizon with insufficient estimated thermal reserve.
                     continue  # Reduction is temporary after boost, with warmth and expensive prices.
                 if committed_start is not None and slot.end > committed_start and max(now,slot.start) < committed_end and not on:
                     continue  # A published session has already begun its valve-opening window.
+                committed_now=committed_start is not None and slot.end>committed_start and max(now,slot.start)<committed_end
+                opening=max(now,slot.start)-timedelta(minutes=room.get('start_offset_minutes',0))
+                pause_blocked=(last!=2 and -run<pause_hours-1e-6) or (resume_after is not None and opening<resume_after)
+                if on and pause_blocked and not committed_now:continue
                 if not on and last==2 and run < minimum_run-1e-6:
                     continue
                 if on and last!=2 and temp > room['minimum'] and (slots[-1].end-max(now,slot.start)).total_seconds()/3600 < minimum_run:
                     continue
-                if not on and temp <= room['minimum']:
-                    continue  # Restore heat at the absolute lower limit, regardless of price.
+                if not on and temp <= room['minimum'] and not (mode==0 and pause_blocked):
+                    continue  # During a boost pause, baseline thermostat demand remains available.
                 # Demand proxy: real thermostats may call for heat in setback too.
                 request = min(room['maximum'],baseline+room['boost']) if on else max(room['minimum'],baseline+room['setback']) if mode==1 else baseline
                 heating = 1.0 if (on if room.get('is_garage') else temp < request) and (not room.get('air_control') or temp < room['maximum']) else 0.0
@@ -590,7 +602,7 @@ ending the known-price horizon with insufficient estimated thermal reserve.
                        'solar_gain':round(slot_solar,4), 'heat': bool(heating) if room.get('air_control') else bool(on), 'mode':('normal','reduced','boost')[mode],
                        'reduction_available':bool(on or (credit and predicted>=baseline and r>.05)), 'predicted_demand': bool(heating),
                        'temperature': round(predicted, 3), 'setpoint': round(request, 2)}
-                candidates.append((v, deficit, c, predicted, r, mode, min(minimum_run,(run if last==2 else 0)+hours) if on else 0.0, row['reduction_available'], path+[row]))
+                candidates.append((v, deficit, c, predicted, r, mode, min(minimum_run,(run if last==2 else 0)+hours) if on else -min(pause_hours,(-run if last!=2 else 0)+hours), row['reduction_available'], path+[row]))
         # Preserve different thermal states; only retain the best per bucket.
         unique = {}
         for candidate in sorted(candidates, key=lambda c: (round(c[0],6),round(c[1],6),c[2])):
