@@ -1507,3 +1507,23 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  room.error='Thermostat unavailable';assert.match(compactPlanPanel.overview(),/Thermostat unavailable/);
  room.plan.reason=original;room.error=originalError;
 }
+
+// Garage cards use localized pump-status and timing help instead of repeated paragraphs.
+{
+ const garagePanel=new Component();
+ garagePanel.settings={language:'fi',house_heat_source:'air_to_water',rooms:[{id:'garage',garage_minimum:6,garage_maximum:10}]};
+ const room={name:'Garage',is_garage:true,air_control:true,temperature:13.6,learning_progress:{percent:100},
+  pump_suggestion:{mode:'fan_only',reason:'Garage upper limit reached'},
+  plan:{air_control:true,mode:'normal',heat:false,commands:[],slots:[],reason:'Garage temperature cycle: heat below the lower limit; fan-only after the upper limit. Warm weather turns the pump off.'}};
+ const html=garagePanel.roomPlanView('garage',room);
+ const tooltips=Array.from(html.matchAll(/role="tooltip">([^<]*)<\/span>/g),match=>match[1]).join(' ');
+ assert.match(tooltips,/Autotallin yläraja saavutettu/);
+ assert.match(tooltips,/Autotallin rajat: 6–10 °C/);
+ assert.match(tooltips,/Autotallin lämpötilajakso:/);
+ assert.match(tooltips,/Lämmitys tarkoittaa lämmitystilaa/);
+ assert.doesNotMatch(html,/Garage upper limit reached|<p>Garage temperature cycle|<p>Heat means heating mode/);
+ assert.match(html,/aria-describedby="pump-help-garage"/);
+ assert.match(html,/aria-describedby="timing-help-garage"/);
+ room.error='Thermostat unavailable';assert.match(garagePanel.roomPlanView('garage',room),/notice-error/);
+ garagePanel.settings.language='en';assert.match(garagePanel.roomPlanView('garage',room),/role="tooltip">Garage upper limit reached/);
+}

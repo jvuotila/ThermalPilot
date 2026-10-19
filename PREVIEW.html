@@ -1210,6 +1210,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     const routineReasons = [
       'Heat storage or a bridging run ahead of predicted cooling.',
       'Heating is planned later; no boost is suggested now.',
+      'Garage temperature cycle: heat below the lower limit; fan-only after the upper limit. Warm weather turns the pump off.',
     ];
     let explanation = '';
     if (room.error) {
@@ -1220,16 +1221,18 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
       explanation = `<p>${escapeHTML(plan?.reason || 'Waiting for data.')}</p>`;
     }
 
-    let pumpExplanation = '';
+    let pumpHelp = '';
     if (room.pump_suggestion) {
-      let garageLimits = '';
+      const details = [this.t(room.pump_suggestion.reason || '')];
       if (room.is_garage) {
         const configuredRoom = this.settings.rooms.find(item => item.id === roomId);
-        garageLimits = ' · ' + this.t('Garage limits') + ': '
-          + escapeHTML(configuredRoom?.garage_minimum) + '–'
-          + escapeHTML(configuredRoom?.garage_maximum) + ' °C';
+        details.push(this.t('Garage limits') + ': '
+          + (configuredRoom?.garage_minimum ?? '—') + '–'
+          + (configuredRoom?.garage_maximum ?? '—') + ' °C');
+        if (routineReasons.includes(plan?.reason)) details.push(this.t(plan.reason));
       }
-      pumpExplanation = `<p>${escapeHTML(room.pump_suggestion.reason)}${garageLimits}</p>`;
+      const helpId = `pump-help-${escapeHTML(roomId)}`;
+      pumpHelp = `<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t(status))}" aria-describedby="${helpId}">${tooltipInfoIcon}</button><span id="${helpId}" class="setting-tooltip" role="tooltip">${escapeHTML(details.join(' · '))}</span></span>`;
     }
 
     const targetLabel = room.air_control
@@ -1239,10 +1242,10 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     const garageClass = this.isGarageRoom(roomId, room) ? ' garage-observation-card' : '';
     return `<section class="observation-card${garageClass}">
       <details class="observation-accordion" data-room-accordion="${escapeHTML(roomId)}" ${this.roomDisclosureOpen(roomId) ? 'open' : ''}>
-        <summary><h2><span data-user-text>${escapeHTML(room.name)}</span> ${this.roomHeatingBadge(room, roomId)} ${this.learningBadge(room)} <small>${escapeHTML(status)}</small></h2></summary>
+        <summary><h2><span data-user-text>${escapeHTML(room.name)}</span> ${this.roomHeatingBadge(room, roomId)} ${this.learningBadge(room)} <small>${escapeHTML(status)}${pumpHelp}</small></h2></summary>
         <div class="observation-content">
           <div class="metrics"><div>Measured<strong>${escapeHTML(room.temperature ?? '—')} °C</strong></div><div>${targetLabel}<strong>${escapeHTML(target ?? '—')} °C</strong></div></div>
-          ${explanation}${pumpExplanation}
+          ${explanation}
           ${room.pump_control && !room.pump_control.confirmed ? `<p class="notice notice-info">Waiting for pump confirmation: <span>${escapeHTML(this.t(pumpStageLabels[room.pump_control.stage] || room.pump_control.stage))}</span></p>` : ''}
           ${room.zone_monitor ? '<p>This room is monitored as part of a shared zone. The zone issues one set of commands to its pump.</p>' : ''}
           ${this.learningView(room)}
@@ -1256,8 +1259,10 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     const plan = room.plan;
     const heading = room.air_control ? 'Heat pump timing' : 'Thermostat timing';
     const helpId = `timing-help-${escapeHTML(roomId)}`;
-    const helpText = 'Target changes include the shared start/stop offsets. The temperature forecast models the planned heating period; actual valve and heat-pump delays must be checked against observations.';
-    const help = room.air_control ? '' : `<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t(heading))}" aria-describedby="${helpId}">${tooltipInfoIcon}</button><span id="${helpId}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t(helpText))}</span></span>`;
+    const helpText = room.air_control
+      ? 'Heat means heating mode; pauses use fan-only. Room sensors govern temperature limits. The device setpoint is separate from those limits.'
+      : 'Target changes include the shared start/stop offsets. The temperature forecast models the planned heating period; actual valve and heat-pump delays must be checked against observations.';
+    const help = `<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t(heading))}" aria-describedby="${helpId}">${tooltipInfoIcon}</button><span id="${helpId}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t(helpText))}</span></span>`;
     const rows = (plan.commands || []).slice(-3).map(command => {
       let action;
       let target;
@@ -1274,7 +1279,6 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     }).join('');
 
     return `<h3 class="timing-heading">${heading}${help}</h3>
-      ${room.air_control ? '<p>Heat means heating mode; pauses use fan-only. Room sensors govern temperature limits. The device setpoint is separate from those limits.</p>' : ''}
       <div class="scroll timing-table"><table>
         <thead><tr><th>Change target at</th><th>Planned target change</th><th>Target (°C)</th></tr></thead>
         <tbody>${rows || '<tr><td class="empty-table" colspan="3">No thermostat target changes planned.</td></tr>'}</tbody>
@@ -1712,6 +1716,15 @@ details{scroll-margin-block:16px}
  .retention-card th:first-child,.retention-card td:first-child{width:43%;white-space:normal;overflow-wrap:anywhere}
  .retention-card th:nth-child(4),.retention-card td:nth-child(4){white-space:normal;overflow-wrap:anywhere}
  .retention-card .retention-rating{max-width:100%;white-space:normal}
+ .season-archives th:nth-child(3),.season-archives td:nth-child(3),
+ .season-archives th:nth-child(4),.season-archives td:nth-child(4){display:none}
+ .season-archives table{table-layout:fixed}
+ .season-archives th,.season-archives td{padding:8px 5px;white-space:normal;overflow-wrap:anywhere}
+ .season-archives th:first-child,.season-archives td:first-child{width:34%}
+ .season-archives th:nth-child(2),.season-archives td:nth-child(2){width:26%}
+ .season-archives .retention-sort{max-width:100%;white-space:normal}
+ .season-archives .retention-sort span{min-width:0}
+ .season-archives .retention-rating{max-width:100%;white-space:normal}
 }
 
 .retention-card .retention-bar{margin-left:0;margin-right:10px;vertical-align:middle}
@@ -1974,6 +1987,9 @@ demo.data.season_summaries=demo.settings.rooms.map((room,index)=>({
  model:{retention_learned:true,loss:room.is_garage?.0065:.0022+(index%6)*.0006,gain:room.is_garage?.156:.068+(index%7)*.007}
 }));
 // END richer preview activity
+
+
+
 
 
 
