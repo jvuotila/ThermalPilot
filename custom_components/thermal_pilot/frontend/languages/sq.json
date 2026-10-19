@@ -486,7 +486,10 @@
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Parashikimet supozojnë se ndiqet plani i ThermalPilot. Gjatë simulimit, kontrolli ekzistues mund të ngrohë ndryshe. Gabimi mund të vijë si nga një orar tjetër ngrohjeje, ashtu edhe nga modeli.",
     "About this history": "Rreth këtij historiku",
     "Last heating season": "Sezoni i fundit i ngrohjes",
-    "Current plan forecast": "Parashikimi i planit aktual"
+    "Current plan forecast": "Parashikimi i planit aktual",
+    "These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.": "Këto parashikime u ruajtën 1, 3 ose 6 orë para matjeve. Leximet e mëvonshme nuk i ndryshojnë. Gabimi më i vogël është më i mirë.",
+    "{count} comparison": "{count} krahasim",
+    "{count} comparisons": "{count} krahasime"
   },
   "legacy": {},
   "cardMessages": {

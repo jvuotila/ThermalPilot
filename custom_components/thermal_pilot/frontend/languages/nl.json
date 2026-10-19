@@ -486,7 +486,10 @@
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Voorspellingen gaan ervan uit dat het plan van ThermalPilot wordt gevolgd. Tijdens simulatie kan uw bestaande regeling anders verwarmen. Een fout kan daarom zowel door een ander verwarmingsschema als door het model komen.",
     "About this history": "Over deze geschiedenis",
     "Last heating season": "Vorig stookseizoen",
-    "Current plan forecast": "Voorspelling volgens huidig plan"
+    "Current plan forecast": "Voorspelling volgens huidig plan",
+    "These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.": "Deze voorspellingen zijn 1, 3 of 6 uur vóór de metingen opgeslagen. Latere meetwaarden veranderen ze niet. Een kleinere fout is beter.",
+    "{count} comparison": "{count} vergelijking",
+    "{count} comparisons": "{count} vergelijkingen"
   },
   "legacy": {},
   "cardMessages": {

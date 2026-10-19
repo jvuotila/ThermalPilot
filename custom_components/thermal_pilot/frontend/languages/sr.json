@@ -486,7 +486,10 @@
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Прогнозе претпостављају праћење плана ThermalPilot. Током симулације постојеће управљање може грејати другачије. Грешка зато може потицати и од другачијег распореда грејања и од модела.",
     "About this history": "О овој историји",
     "Last heating season": "Последња грејна сезона",
-    "Current plan forecast": "Прогноза тренутног плана"
+    "Current plan forecast": "Прогноза тренутног плана",
+    "These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.": "Ове прогнозе су сачуване 1, 3 или 6 сати пре мерења. Каснија очитавања их не мењају. Мања грешка је боља.",
+    "{count} comparison": "{count} поређење",
+    "{count} comparisons": "Број поређења: {count}"
   },
   "legacy": {},
   "cardMessages": {

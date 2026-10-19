@@ -486,7 +486,10 @@
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Οι προγνώσεις υποθέτουν ότι ακολουθείται το πρόγραμμα του ThermalPilot. Στην προσομοίωση, ο υπάρχων έλεγχος μπορεί να θερμαίνει διαφορετικά. Έτσι, το σφάλμα μπορεί να οφείλεται σε διαφορετικό πρόγραμμα ή στο μοντέλο.",
     "About this history": "Σχετικά με αυτό το ιστορικό",
     "Last heating season": "Τελευταία περίοδος θέρμανσης",
-    "Current plan forecast": "Πρόγνωση τρέχοντος προγράμματος"
+    "Current plan forecast": "Πρόγνωση τρέχοντος προγράμματος",
+    "These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.": "Αυτές οι προγνώσεις αποθηκεύτηκαν 1, 3 ή 6 ώρες πριν από τις μετρήσεις. Οι μεταγενέστερες μετρήσεις δεν τις αλλάζουν. Μικρότερο σφάλμα είναι καλύτερο.",
+    "{count} comparison": "{count} σύγκριση",
+    "{count} comparisons": "{count} συγκρίσεις"
   },
   "legacy": {},
   "cardMessages": {

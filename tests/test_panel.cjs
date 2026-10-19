@@ -391,7 +391,7 @@ console.log('Chart detail checks passed: price intervals, grouped heating period
 const accuracyPanel=new Component();
 const accuracyRows=[{time:10000,temperature:21,forecast_3h:20.5,forecast_3h_details:{issued:-800,due:10000,error:.5,persistence_error:1,heating_match:1}}];
 let accuracyHTML=accuracyPanel.forecastHistoryView(accuracyRows);
-assert.match(accuracyHTML,/Saved 3-hour forecast/);assert.match(accuracyHTML,/Mean error: <b>0.50 °C/);assert.match(accuracyHTML,/No-change error: 1.00 °C/);assert.match(accuracyHTML,/1 comparisons · 1 with similar heating/);
+assert.match(accuracyHTML,/Saved 3-hour forecast/);assert.match(accuracyHTML,/forecast-metrics-title">Mean error:/);assert.match(accuracyHTML,/forecast-metric-value">0.50 °C/);assert.doesNotMatch(accuracyHTML,/No-change error:|Similar heating error:|with similar heating/);assert.doesNotMatch(accuracyHTML,/comparisons|1 comparison/);
 assert.doesNotMatch(accuracyHTML,/Model prediction using actual heating|No completed 3-hour forecasts/);
 accuracyPanel.forecastHours=6;accuracyHTML=accuracyPanel.forecastHistoryView(accuracyRows);assert.match(accuracyHTML,/No completed 6-hour forecasts/);
 console.log('Saved forecast UI checks passed: fixed horizons, completed comparisons, no-change benchmark and honest missing-data state.');

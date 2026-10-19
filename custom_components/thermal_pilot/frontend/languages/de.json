@@ -486,7 +486,10 @@
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Prognosen setzen voraus, dass der Heizplan von ThermalPilot befolgt wird. In der Simulation kann Ihre bestehende Steuerung anders heizen. Prognosefehler können daher sowohl vom abweichenden Heizplan als auch vom Modell stammen.",
     "About this history": "Über diese Historie",
     "Last heating season": "Letzte Heizperiode",
-    "Current plan forecast": "Prognose des aktuellen Plans"
+    "Current plan forecast": "Prognose des aktuellen Plans",
+    "These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.": "Diese Prognosen wurden 1, 3 oder 6 Stunden vor den Messungen gespeichert. Spätere Messwerte ändern sie nicht. Ein kleinerer Fehler ist besser.",
+    "{count} comparison": "{count} Vergleich",
+    "{count} comparisons": "{count} Vergleiche"
   },
   "legacy": {},
   "cardMessages": {

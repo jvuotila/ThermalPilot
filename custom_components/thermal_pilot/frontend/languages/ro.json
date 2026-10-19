@@ -486,7 +486,10 @@
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Prognozele presupun respectarea planului ThermalPilot. În simulare, comenzile existente pot încălzi diferit. O eroare poate proveni atât dintr-un program diferit, cât și din model.",
     "About this history": "Despre acest istoric",
     "Last heating season": "Ultimul sezon de încălzire",
-    "Current plan forecast": "Prognoza planului actual"
+    "Current plan forecast": "Prognoza planului actual",
+    "These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.": "Aceste prognoze au fost salvate cu 1, 3 sau 6 ore înaintea măsurătorilor. Citirile ulterioare nu le modifică. O eroare mai mică este mai bună.",
+    "{count} comparison": "{count} comparație",
+    "{count} comparisons": "Comparații: {count}"
   },
   "legacy": {},
   "cardMessages": {
