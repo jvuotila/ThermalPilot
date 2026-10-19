@@ -1576,6 +1576,16 @@ details{scroll-margin-block:16px}
 .season-archives .retention-bar{width:70px;margin:0 10px 0 0;vertical-align:middle}.season-archives .scroll{max-height:none}.season-archives table{width:100%}.season-archives th,.season-archives td{padding:9px 12px;white-space:nowrap}.season-archives .archive-numeric{text-align:right;font-variant-numeric:tabular-nums}
 .retention-numeric .retention-sort,.archive-numeric .retention-sort{justify-content:flex-end;text-align:right;width:100%}
 .retention-card .retention-value{min-width:0;text-align:right}
+@media(max-width:600px){
+ .retention-card th:nth-child(2),.retention-card td:nth-child(2),
+ .retention-card th:nth-child(3),.retention-card td:nth-child(3),
+ .retention-card th:nth-child(5),.retention-card td:nth-child(5){display:none}
+ .retention-card table{table-layout:fixed}
+ .retention-card th:first-child,.retention-card td:first-child{width:43%;white-space:normal;overflow-wrap:anywhere}
+ .retention-card th:nth-child(4),.retention-card td:nth-child(4){white-space:normal;overflow-wrap:anywhere}
+ .retention-card .retention-rating{max-width:100%;white-space:normal}
+}
+
 .retention-card .retention-bar{margin-left:0;margin-right:10px;vertical-align:middle}
 .compact-status{display:none}
 
@@ -1836,6 +1846,8 @@ demo.data.season_summaries=demo.settings.rooms.map((room,index)=>({
  model:{retention_learned:true,loss:room.is_garage?.0065:.0022+(index%6)*.0006,gain:room.is_garage?.156:.068+(index%7)*.007}
 }));
 // END richer preview activity
+
+
 
 
 
