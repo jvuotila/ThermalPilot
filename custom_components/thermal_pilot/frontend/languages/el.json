@@ -485,7 +485,8 @@
     "Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better.": "Η κάρτα κάθε δωματίου συγκρίνει μια παλαιότερη πρόγνωση με τη θερμοκρασία που μετρήθηκε αργότερα. Ελέγχει επίσης αν η υπόθεση σταθερής θερμοκρασίας θα ήταν ακριβέστερη.",
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Οι προγνώσεις υποθέτουν ότι ακολουθείται το πρόγραμμα του ThermalPilot. Στην προσομοίωση, ο υπάρχων έλεγχος μπορεί να θερμαίνει διαφορετικά. Έτσι, το σφάλμα μπορεί να οφείλεται σε διαφορετικό πρόγραμμα ή στο μοντέλο.",
     "About this history": "Σχετικά με αυτό το ιστορικό",
-    "Last heating season": "Τελευταία περίοδος θέρμανσης"
+    "Last heating season": "Τελευταία περίοδος θέρμανσης",
+    "Current plan forecast": "Πρόγνωση τρέχοντος προγράμματος"
   },
   "legacy": {},
   "cardMessages": {

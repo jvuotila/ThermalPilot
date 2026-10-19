@@ -339,7 +339,8 @@
     "Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better.": "Jokaisen huoneen kortti vertaa aiemmin tehtyä ennustetta myöhemmin mitattuun lämpötilaan. Lisäksi tarkistetaan, olisiko lämpötilan pysymisen ennallaan olettaminen antanut paremman tuloksen.",
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Ennuste olettaa, että ThermalPilotin ehdottamaa lämmityssuunnitelmaa noudatetaan. Simuloinnin aikana nykyinen ohjauksesi voi lämmittää eri tavalla. Ennustevirhe voi siis johtua sekä erilaisesta lämmityksestä että itse mallista.",
     "About this history": "Tietoa historiasta",
-    "Last heating season": "Edellinen lämmityskausi"
+    "Last heating season": "Edellinen lämmityskausi",
+    "Current plan forecast": "Nykyisen suunnitelman ennuste"
   },
   "legacy": {
     "Plan": "Suunnitelma",

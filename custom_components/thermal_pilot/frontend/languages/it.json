@@ -485,7 +485,8 @@
     "Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better.": "Ogni scheda confronta una previsione precedente con la temperatura misurata in seguito. Verifica anche se prevedere una temperatura invariata avrebbe dato risultati migliori.",
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Le previsioni presuppongono che venga seguito il piano di ThermalPilot. In simulazione, i controlli esistenti possono riscaldare diversamente. Un errore può quindi derivare sia da un programma diverso sia dal modello.",
     "About this history": "Informazioni sulla cronologia",
-    "Last heating season": "Ultima stagione di riscaldamento"
+    "Last heating season": "Ultima stagione di riscaldamento",
+    "Current plan forecast": "Previsione del piano attuale"
   },
   "legacy": {},
   "cardMessages": {

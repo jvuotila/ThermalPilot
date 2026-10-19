@@ -468,17 +468,26 @@ class ThermalPilotPanel extends HTMLElement {
     if(page==='rooms')return html.replace(/<section class="settings-sources">[\s\S]*?<\/section>/g,'');
     return html;
   }
-  chart(rows,key,alternate,alternateLabel='Saved forecast'){
+  chart(rows,key,alternate,alternateLabel='Saved forecast',options={}){
     const timestamp=r=>Number(r.time??Date.parse(r.end)/1000);
     const data=rows.filter(r=>Number.isFinite(timestamp(r))).slice().sort((a,b)=>timestamp(a)-timestamp(b));
     const numeric=value=>value!=null&&Number.isFinite(Number(value));
     const keys=alternate?[key,alternate]:[key];
-    const values=data.flatMap(r=>keys.filter(k=>numeric(r[k])).map(k=>Number(r[k])));
-    if(!data.length||!values.length)return '<p>No observation history yet.</p>';
+    const future=(options.future||[]).filter(point=>Number.isFinite(point.time)&&numeric(point.temperature));
+    const values=[...data.flatMap(r=>keys.filter(k=>numeric(r[k])).map(k=>Number(r[k]))),...future.map(point=>Number(point.temperature))];
+    if((!data.length&&!future.length)||!values.length)return '<p>No observation history yet.</p>';
     const low=Math.floor((Math.min(...values)-.1)*10)/10,high=Math.ceil((Math.max(...values)+.1)*10)/10;
-    const first=Math.floor(timestamp(data[0])/900)*900,last=Math.max(first+900,Math.ceil(timestamp(data.at(-1))/900)*900),span=last-first;
+    const times=[...data.map(timestamp),...future.map(point=>point.time)];
+    const first=Math.floor(Math.min(...times)/900)*900,last=Math.max(first+900,Math.ceil(Math.max(...times)/900)*900),span=last-first;
+    const evenHours=[];
+    if(options.twoHourTicks){
+      const tick=new Date(first*1000);tick.setHours(Math.floor(tick.getHours()/2)*2,0,0,0);
+      if(tick.getTime()/1000<first)tick.setHours(tick.getHours()+2);
+      while(tick.getTime()/1000<=last){evenHours.push(tick.getTime()/1000);tick.setHours(tick.getHours()+2);}
+    }
     // Quarter-hour ticks for short periods; longer views use aligned multiples to keep labels readable.
-    const chartWidth=(this.clientWidth||0)>0&&this.clientWidth<700?Math.max(240,this.clientWidth-128):800;
+    const baseWidth=(this.clientWidth||0)>0&&this.clientWidth<700?Math.max(240,this.clientWidth-128):800;
+    const chartWidth=options.twoHourTicks?Math.max(baseWidth,evenHours.length*76+90):baseWidth;
     const left=chartWidth<600?56:70,right=chartWidth-20;
     const tickCount=chartWidth<600?Math.max(2,Math.floor((right-left)/70)):12;
     const tickSeconds=Math.max(900,Math.ceil(span/(tickCount*900))*900);
@@ -486,11 +495,53 @@ class ThermalPilotPanel extends HTMLElement {
     const points=k=>data.filter(r=>numeric(r[k])).map(r=>`${x(timestamp(r))},${y(Number(r[k]))}`).join(' ');
     const grid=[low,(low+high)/2,high].map(value=>`<line x1="${left}" y1="${y(value)}" x2="${right}" y2="${y(value)}" stroke="currentColor" opacity=".15"/><text x="${left-8}" y="${y(value)+4}" text-anchor="end">${value.toFixed(1)} °C</text>`).join('');
     const ticks=[];
-    for(let time=first;time<=last;time+=tickSeconds){const label=new Date(time*1000).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit',hour12:false});ticks.push(`<line x1="${x(time)}" y1="30" x2="${x(time)}" y2="160" stroke="currentColor" opacity=".1"/><text x="${x(time)}" y="180" text-anchor="middle">${escapeHTML(label)}</text>`);}
+    const tickTimes=options.twoHourTicks?evenHours:Array.from({length:Math.floor(span/tickSeconds)+1},(_,index)=>first+index*tickSeconds);
+    for(const time of tickTimes){const label=new Date(time*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false});ticks.push(`<line data-temperature-time-tick="${time}" x1="${x(time)}" y1="30" x2="${x(time)}" y2="160" stroke="currentColor" opacity=".1"/><text x="${x(time)}" y="180" text-anchor="middle">${escapeHTML(label)}</text>`);}
+    const now=Date.now()/1000;
+    const futureLine=future.length?`<polyline data-current-plan-forecast points="${future.map(point=>`${x(point.time)},${y(Number(point.temperature))}`).join(' ')}" fill="none" stroke="#e49025" stroke-width="2.5"/>`:'';
+    const nowLine=future.length&&now>=first&&now<=last?`<line data-temperature-now x1="${x(now)}" x2="${x(now)}" y1="30" y2="160" stroke="#526b75" stroke-dasharray="4 4"/><text x="${x(now)}" y="20" text-anchor="middle">${escapeHTML(this.t('Now'))}</text>`:'';
     const label=alternate?'Measured temperature':'Predicted temperature under the suggested plan';
-    return `<div class="chart-legend"><span><i style="background:#1976d2"></i>${label}</span>${alternate?`<span><i style="background:#e49025"></i>${escapeHTML(alternateLabel)}</span>`:''}</div><div class="temperature-chart"><svg viewBox="0 0 ${chartWidth} 195" role="img" aria-label="${label}${alternate?' and '+escapeHTML(alternateLabel):''}">${grid}${ticks.join('')}<polyline points="${points(key)}" fill="none" stroke="#1976d2" stroke-width="3"/>${alternate?`<polyline points="${points(alternate)}" fill="none" stroke="#e49025" stroke-width="2" stroke-dasharray="6 4"/>`:''}</svg></div><small>${escapeHTML(timeLabel(first*1000))} – ${escapeHTML(timeLabel(last*1000))}</small>`;
+    return `<div class="chart-legend"><span><i style="background:#1976d2"></i>${label}</span>${alternate?`<span><i style="background:repeating-linear-gradient(to right,#e49025 0 6px,transparent 6px 10px)"></i>${escapeHTML(alternateLabel)}</span>`:''}${future.length?`<span><i style="background:#e49025"></i>${escapeHTML(this.t('Current plan forecast'))}</span>`:''}</div><div class="temperature-chart"${options.twoHourTicks?` data-forecast-scroll="${escapeHTML(options.scrollKey||'history')}"`:''}><svg viewBox="0 0 ${chartWidth} 195"${options.twoHourTicks?` style="min-width:${chartWidth}px;height:230px"`:''} role="img" aria-label="${label}${alternate?' and '+escapeHTML(alternateLabel):''}">${grid}${ticks.join('')}${nowLine}<polyline points="${points(key)}" fill="none" stroke="#1976d2" stroke-width="3"/>${alternate?`<polyline points="${points(alternate)}" fill="none" stroke="#e49025" stroke-width="2" stroke-dasharray="6 4"/>`:''}${futureLine}</svg></div><small>${escapeHTML(timeLabel(first*1000))} – ${escapeHTML(timeLabel(last*1000))}</small>`;
   }
-  forecastHistoryView(rows){
+  bindForecastScroll(){
+    this.forecastScrollPositions??=new Map();
+    this.shadowRoot.querySelectorAll('[data-forecast-scroll]').forEach(viewport=>{
+      const key=viewport.dataset.forecastScroll;
+      const restore=()=>{
+        if(viewport.isConnected===false||!viewport.clientWidth)return;
+        const saved=this.forecastScrollPositions.get(key);
+        viewport.scrollLeft=saved===undefined||saved==='end'?viewport.scrollWidth-viewport.clientWidth:saved;
+      };
+      viewport.addEventListener('scroll',()=>{
+        if(viewport.clientWidth)this.forecastScrollPositions.set(key,viewport.scrollWidth-viewport.clientWidth-viewport.scrollLeft<4?'end':viewport.scrollLeft);
+      });
+      const schedule=()=>{if(typeof globalThis.requestAnimationFrame==='function')globalThis.requestAnimationFrame(restore);else restore();};
+      viewport.closest?.('[data-room-accordion]')?.addEventListener('toggle',schedule);
+      schedule();
+    });
+  }
+  currentPlanForecast(roomId,hours){
+    if(![1,3,6].includes(Number(hours)))return [];
+    const room=this.info?.data?.rooms?.[roomId],slots=room?.plan?.slots||[];
+    const valid=value=>value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value));
+    if(!valid(room?.temperature)||!slots.length)return [];
+    const rows=slots.map(slot=>({start:Date.parse(slot.start)/1000,end:Date.parse(slot.end)/1000,temperature:slot.temperature})).filter(slot=>Number.isFinite(slot.start)&&Number.isFinite(slot.end)&&slot.end>slot.start).sort((a,b)=>a.start-b.start);
+    if(!rows.length)return [];
+    const now=Date.now()/1000,points=[{time:rows[0].start,temperature:Number(room.temperature)}];
+    for(const slot of rows){
+      if(!valid(slot.temperature)||Math.abs(slot.start-points.at(-1).time)>1)break;
+      points.push({time:slot.end,temperature:Number(slot.temperature)});
+    }
+    const end=Math.min(now+hours*3600,points.at(-1).time);
+    if(points[0].time>now||end<=now)return [];
+    const interpolate=time=>{
+      const right=points.findIndex(point=>point.time>=time);
+      if(right===0)return points[0].temperature;
+      const a=points[right-1],b=points[right];return a.temperature+(b.temperature-a.temperature)*(time-a.time)/(b.time-a.time);
+    };
+    return [{time:now,temperature:interpolate(now)},...points.filter(point=>point.time>now&&point.time<end),{time:end,temperature:interpolate(end)}];
+  }
+  forecastHistoryView(rows,roomId=rows[0]?.room_id){
     const hours=this.forecastHours||3;
     const cards=[1,3,6].map(h=>{
       const details=rows.map(r=>r[`forecast_${h}h_details`]).filter(Boolean);
@@ -500,7 +551,7 @@ class ThermalPilotPanel extends HTMLElement {
       return `<div class="forecast-metric"><strong>${h}-hour forecast</strong><p>Mean error: <b>${mean('error')}</b></p><small>Similar heating error: ${matchedError}<br>No-change error: ${mean('persistence_error')}<br>${count} comparisons · ${similar} with similar heating</small></div>`;
     }).join('');
     const count=rows.filter(r=>r[`forecast_${hours}h_details`]).length;
-    return `<h3>Forecast accuracy</h3><p>These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better; compare it with simply predicting no temperature change. Different heating, computers and other heat sources can affect the result.</p><div class="forecast-metrics">${cards}</div><label class="forecast-selection">Chart forecast<select data-forecast-hours>${[1,3,6].map(h=>`<option value="${h}" ${hours===h?'selected':''}>${h} ${h===1?'hour':'hours'} ahead</option>`).join('')}</select></label>${!count?`<p class="notice notice-info" role="status">${statusIcon('info')}<span class="notice-text">No completed ${hours}-hour forecasts in this period yet. New forecasts start being recorded after updating; previous short-term predictions cannot be converted into these comparisons.</span></p>`:''}${this.chart(rows,'temperature',`forecast_${hours}h`,`Saved ${hours}-hour forecast`)}<p>Forecasts are compared with measurements within five minutes of their due time. “Similar heating” means observed demand matched the forecast for at least 90% of observations, with no large recording gaps. These counts give context, not a guarantee of accuracy.</p>`;
+    return `<h3>Forecast accuracy</h3><p>These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better; compare it with simply predicting no temperature change. Different heating, computers and other heat sources can affect the result.</p><div class="forecast-metrics">${cards}</div><label class="forecast-selection">Chart forecast<select data-forecast-hours>${[1,3,6].map(h=>`<option value="${h}" ${hours===h?'selected':''}>${h} ${h===1?'hour':'hours'} ahead</option>`).join('')}</select></label>${!count?`<p class="notice notice-info" role="status">${statusIcon('info')}<span class="notice-text">No completed ${hours}-hour forecasts in this period yet. New forecasts start being recorded after updating; previous short-term predictions cannot be converted into these comparisons.</span></p>`:''}${this.chart(rows,'temperature',`forecast_${hours}h`,`Saved ${hours}-hour forecast`,{twoHourTicks:true,future:this.currentPlanForecast(roomId,hours),scrollKey:`${roomId}:${this.historyHours}:${hours}`})}<p>Forecasts are compared with measurements within five minutes of their due time. “Similar heating” means observed demand matched the forecast for at least 90% of observations, with no large recording gaps. These counts give context, not a guarantee of accuracy.</p>`;
   }
   roomDisclosureOpen(id){return this.roomDisclosureState.get(`${this.tab}:${id}`)===true;}
   learningPercent(room){
@@ -1076,7 +1127,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
   }
   historyView(){
     return `${(electricHeating(this.settings)||(this.settings.heating_zones||[]).length)?this.priceChart(true):this.historyPeriodSelector()}<div class="history-summary"><section><details class="observation-accordion" data-history-section="about" ${this.historySectionOpen('about')?'open':''}><summary><h2>${escapeHTML(this.t('About this history'))}</h2></summary><div class="observation-content"><dl class="history-explanation"><div><dt>${escapeHTML(this.t("Recorded data"))}</dt><dd>${escapeHTML(this.t("Room sensors provide the temperatures that were actually measured. The charts also show recorded heating activity and earlier heating suggestions."))}</dd></div><div><dt>${escapeHTML(this.t("Forecast accuracy"))}</dt><dd>${escapeHTML(this.t("Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better."))}</dd></div><div><dt>${escapeHTML(this.t("During simulation"))}</dt><dd>${escapeHTML(this.t("Forecasts assume that ThermalPilot\u2019s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model."))}</dd></div></dl></div></details></section>
-    ${this.seasonArchivesView()}</div><div class="observation-cards">${[...this.settings.rooms].sort((a,b)=>Number(this.isGarageRoom(a.id,a))-Number(this.isGarageRoom(b.id,b))||compareRoomNames(a,b)).map(room=>{const rows=(this.history||[]).filter(r=>r.room_id===room.id);return `<section class="observation-card${this.isGarageRoom(room.id,room)?' garage-observation-card':''}"><details class="observation-accordion" data-room-accordion="${escapeHTML(room.id)}" ${this.roomDisclosureOpen(room.id)?'open':''}><summary><h2><span data-user-text>${escapeHTML(room.name)}</span> ${this.roomHeatingBadge(this.info.data?.rooms?.[room.id],room.id)} ${this.learningBadge(this.info.data?.rooms?.[room.id])}</h2></summary><div class="observation-content">${this.forecastHistoryView(rows)}</div></details></section>`;}).join('')}</div>`;
+    ${this.seasonArchivesView()}</div><div class="observation-cards">${[...this.settings.rooms].sort((a,b)=>Number(this.isGarageRoom(a.id,a))-Number(this.isGarageRoom(b.id,b))||compareRoomNames(a,b)).map(room=>{const rows=(this.history||[]).filter(r=>r.room_id===room.id);return `<section class="observation-card${this.isGarageRoom(room.id,room)?' garage-observation-card':''}"><details class="observation-accordion" data-room-accordion="${escapeHTML(room.id)}" ${this.roomDisclosureOpen(room.id)?'open':''}><summary><h2><span data-user-text>${escapeHTML(room.name)}</span> ${this.roomHeatingBadge(this.info.data?.rooms?.[room.id],room.id)} ${this.learningBadge(this.info.data?.rooms?.[room.id])}</h2></summary><div class="observation-content">${this.forecastHistoryView(rows,room.id)}</div></details></section>`;}).join('')}</div>`;
   }
   hasUnsavedSettings(){
     if(!this.info?.settings||!this.settings)return false;
@@ -1465,6 +1516,7 @@ details{scroll-margin-block:16px}
     this.shadowRoot.querySelector('#ha-menu')?.addEventListener('click',()=>this.openSidebar());
     this.bindStatusTemperatures();
     this.bindHistorySections();
+    this.bindForecastScroll();
     this.bindSettingTooltips();
     const statusDetails=this.shadowRoot.querySelector('#status-details');statusDetails?.addEventListener('toggle',()=>{this.statusDetailsOpen=statusDetails.open;});
     const retention=this.shadowRoot.querySelector('#retention-accordion');if(retention)retention.addEventListener('toggle',()=>{this.retentionOpen=retention.open;});

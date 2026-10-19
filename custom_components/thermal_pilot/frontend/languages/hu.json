@@ -485,7 +485,8 @@
     "Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better.": "Minden szobakártya összeveti a korábbi előrejelzést a később mért hőmérséklettel. Azt is ellenőrzi, hogy a változatlan hőmérséklet feltételezése jobb eredményt adott volna-e.",
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Az előrejelzés a ThermalPilot tervének követését feltételezi. Szimuláció közben a meglévő vezérlés eltérően fűthet. Az előrejelzési hibát ezért az eltérő fűtési ütemezés és a modell is okozhatja.",
     "About this history": "Az előzményekről",
-    "Last heating season": "Legutóbbi fűtési szezon"
+    "Last heating season": "Legutóbbi fűtési szezon",
+    "Current plan forecast": "A jelenlegi terv előrejelzése"
   },
   "legacy": {},
   "cardMessages": {

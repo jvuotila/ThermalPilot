@@ -485,7 +485,8 @@
     "Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better.": "Hvert herbergisspjald ber fyrri spá saman við hitann sem mældist síðar. Það athugar líka hvort spá um óbreytt hitastig hefði verið betri.",
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Spár gera ráð fyrir að hitunaráætlun ThermalPilot sé fylgt. Við hermun getur núverandi stýring hitað öðruvísi. Spávilla getur því stafað bæði af annarri hitunaráætlun og líkaninu.",
     "About this history": "Um þennan feril",
-    "Last heating season": "Síðasta upphitunartímabil"
+    "Last heating season": "Síðasta upphitunartímabil",
+    "Current plan forecast": "Spá samkvæmt núverandi áætlun"
   },
   "legacy": {},
   "cardMessages": {

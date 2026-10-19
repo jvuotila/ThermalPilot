@@ -485,7 +485,8 @@
     "Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better.": "Iga ruumi kaart võrdleb varasemat prognoosi hiljem mõõdetud temperatuuriga. Samuti kontrollib see, kas muutumatu temperatuuri eeldamine oleks andnud parema tulemuse.",
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Prognoos eeldab ThermalPiloti kütteplaani järgimist. Simulatsiooni ajal võib olemasolev juhtimine kütta teisiti. Prognoosiviga võib seega tuleneda nii erinevast küttegraafikust kui ka mudelist.",
     "About this history": "Teave ajaloo kohta",
-    "Last heating season": "Eelmine kütteperiood"
+    "Last heating season": "Eelmine kütteperiood",
+    "Current plan forecast": "Praeguse plaani prognoos"
   },
   "legacy": {},
   "cardMessages": {

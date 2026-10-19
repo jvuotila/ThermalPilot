@@ -485,7 +485,8 @@
     "Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better.": "Katras telpas kartīte salīdzina agrāku prognozi ar vēlāk izmērīto temperatūru. Tā arī pārbauda, vai nemainīgas temperatūras pieņēmums būtu devis labāku rezultātu.",
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Prognozes pieņem, ka tiek ievērots ThermalPilot plāns. Simulācijas laikā esošā vadība var sildīt citādi. Tāpēc kļūdu var izraisīt gan atšķirīgs apkures grafiks, gan modelis.",
     "About this history": "Par šo vēsturi",
-    "Last heating season": "Iepriekšējā apkures sezona"
+    "Last heating season": "Iepriekšējā apkures sezona",
+    "Current plan forecast": "Pašreizējā plāna prognoze"
   },
   "legacy": {},
   "cardMessages": {

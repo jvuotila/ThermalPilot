@@ -485,7 +485,8 @@
     "Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better.": "Hvert romkort sammenligner en tidligere prognose med temperaturen målt senere. Det sjekker også om en prognose om uendret temperatur ville vært bedre.",
     "Forecasts assume that ThermalPilot’s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model.": "Prognosene forutsetter at ThermalPilots varmeplan følges. Under simulering kan eksisterende styring varme annerledes. Prognosefeil kan derfor skyldes både en annen varmeplan og modellen.",
     "About this history": "Om denne historikken",
-    "Last heating season": "Forrige fyringssesong"
+    "Last heating season": "Forrige fyringssesong",
+    "Current plan forecast": "Prognose for gjeldende plan"
   },
   "legacy": {},
   "cardMessages": {

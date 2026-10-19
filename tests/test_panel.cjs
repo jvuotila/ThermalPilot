@@ -22,7 +22,7 @@ assert.equal(quarters.length,2);assert.equal(quarters[0].time,hour+12*60);assert
 const historyPanel=new Component();historyPanel.settings={rooms:[{id:'history-room',name:'Study'}]};historyPanel.info={data:{}};historyPanel.history=samples;
 const readableHistory=historyPanel.historyView();
 assert.match(readableHistory,/Measured temperature/);assert.match(readableHistory,/Saved 3-hour forecast/);assert.match(readableHistory,/No completed 3-hour forecasts/);
-assert.match(readableHistory,/00:00/);assert.match(readableHistory,/00:15/);assert.match(readableHistory,/00:30/);
+assert.match(readableHistory,/00:00/);assert.match(readableHistory,/00:30/);
 assert.doesNotMatch(readableHistory,/<th>15-minute interval<|Each row shows the latest observation|Table shows up to 288 intervals/);
 assert.doesNotMatch(readableHistory,/data-room-history|Suggested heating and relay history|Loading Home Assistant history|Relay On means/);assert.match(readableHistory,/data-history-period/);assert.doesNotMatch(readableHistory,/Open full Home Assistant history|room-history-link/);
 assert.doesNotMatch(readableHistory,/Suggested thermostat target \(°C\)|not an average/);
@@ -1421,4 +1421,38 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  const history=new Component();history.settings={language:'en',rooms:[{id:'one',name:'One'},{id:'two',name:'Two'}]};history.info={data:{}};history.history=[];
  const html=history.historyView();assert.equal((html.match(/data-history-period/g)||[]).length,1);assert.doesNotMatch(html,/room-history-hours-|room-history-toolbar/);
  assert.match(html,/Forecast accuracy/);
+}
+
+{
+ const originalDate=context.Date,fixed=Date.parse('2026-10-19T08:23:00+03:00');
+ context.Date=class extends Date{constructor(...args){super(...(args.length?args:[fixed]));}static now(){return fixed;}};
+ try{
+  const projected=new Component();projected.settings={language:'en',rooms:[{id:'room',name:'Kitchen'}]};
+  const slots=Array.from({length:28},(_,i)=>({start:new Date(fixed-300000+i*900000).toISOString(),end:new Date(fixed-300000+(i+1)*900000).toISOString(),temperature:20+(i+1)*.05}));
+  projected.info={data:{rooms:{room:{temperature:20,plan:{slots}}}}};
+  const history=[{room_id:'room',time:fixed/1000-3*86400,temperature:19.8,forecast_3h:20.1,forecast_3h_details:{error:.3,persistence_error:.2,heating_match:1}},{room_id:'room',time:fixed/1000,temperature:20,forecast_3h:20.2}];const unchanged=JSON.stringify(history);
+  for(const hours of [1,3,6]){
+   projected.forecastHours=hours;const future=projected.currentPlanForecast('room',hours);
+   assert.equal(future[0].time,fixed/1000);assert.equal(future.at(-1).time,fixed/1000+hours*3600);assert(future.every(p=>Number.isFinite(p.temperature)));
+   const html=projected.forecastHistoryView(history,'room');assert.match(html,/data-current-plan-forecast/);assert.match(html,/data-temperature-now/);assert.match(html,/Current plan forecast/);
+   const ticks=Array.from(html.matchAll(/data-temperature-time-tick="([^"]+)"/g),m=>Number(m[1]));assert(ticks.length>30);
+   for(const tick of ticks){const date=new Date(tick*1000);assert.equal(date.getMinutes(),0);assert.equal(date.getHours()%2,0);}
+   assert.match(html,/min-width:[1-9][0-9]{3,}px/);
+  }
+  assert.equal(JSON.stringify(history),unchanged);
+  projected.info.data.rooms.room.plan.slots=slots.slice(0,2);assert.equal(projected.currentPlanForecast('room',6).at(-1).time,Date.parse(slots[1].end)/1000);
+  projected.info.data.rooms.room.plan.slots=[slots[0],...slots.slice(2)];assert.equal(projected.currentPlanForecast('room',6).at(-1).time,Date.parse(slots[0].end)/1000);
+  projected.info.data.rooms.room.plan=null;assert.deepEqual(Array.from(projected.currentPlanForecast('room',3)),[]);assert.doesNotMatch(projected.forecastHistoryView(history,'room'),/data-current-plan-forecast/);
+  const dstRows=[{time:Date.parse('2026-10-24T23:15:00+03:00')/1000,temperature:20},{time:Date.parse('2026-10-25T08:00:00+02:00')/1000,temperature:19}];
+  const dst=projected.chart(dstRows,'temperature','forecast_3h','Saved forecast',{twoHourTicks:true});
+  for(const match of dst.matchAll(/data-temperature-time-tick="([^"]+)"/g)){const date=new Date(Number(match[1])*1000);assert.equal(date.getMinutes(),0);assert.equal(date.getHours()%2,0);}
+ }finally{context.Date=originalDate;}
+}
+
+{
+ const previousFrame=context.requestAnimationFrame;context.requestAnimationFrame=fn=>fn();
+ const follow=new Component(),handlers={};const viewport={dataset:{forecastScroll:'room:48:3'},clientWidth:800,scrollWidth:2000,scrollLeft:0,isConnected:true,addEventListener:(type,fn)=>handlers[type]=fn,closest:()=>null};
+ follow.shadowRoot.querySelectorAll=()=>[viewport];follow.bindForecastScroll();assert.equal(viewport.scrollLeft,1200);
+ viewport.scrollLeft=400;handlers.scroll();follow.bindForecastScroll();assert.equal(viewport.scrollLeft,400);
+ viewport.scrollLeft=1200;handlers.scroll();viewport.scrollWidth=2100;follow.bindForecastScroll();assert.equal(viewport.scrollLeft,1300);context.requestAnimationFrame=previousFrame;
 }
