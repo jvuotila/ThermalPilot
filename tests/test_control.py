@@ -1,4 +1,5 @@
 """Thermostat reconciliation tests with service doubles."""
+import asyncio
 import unittest,types,sys
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -52,6 +53,31 @@ class ControlTests(unittest.IsolatedAsyncioTestCase):
         room.update(control_minimum=19.2,control_maximum=19.3)
         self.assertTrue(await self.control.apply([room],{'r':19.2},2,lambda:True))
         self.assertEqual(self.hass.services.async_call.await_count,2)
+
+    async def test_service_cancellation_propagates_without_recording_a_write(self):
+        self.hass.services.async_call.side_effect = asyncio.CancelledError
+
+        with self.assertRaises(asyncio.CancelledError):
+            await self.control.apply([self.room], {'r': 22}, 0, lambda: True)
+
+        self.assertEqual(self.control.pending, {})
+        self.assertEqual(self.control.results, {})
+        self.assertEqual(self.control.reconciled, set())
+
+    async def test_failed_room_does_not_prevent_other_rooms_from_receiving_targets(self):
+        second_room = {**self.room, 'id': 'second', 'name': 'Second', 'thermostat': 'climate.second'}
+        self.hass.states['climate.second'] = self.state
+        self.hass.services.async_call.side_effect = [RuntimeError('offline'), None]
+
+        errors = await self.control.apply(
+            [self.room, second_room], {'r': 22, 'second': 21}, 0, lambda: True
+        )
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn('Room: setting thermostat temperature failed', errors[0])
+        self.assertEqual(self.control.results, {'second': 21})
+        self.assertNotIn('climate.r', self.control.pending)
+        self.assertEqual(self.control.pending['climate.second']['target'], 21)
 
 
 class ActivationTests(unittest.TestCase):

@@ -601,53 +601,91 @@ class ThermalPilotPanel extends HTMLElement {
     const label=alternate?'Measured temperature':'Predicted temperature under the suggested plan';
     return `<div class="chart-legend"><span><i style="background:#1976d2"></i>${label}</span>${alternate?`<span><i style="background:repeating-linear-gradient(to right,#e49025 0 6px,transparent 6px 10px)"></i>${escapeHTML(alternateLabel)}</span>`:''}${future.length?`<span><i style="background:#e49025"></i>${escapeHTML(this.t('Current plan forecast'))}</span>`:''}</div><div class="temperature-chart"><svg viewBox="0 0 ${chartWidth} 195"${options.fillWidth?' data-responsive-temperature style="width:100%;min-width:0;height:195px"':''} role="img" aria-label="${label}${alternate?' and '+escapeHTML(alternateLabel):''}">${grid}${ticks.join('')}${nowLine}<polyline points="${points(key)}" fill="none" stroke="#1976d2" stroke-width="3"/>${alternate?`<polyline points="${points(alternate)}" fill="none" stroke="#e49025" stroke-width="2" stroke-dasharray="6 4"/>`:''}${futureLine}</svg></div><small>${escapeHTML(timeLabel(first*1000))} – ${escapeHTML(timeLabel(last*1000))}</small>`;
   }
-  bindResponsiveTemperatureCharts(){
+  bindResponsiveTemperatureCharts() {
     this.temperatureResizeObserver?.disconnect();
-    const charts=new Map();
-    this.shadowRoot.querySelectorAll('svg[data-responsive-temperature]').forEach(svg=>{
-      const originalWidth=Number(svg.getAttribute('viewBox').split(' ')[2]);
-      const left=originalWidth<600?56:70,right=originalWidth-20;
-      const coordinates=Array.from(svg.querySelectorAll('[x],[x1],[x2],polyline')).map(node=>({node,
-        attributes:['x','x1','x2'].filter(name=>node.hasAttribute(name)).map(name=>[name,Number(node.getAttribute(name))]),
-        points:node.hasAttribute('points')?node.getAttribute('points').trim().split(/\s+/).filter(Boolean).map(point=>point.split(',').map(Number)):null}));
-      const resize=()=>{
-        const width=svg.getBoundingClientRect().width;
-        if(!width||svg.isConnected===false)return;
-        const mapX=x=>left+(x-left)*(Math.max(left+1,width-20)-left)/(right-left);
-        svg.setAttribute('viewBox',`0 0 ${width} 195`);
-        for(const {node,attributes,points} of coordinates){
-          for(const [name,value] of attributes)node.setAttribute(name,String(mapX(value)));
-          if(points)node.setAttribute('points',points.map(([x,y])=>`${mapX(x)},${y}`).join(' '));
+    const charts = new Map();
+    this.shadowRoot.querySelectorAll('svg[data-responsive-temperature]').forEach(svg => {
+      const originalWidth = Number(svg.getAttribute('viewBox').split(' ')[2]);
+      const left = originalWidth < 600 ? 56 : 70;
+      const originalRight = originalWidth - 20;
+      // Always resize from original coordinates to avoid drift after repeated resizes.
+      const coordinates = Array.from(svg.querySelectorAll('[x],[x1],[x2],polyline')).map(node => {
+        const attributes = ['x', 'x1', 'x2']
+          .filter(name => node.hasAttribute(name))
+          .map(name => [name, Number(node.getAttribute(name))]);
+        let points = null;
+        if (node.hasAttribute('points')) {
+          points = node.getAttribute('points').trim().split(/\s+/)
+            .filter(Boolean).map(point => point.split(',').map(Number));
+        }
+        return {node, attributes, points};
+      });
+      const resize = () => {
+        const width = svg.getBoundingClientRect().width;
+        if (!width || svg.isConnected === false) return;
+        const right = Math.max(left + 1, width - 20);
+        const mapX = x => left + (x - left) * (right - left) / (originalRight - left);
+        svg.setAttribute('viewBox', `0 0 ${width} 195`);
+        for (const {node, attributes, points} of coordinates) {
+          for (const [name, value] of attributes) {
+            node.setAttribute(name, String(mapX(value)));
+          }
+          if (points) {
+            node.setAttribute('points', points.map(([x, y]) => `${mapX(x)},${y}`).join(' '));
+          }
         }
       };
-      charts.set(svg,resize);resize();
-      svg.closest?.('[data-room-accordion]')?.addEventListener('toggle',resize);
+      charts.set(svg, resize);
+      resize();
+      svg.closest?.('[data-room-accordion]')?.addEventListener('toggle', resize);
     });
-    if(typeof ResizeObserver!=='undefined'){
-      this.temperatureResizeObserver=new ResizeObserver(entries=>{for(const entry of entries)charts.get(entry.target)?.();});
-      for(const svg of charts.keys())this.temperatureResizeObserver.observe(svg);
+    if (typeof ResizeObserver !== 'undefined') {
+      this.temperatureResizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) charts.get(entry.target)?.();
+      });
+      for (const svg of charts.keys()) this.temperatureResizeObserver.observe(svg);
     }
   }
-  currentPlanForecast(roomId,hours){
-    if(![1,3,6].includes(Number(hours)))return [];
-    const room=this.info?.data?.rooms?.[roomId],slots=room?.plan?.slots||[];
-    const valid=value=>value!==null&&value!==undefined&&value!==''&&Number.isFinite(Number(value));
-    if(!valid(room?.temperature)||!slots.length)return [];
-    const rows=slots.map(slot=>({start:Date.parse(slot.start)/1000,end:Date.parse(slot.end)/1000,temperature:slot.temperature})).filter(slot=>Number.isFinite(slot.start)&&Number.isFinite(slot.end)&&slot.end>slot.start).sort((a,b)=>a.start-b.start);
-    if(!rows.length)return [];
-    const now=Date.now()/1000,points=[{time:rows[0].start,temperature:Number(room.temperature)}];
-    for(const slot of rows){
-      if(!valid(slot.temperature)||Math.abs(slot.start-points.at(-1).time)>1)break;
-      points.push({time:slot.end,temperature:Number(slot.temperature)});
+
+  currentPlanForecast(roomId, hours) {
+    if (![1, 3, 6].includes(Number(hours))) return [];
+    const room = this.info?.data?.rooms?.[roomId];
+    const slots = room?.plan?.slots || [];
+    const validTemperature = value => value !== null && value !== undefined
+      && value !== '' && Number.isFinite(Number(value));
+    if (!validTemperature(room?.temperature) || !slots.length) return [];
+
+    const rows = slots.map(slot => ({
+      start: Date.parse(slot.start) / 1000,
+      end: Date.parse(slot.end) / 1000,
+      temperature: slot.temperature,
+    })).filter(slot => Number.isFinite(slot.start) && Number.isFinite(slot.end)
+      && slot.end > slot.start).sort((a, b) => a.start - b.start);
+    if (!rows.length) return [];
+
+    const now = Date.now() / 1000;
+    const points = [{time: rows[0].start, temperature: Number(room.temperature)}];
+    // A missing temperature or gap ends the usable forecast; do not bridge unknown data.
+    for (const slot of rows) {
+      if (!validTemperature(slot.temperature) || Math.abs(slot.start - points.at(-1).time) > 1) break;
+      points.push({time: slot.end, temperature: Number(slot.temperature)});
     }
-    const end=Math.min(now+hours*3600,points.at(-1).time);
-    if(points[0].time>now||end<=now)return [];
-    const interpolate=time=>{
-      const right=points.findIndex(point=>point.time>=time);
-      if(right===0)return points[0].temperature;
-      const a=points[right-1],b=points[right];return a.temperature+(b.temperature-a.temperature)*(time-a.time)/(b.time-a.time);
+    const end = Math.min(now + hours * 3600, points.at(-1).time);
+    if (points[0].time > now || end <= now) return [];
+
+    const interpolate = time => {
+      const rightIndex = points.findIndex(point => point.time >= time);
+      if (rightIndex === 0) return points[0].temperature;
+      const before = points[rightIndex - 1];
+      const after = points[rightIndex];
+      const fraction = (time - before.time) / (after.time - before.time);
+      return before.temperature + (after.temperature - before.temperature) * fraction;
     };
-    return [{time:now,temperature:interpolate(now)},...points.filter(point=>point.time>now&&point.time<end),{time:end,temperature:interpolate(end)}];
+    return [
+      {time: now, temperature: interpolate(now)},
+      ...points.filter(point => point.time > now && point.time < end),
+      {time: end, temperature: interpolate(end)},
+    ];
   }
   forecastHistoryView(rows,roomId=rows[0]?.room_id){
     const hours=this.forecastHours||3,now=Date.now()/1000,start=now-24*3600;
@@ -1151,9 +1189,99 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
       <div class="status-block"><dt>Stored history</dt><dd>${escapeHTML(Number(data.history_info?.rows??0).toLocaleString())}<span class="status-unit"> samples</span></dd><small class="collection-date">Collection started: ${data.history_info?.started_at!=null?escapeHTML(dateLabel(data.history_info.started_at*1000)):'No observations yet'}</small><small>Local database: ${((data.history_info?.bytes??0)/1048576).toFixed(1)} MiB</small></div>
       <div class="status-block"><dt>Last update</dt><dd class="status-time">${escapeHTML(data.updated?timeLabel(data.updated):'—')}</dd><small>Latest calculation and observation.</small></div>
     </dl></section>${(data.warnings||[]).map(w=>statusNotice(w,statusMessageLevel(w))).join('')}${!rooms.length?'<section>Add rooms on the Settings page.</section>':''}
-    ${data.price_outlook?.enabled?`<p class="notice notice-${data.price_outlook.available?'info':'warning'}" role="status">${statusIcon(data.price_outlook.available?'info':'warning')}<span class="notice-text">${data.price_outlook.available?`Price forecast available · ${data.price_outlook.reserve_hours>6?'Extra heat storage considered ahead of expensive hours.':'No extra heat storage needed.'}`:`Price forecast: ${escapeHTML(data.price_outlook.reason||'Waiting for confirmed prices.')}`}</span></p>`:''}<div class="plan-comparison-grid">${(electricHeating(this.settings)||(this.settings.heating_zones||[]).length)?this.priceChart(false):''}${this.heatRetentionView()}</div><div class="observation-cards">${rooms.map(([id,r])=>{const p=r.plan,m=r.model||{};return `<section class="observation-card${this.isGarageRoom(id,r)?' garage-observation-card':''}"><details class="observation-accordion" data-room-accordion="${escapeHTML(id)}" ${this.roomDisclosureOpen(id)?'open':''}><summary><h2><span data-user-text>${escapeHTML(r.name)}</span> ${this.roomHeatingBadge(r,id)} ${this.learningBadge(r)} <small>${r.pump_suggestion?escapeHTML(r.pump_suggestion.mode==='heat'?'Heat pump: Heating':r.pump_suggestion.mode==='off'?'Heat pump: Off':'Heat pump: Fan only'):r.zone_monitor?'Shared zone':p?(p.heat?'Boosted thermostat target':p.mode==='normal'?'Normal thermostat target temperature':'Reduced thermostat target temperature'):'No suggestion'}</small></h2></summary><div class="observation-content"><div class="metrics"><div>Measured<strong>${escapeHTML(r.temperature??'—')} °C</strong></div><div>${r.air_control?'Heat pump heating setpoint':'Suggested thermostat target'}<strong>${escapeHTML(r.air_control?(r.pump_suggestion?.target??'—'):(p?.setpoint??'—'))} °C</strong></div></div>${r.error?statusNotice(r.error,'error'):p?.reason?.startsWith('Temperature limit risk:')?statusNotice(p.reason,'warning'):['Heat storage or a bridging run ahead of predicted cooling.','Heating is planned later; no boost is suggested now.'].includes(p?.reason)?'':`<p>${escapeHTML(p?.reason||'Waiting for data.')}</p>`}${r.pump_suggestion?`<p>${escapeHTML(r.pump_suggestion.reason)}${r.is_garage?' · '+this.t('Garage limits')+': '+escapeHTML(this.settings.rooms.find(room=>room.id===id)?.garage_minimum)+'–'+escapeHTML(this.settings.rooms.find(room=>room.id===id)?.garage_maximum)+' °C':''}</p>`:''}${r.pump_control&&!r.pump_control.confirmed?`<p class="notice notice-info">Waiting for pump confirmation: <span>${escapeHTML(this.t(pumpStageLabels[r.pump_control.stage]||r.pump_control.stage))}</span></p>`:''}${r.zone_monitor?'<p>This room is monitored as part of a shared zone. The zone issues one set of commands to its pump.</p>':''}${this.learningView(r)}
-    ${p?`<h3 class="timing-heading">${r.air_control?'Heat pump timing':'Thermostat timing'}${r.air_control?'':`<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t('Thermostat timing'))}" aria-describedby="timing-help-${escapeHTML(id)}">${tooltipInfoIcon}</button><span id="timing-help-${escapeHTML(id)}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t('Target changes include the shared start/stop offsets. The temperature forecast models the planned heating period; actual valve and heat-pump delays must be checked against observations.'))}</span></span>`}</h3>${r.air_control?'<p>Heat means heating mode; pauses use fan-only. Room sensors govern temperature limits. The device setpoint is separate from those limits.</p>':''}<div class="scroll timing-table"><table><thead><tr><th>Change target at</th><th>Planned target change</th><th>Target (°C)</th></tr></thead><tbody>${(p.commands||[]).slice(-3).map(c=>`<tr><td>${escapeHTML(timeLabel(c.time))}</td><td>${p.air_control?(c.mode==='boost'?'Heat':'Fan only'):c.action==='raise'?'Boost':c.action==='restore'?'Restore normal':'Reduce'}</td><td>${p.air_control?(c.mode==='boost'?p.device_target:'—'):c.setpoint}</td></tr>`).join('')||'<tr><td class="empty-table" colspan="3">No thermostat target changes planned.</td></tr>'}</tbody></table></div>${this.chart(p.slots,'temperature',null,'Saved forecast',{fillWidth:true})}`:''}</div></details></section>`;}).join('')}</div>`;
+    ${data.price_outlook?.enabled?`<p class="notice notice-${data.price_outlook.available?'info':'warning'}" role="status">${statusIcon(data.price_outlook.available?'info':'warning')}<span class="notice-text">${data.price_outlook.available?`Price forecast available · ${data.price_outlook.reserve_hours>6?'Extra heat storage considered ahead of expensive hours.':'No extra heat storage needed.'}`:`Price forecast: ${escapeHTML(data.price_outlook.reason||'Waiting for confirmed prices.')}`}</span></p>`:''}<div class="plan-comparison-grid">${(electricHeating(this.settings)||(this.settings.heating_zones||[]).length)?this.priceChart(false):''}${this.heatRetentionView()}</div><div class="observation-cards">${rooms.map(([roomId,room])=>this.roomPlanView(roomId,room)).join('')}</div>`;
   }
+  roomPlanView(roomId, room) {
+    const plan = room.plan;
+    let status = 'No suggestion';
+    if (room.pump_suggestion) {
+      const pumpMode = room.pump_suggestion.mode;
+      if (pumpMode === 'heat') status = 'Heat pump: Heating';
+      else if (pumpMode === 'off') status = 'Heat pump: Off';
+      else status = 'Heat pump: Fan only';
+    } else if (room.zone_monitor) {
+      status = 'Shared zone';
+    } else if (plan) {
+      if (plan.heat) status = 'Boosted thermostat target';
+      else if (plan.mode === 'normal') status = 'Normal thermostat target temperature';
+      else status = 'Reduced thermostat target temperature';
+    }
+
+    const routineReasons = [
+      'Heat storage or a bridging run ahead of predicted cooling.',
+      'Heating is planned later; no boost is suggested now.',
+    ];
+    let explanation = '';
+    if (room.error) {
+      explanation = statusNotice(room.error, 'error');
+    } else if (plan?.reason?.startsWith('Temperature limit risk:')) {
+      explanation = statusNotice(plan.reason, 'warning');
+    } else if (!routineReasons.includes(plan?.reason)) {
+      explanation = `<p>${escapeHTML(plan?.reason || 'Waiting for data.')}</p>`;
+    }
+
+    let pumpExplanation = '';
+    if (room.pump_suggestion) {
+      let garageLimits = '';
+      if (room.is_garage) {
+        const configuredRoom = this.settings.rooms.find(item => item.id === roomId);
+        garageLimits = ' · ' + this.t('Garage limits') + ': '
+          + escapeHTML(configuredRoom?.garage_minimum) + '–'
+          + escapeHTML(configuredRoom?.garage_maximum) + ' °C';
+      }
+      pumpExplanation = `<p>${escapeHTML(room.pump_suggestion.reason)}${garageLimits}</p>`;
+    }
+
+    const targetLabel = room.air_control
+      ? 'Heat pump heating setpoint' : 'Suggested thermostat target';
+    const target = room.air_control
+      ? room.pump_suggestion?.target : plan?.setpoint;
+    const garageClass = this.isGarageRoom(roomId, room) ? ' garage-observation-card' : '';
+    return `<section class="observation-card${garageClass}">
+      <details class="observation-accordion" data-room-accordion="${escapeHTML(roomId)}" ${this.roomDisclosureOpen(roomId) ? 'open' : ''}>
+        <summary><h2><span data-user-text>${escapeHTML(room.name)}</span> ${this.roomHeatingBadge(room, roomId)} ${this.learningBadge(room)} <small>${escapeHTML(status)}</small></h2></summary>
+        <div class="observation-content">
+          <div class="metrics"><div>Measured<strong>${escapeHTML(room.temperature ?? '—')} °C</strong></div><div>${targetLabel}<strong>${escapeHTML(target ?? '—')} °C</strong></div></div>
+          ${explanation}${pumpExplanation}
+          ${room.pump_control && !room.pump_control.confirmed ? `<p class="notice notice-info">Waiting for pump confirmation: <span>${escapeHTML(this.t(pumpStageLabels[room.pump_control.stage] || room.pump_control.stage))}</span></p>` : ''}
+          ${room.zone_monitor ? '<p>This room is monitored as part of a shared zone. The zone issues one set of commands to its pump.</p>' : ''}
+          ${this.learningView(room)}
+          ${plan ? this.roomTimingView(roomId, room) : ''}
+        </div>
+      </details>
+    </section>`;
+  }
+
+  roomTimingView(roomId, room) {
+    const plan = room.plan;
+    const heading = room.air_control ? 'Heat pump timing' : 'Thermostat timing';
+    const helpId = `timing-help-${escapeHTML(roomId)}`;
+    const helpText = 'Target changes include the shared start/stop offsets. The temperature forecast models the planned heating period; actual valve and heat-pump delays must be checked against observations.';
+    const help = room.air_control ? '' : `<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t(heading))}" aria-describedby="${helpId}">${tooltipInfoIcon}</button><span id="${helpId}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t(helpText))}</span></span>`;
+    const rows = (plan.commands || []).slice(-3).map(command => {
+      let action;
+      let target;
+      if (plan.air_control) {
+        action = command.mode === 'boost' ? 'Heat' : 'Fan only';
+        target = command.mode === 'boost' ? plan.device_target : '—';
+      } else {
+        if (command.action === 'raise') action = 'Boost';
+        else if (command.action === 'restore') action = 'Restore normal';
+        else action = 'Reduce';
+        target = command.setpoint;
+      }
+      return `<tr><td>${escapeHTML(timeLabel(command.time))}</td><td>${action}</td><td>${target}</td></tr>`;
+    }).join('');
+
+    return `<h3 class="timing-heading">${heading}${help}</h3>
+      ${room.air_control ? '<p>Heat means heating mode; pauses use fan-only. Room sensors govern temperature limits. The device setpoint is separate from those limits.</p>' : ''}
+      <div class="scroll timing-table"><table>
+        <thead><tr><th>Change target at</th><th>Planned target change</th><th>Target (°C)</th></tr></thead>
+        <tbody>${rows || '<tr><td class="empty-table" colspan="3">No thermostat target changes planned.</td></tr>'}</tbody>
+      </table></div>
+      ${this.chart(plan.slots, 'temperature', null, 'Saved forecast', {fillWidth: true})}`;
+  }
+
   historySectionOpen(section){
     const key=`thermal_pilot:${this.entry||'preview'}:history-sections`;
     if(this.historySectionStorageKey!==key){
@@ -1846,6 +1974,8 @@ demo.data.season_summaries=demo.settings.rooms.map((room,index)=>({
  model:{retention_learned:true,loss:room.is_garage?.0065:.0022+(index%6)*.0006,gain:room.is_garage?.156:.068+(index%7)*.007}
 }));
 // END richer preview activity
+
+
 
 
 
