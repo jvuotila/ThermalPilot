@@ -19,10 +19,10 @@ const samples=[
 ];
 const quarters=quarterRows(samples.slice().reverse());
 assert.equal(quarters.length,2);assert.equal(quarters[0].time,hour+12*60);assert.equal(quarters[1].interval_start,hour+15*60);
-const historyPanel=new Component();historyPanel.settings={rooms:[{id:'history-room',name:'Study'}]};historyPanel.info={data:{}};historyPanel.history=samples;
+const historyPanel=new Component();historyPanel.settings={rooms:[{id:'history-room',name:'Study'}]};historyPanel.info={data:{}};historyPanel.history=samples.map(row=>({...row,time:Date.now()/1000-1800+(row.time-hour)}));
 const readableHistory=historyPanel.historyView();
 assert.match(readableHistory,/Measured temperature/);assert.match(readableHistory,/Saved 3-hour forecast/);assert.match(readableHistory,/No completed 3-hour forecasts/);
-assert.match(readableHistory,/00:00/);assert.match(readableHistory,/00:30/);
+assert.match(readableHistory,/data-temperature-time-tick/);
 assert.doesNotMatch(readableHistory,/<th>15-minute interval<|Each row shows the latest observation|Table shows up to 288 intervals/);
 assert.doesNotMatch(readableHistory,/data-room-history|Suggested heating and relay history|Loading Home Assistant history|Relay On means/);assert.match(readableHistory,/data-history-period/);assert.doesNotMatch(readableHistory,/Open full Home Assistant history|room-history-link/);
 assert.doesNotMatch(readableHistory,/Suggested thermostat target \(°C\)|not an average/);
@@ -389,7 +389,7 @@ handlers.focusin({target:ev.target});assert.equal(box.hidden,false);handlers.foc
 console.log('Chart detail checks passed: price intervals, grouped heating periods, observed boundaries, hover/focus/tap, dismissal and phone-safe positioning.');
 
 const accuracyPanel=new Component();
-const accuracyRows=[{time:10000,temperature:21,forecast_3h:20.5,forecast_3h_details:{issued:-800,due:10000,error:.5,persistence_error:1,heating_match:1}}];
+const accuracyRows=[{time:Date.now()/1000,temperature:21,forecast_3h:20.5,forecast_3h_details:{issued:-800,due:10000,error:.5,persistence_error:1,heating_match:1}}];
 let accuracyHTML=accuracyPanel.forecastHistoryView(accuracyRows);
 assert.match(accuracyHTML,/Saved 3-hour forecast/);assert.match(accuracyHTML,/forecast-metrics-title">Mean error:/);assert.match(accuracyHTML,/forecast-metric-value">0.50 °C/);assert.doesNotMatch(accuracyHTML,/No-change error:|Similar heating error:|with similar heating/);assert.doesNotMatch(accuracyHTML,/comparisons|1 comparison/);
 assert.doesNotMatch(accuracyHTML,/Model prediction using actual heating|No completed 3-hour forecasts/);
@@ -1430,15 +1430,27 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
   const projected=new Component();projected.settings={language:'en',rooms:[{id:'room',name:'Kitchen'}]};
   const slots=Array.from({length:28},(_,i)=>({start:new Date(fixed-300000+i*900000).toISOString(),end:new Date(fixed-300000+(i+1)*900000).toISOString(),temperature:20+(i+1)*.05}));
   projected.info={data:{rooms:{room:{temperature:20,plan:{slots}}}}};
-  const history=[{room_id:'room',time:fixed/1000-3*86400,temperature:19.8,forecast_3h:20.1,forecast_3h_details:{error:.3,persistence_error:.2,heating_match:1}},{room_id:'room',time:fixed/1000,temperature:20,forecast_3h:20.2}];const unchanged=JSON.stringify(history);
+  const history=[{room_id:'room',time:fixed/1000-3*86400,temperature:19.8,forecast_3h:20.1,forecast_3h_details:{error:.3,persistence_error:.2,heating_match:1}},{room_id:'room',time:fixed/1000,temperature:20,forecast_3h:20.2,forecast_3h_details:{error:.1}}];const unchanged=JSON.stringify(history);
   for(const hours of [1,3,6]){
    projected.forecastHours=hours;const future=projected.currentPlanForecast('room',hours);
    assert.equal(future[0].time,fixed/1000);assert.equal(future.at(-1).time,fixed/1000+hours*3600);assert(future.every(p=>Number.isFinite(p.temperature)));
    const html=projected.forecastHistoryView(history,'room');assert.match(html,/data-current-plan-forecast/);assert.match(html,/data-temperature-now/);assert.match(html,/Current plan forecast/);
-   const ticks=Array.from(html.matchAll(/data-temperature-time-tick="([^"]+)"/g),m=>Number(m[1]));assert(ticks.length>30);
+   const ticks=Array.from(html.matchAll(/data-temperature-time-tick="([^"]+)"/g),m=>Number(m[1]));assert(ticks.length>=12&&ticks.length<=16);
    for(const tick of ticks){const date=new Date(tick*1000);assert.equal(date.getMinutes(),0);assert.equal(date.getHours()%2,0);}
-   assert.match(html,/min-width:[1-9][0-9]{3,}px/);
+   assert.doesNotMatch(html,/data-forecast-scroll|min-width:[1-9][0-9]+px/);
   }
+  projected.forecastHours=3;projected.historyHours=168;
+  const week=projected.forecastHistoryView(history,'room');
+  projected.historyHours=24;assert.equal(projected.forecastHistoryView(history,'room'),week);
+  assert.doesNotMatch(week,/forecast-metric-value">0.30 °C/);
+  assert.match(week,/forecast-metric-value">0.10 °C/);
+  const renderChart=projected.chart;let selectedRows,range;
+  projected.chart=(rows,key,alternate,label,options)=>{selectedRows=rows;range=options;return '';};
+  projected.forecastHistoryView([...history,{time:fixed/1000-86400,temperature:19},{time:fixed/1000+60,temperature:30}],'room');
+  assert.equal(selectedRows.length,2);assert.equal(range.rangeStart,fixed/1000-86400);assert.equal(range.rangeEnd,fixed/1000+3*3600);
+  projected.chart=renderChart;projected.clientWidth=375;
+  const mobile=projected.forecastHistoryView(history,'room');assert.match(mobile,/viewBox="0 0 247 195"/);assert.doesNotMatch(mobile,/min-width:|data-forecast-scroll/);
+  projected.clientWidth=0;
   assert.equal(JSON.stringify(history),unchanged);
   projected.info.data.rooms.room.plan.slots=slots.slice(0,2);assert.equal(projected.currentPlanForecast('room',6).at(-1).time,Date.parse(slots[1].end)/1000);
   projected.info.data.rooms.room.plan.slots=[slots[0],...slots.slice(2)];assert.equal(projected.currentPlanForecast('room',6).at(-1).time,Date.parse(slots[0].end)/1000);
@@ -1449,10 +1461,32 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  }finally{context.Date=originalDate;}
 }
 
+
+// The compact timing table retains the last three planned changes without altering the plan.
 {
- const previousFrame=context.requestAnimationFrame;context.requestAnimationFrame=fn=>fn();
- const follow=new Component(),handlers={};const viewport={dataset:{forecastScroll:'room:48:3'},clientWidth:800,scrollWidth:2000,scrollLeft:0,isConnected:true,addEventListener:(type,fn)=>handlers[type]=fn,closest:()=>null};
- follow.shadowRoot.querySelectorAll=()=>[viewport];follow.bindForecastScroll();assert.equal(viewport.scrollLeft,1200);
- viewport.scrollLeft=400;handlers.scroll();follow.bindForecastScroll();assert.equal(viewport.scrollLeft,400);
- viewport.scrollLeft=1200;handlers.scroll();viewport.scrollWidth=2100;follow.bindForecastScroll();assert.equal(viewport.scrollLeft,1300);context.requestAnimationFrame=previousFrame;
+ const room=Object.values(compactPlanPanel.info.data.rooms).find(room=>room.plan);
+ const original=room.plan.commands;
+ room.plan.commands=Array.from({length:6},(_,i)=>({time:new Date(Date.now()+i*900000).toISOString(),action:'raise',setpoint:22+i/10}));
+ const snapshot=JSON.stringify(room.plan.commands);
+ const html=compactPlanPanel.overview();
+ const tables=Array.from(html.matchAll(/<div class="scroll timing-table">([\s\S]*?)<\/tbody>/g));
+ assert(tables.every(match=>(match[1].match(/<tr>/g)||[]).length<=4));
+ assert.match(html,/<th>Planned target change<\/th>/);
+ assert.doesNotMatch(html,/<td>22<\/td>|<td>22.1<\/td>|<td>22.2<\/td>/);
+ assert.match(html,/<td>22.3<\/td>/);assert.match(html,/<td>22.5<\/td>/);
+ assert.equal(JSON.stringify(room.plan.commands),snapshot);room.plan.commands=original;
+}
+
+// Resize plot coordinates rather than stretching SVG text and stroke widths.
+{
+ const responsive=new Component();let width=1600,notify,disconnected=false;
+ const element=attributes=>({attributes,getAttribute:name=>attributes[name],hasAttribute:name=>name in attributes,setAttribute:(name,value)=>attributes[name]=value});
+ const label=element({x:'780',y:'180'}),line=element({points:'70,150 780,40','stroke-width':'3'});
+ const svg=element({viewBox:'0 0 800 195'});svg.getBoundingClientRect=()=>({width});svg.querySelectorAll=()=>[label,line];
+ responsive.shadowRoot.querySelectorAll=()=>[svg];
+ const previous=context.ResizeObserver;context.ResizeObserver=class{constructor(fn){notify=fn;}observe(){}disconnect(){disconnected=true;}};
+ responsive.bindResponsiveTemperatureCharts();
+ assert.equal(svg.attributes.viewBox,'0 0 1600 195');assert.equal(label.attributes.x,'1580');assert.equal(label.attributes.y,'180');assert.equal(line.attributes.points,'70,150 1580,40');assert.equal(line.attributes['stroke-width'],'3');
+ width=400;notify([{target:svg}]);assert.equal(svg.attributes.viewBox,'0 0 400 195');assert.equal(label.attributes.x,'380');assert.equal(line.attributes.points,'70,150 380,40');
+ responsive.shadowRoot.querySelectorAll=()=>[];responsive.bindResponsiveTemperatureCharts();assert.equal(disconnected,true);context.ResizeObserver=previous;
 }

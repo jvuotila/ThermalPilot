@@ -348,7 +348,7 @@ class ThermalPilotPanel extends HTMLElement {
   set hass(value){this._hass=value;this.updateFireplaceReading();this.updateSourceReadings();if(this.isConnected && !this.loaded && !this.loading)this.load();}
   set panel(value){this._panel=value;if(this.isConnected && this._hass && !this.loaded)this.load();}
   connectedCallback(){if(this._hass)this.load();this.timer=setInterval(()=>{if(!['settings','rooms'].includes(this.tab))this.load();},60000);}
-  disconnectedCallback(){this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
+  disconnectedCallback(){this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
   get entry(){return this._panel?.config?.entry_id;}
   async call(type,extra={}){return this._hass.callWS({type:`thermal_pilot/${type}`,entry_id:this.entry,...extra});}
   async load(){
@@ -478,7 +478,7 @@ class ThermalPilotPanel extends HTMLElement {
     if((!data.length&&!future.length)||!values.length)return '<p>No observation history yet.</p>';
     const low=Math.floor((Math.min(...values)-.1)*10)/10,high=Math.ceil((Math.max(...values)+.1)*10)/10;
     const times=[...data.map(timestamp),...future.map(point=>point.time)];
-    const first=Math.floor(Math.min(...times)/900)*900,last=Math.max(first+900,Math.ceil(Math.max(...times)/900)*900),span=last-first;
+    const first=options.rangeStart??Math.floor(Math.min(...times)/900)*900,last=Math.max(first+900,options.rangeEnd??Math.ceil(Math.max(...times)/900)*900),span=last-first;
     const evenHours=[];
     if(options.twoHourTicks){
       const tick=new Date(first*1000);tick.setHours(Math.floor(tick.getHours()/2)*2,0,0,0);
@@ -487,7 +487,7 @@ class ThermalPilotPanel extends HTMLElement {
     }
     // Quarter-hour ticks for short periods; longer views use aligned multiples to keep labels readable.
     const baseWidth=(this.clientWidth||0)>0&&this.clientWidth<700?Math.max(240,this.clientWidth-128):800;
-    const chartWidth=options.twoHourTicks?Math.max(baseWidth,evenHours.length*76+90):baseWidth;
+    const chartWidth=baseWidth;
     const left=chartWidth<600?56:70,right=chartWidth-20;
     const tickCount=chartWidth<600?Math.max(2,Math.floor((right-left)/70)):12;
     const tickSeconds=Math.max(900,Math.ceil(span/(tickCount*900))*900);
@@ -496,29 +496,40 @@ class ThermalPilotPanel extends HTMLElement {
     const grid=[low,(low+high)/2,high].map(value=>`<line x1="${left}" y1="${y(value)}" x2="${right}" y2="${y(value)}" stroke="currentColor" opacity=".15"/><text x="${left-8}" y="${y(value)+4}" text-anchor="end">${value.toFixed(1)} °C</text>`).join('');
     const ticks=[];
     const tickTimes=options.twoHourTicks?evenHours:Array.from({length:Math.floor(span/tickSeconds)+1},(_,index)=>first+index*tickSeconds);
-    for(const time of tickTimes){const label=new Date(time*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false});ticks.push(`<line data-temperature-time-tick="${time}" x1="${x(time)}" y1="30" x2="${x(time)}" y2="160" stroke="currentColor" opacity=".1"/><text x="${x(time)}" y="180" text-anchor="middle">${escapeHTML(label)}</text>`);}
+    const labelStride=options.twoHourTicks?Math.max(1,Math.ceil(evenHours.length/Math.max(2,Math.floor((right-left)/52)))):1;
+    for(const [index,time] of tickTimes.entries()){const label=new Date(time*1000).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false});ticks.push(`<line data-temperature-time-tick="${time}" x1="${x(time)}" y1="30" x2="${x(time)}" y2="160" stroke="currentColor" opacity=".1"/>${index%labelStride===0?`<text x="${x(time)}" y="180" text-anchor="middle">${escapeHTML(label)}</text>`:''}`);}
     const now=Date.now()/1000;
     const futureLine=future.length?`<polyline data-current-plan-forecast points="${future.map(point=>`${x(point.time)},${y(Number(point.temperature))}`).join(' ')}" fill="none" stroke="#e49025" stroke-width="2.5"/>`:'';
     const nowLine=future.length&&now>=first&&now<=last?`<line data-temperature-now x1="${x(now)}" x2="${x(now)}" y1="30" y2="160" stroke="#526b75" stroke-dasharray="4 4"/><text x="${x(now)}" y="20" text-anchor="middle">${escapeHTML(this.t('Now'))}</text>`:'';
     const label=alternate?'Measured temperature':'Predicted temperature under the suggested plan';
-    return `<div class="chart-legend"><span><i style="background:#1976d2"></i>${label}</span>${alternate?`<span><i style="background:repeating-linear-gradient(to right,#e49025 0 6px,transparent 6px 10px)"></i>${escapeHTML(alternateLabel)}</span>`:''}${future.length?`<span><i style="background:#e49025"></i>${escapeHTML(this.t('Current plan forecast'))}</span>`:''}</div><div class="temperature-chart"${options.twoHourTicks?` data-forecast-scroll="${escapeHTML(options.scrollKey||'history')}"`:''}><svg viewBox="0 0 ${chartWidth} 195"${options.twoHourTicks?` style="min-width:${chartWidth}px;height:230px"`:''} role="img" aria-label="${label}${alternate?' and '+escapeHTML(alternateLabel):''}">${grid}${ticks.join('')}${nowLine}<polyline points="${points(key)}" fill="none" stroke="#1976d2" stroke-width="3"/>${alternate?`<polyline points="${points(alternate)}" fill="none" stroke="#e49025" stroke-width="2" stroke-dasharray="6 4"/>`:''}${futureLine}</svg></div><small>${escapeHTML(timeLabel(first*1000))} – ${escapeHTML(timeLabel(last*1000))}</small>`;
+    return `<div class="chart-legend"><span><i style="background:#1976d2"></i>${label}</span>${alternate?`<span><i style="background:repeating-linear-gradient(to right,#e49025 0 6px,transparent 6px 10px)"></i>${escapeHTML(alternateLabel)}</span>`:''}${future.length?`<span><i style="background:#e49025"></i>${escapeHTML(this.t('Current plan forecast'))}</span>`:''}</div><div class="temperature-chart"><svg viewBox="0 0 ${chartWidth} 195"${options.fillWidth?' data-responsive-temperature style="width:100%;min-width:0;height:195px"':''} role="img" aria-label="${label}${alternate?' and '+escapeHTML(alternateLabel):''}">${grid}${ticks.join('')}${nowLine}<polyline points="${points(key)}" fill="none" stroke="#1976d2" stroke-width="3"/>${alternate?`<polyline points="${points(alternate)}" fill="none" stroke="#e49025" stroke-width="2" stroke-dasharray="6 4"/>`:''}${futureLine}</svg></div><small>${escapeHTML(timeLabel(first*1000))} – ${escapeHTML(timeLabel(last*1000))}</small>`;
   }
-  bindForecastScroll(){
-    this.forecastScrollPositions??=new Map();
-    this.shadowRoot.querySelectorAll('[data-forecast-scroll]').forEach(viewport=>{
-      const key=viewport.dataset.forecastScroll;
-      const restore=()=>{
-        if(viewport.isConnected===false||!viewport.clientWidth)return;
-        const saved=this.forecastScrollPositions.get(key);
-        viewport.scrollLeft=saved===undefined||saved==='end'?viewport.scrollWidth-viewport.clientWidth:saved;
+  bindResponsiveTemperatureCharts(){
+    this.temperatureResizeObserver?.disconnect();
+    const charts=new Map();
+    this.shadowRoot.querySelectorAll('svg[data-responsive-temperature]').forEach(svg=>{
+      const originalWidth=Number(svg.getAttribute('viewBox').split(' ')[2]);
+      const left=originalWidth<600?56:70,right=originalWidth-20;
+      const coordinates=Array.from(svg.querySelectorAll('[x],[x1],[x2],polyline')).map(node=>({node,
+        attributes:['x','x1','x2'].filter(name=>node.hasAttribute(name)).map(name=>[name,Number(node.getAttribute(name))]),
+        points:node.hasAttribute('points')?node.getAttribute('points').trim().split(/\s+/).filter(Boolean).map(point=>point.split(',').map(Number)):null}));
+      const resize=()=>{
+        const width=svg.getBoundingClientRect().width;
+        if(!width||svg.isConnected===false)return;
+        const mapX=x=>left+(x-left)*(Math.max(left+1,width-20)-left)/(right-left);
+        svg.setAttribute('viewBox',`0 0 ${width} 195`);
+        for(const {node,attributes,points} of coordinates){
+          for(const [name,value] of attributes)node.setAttribute(name,String(mapX(value)));
+          if(points)node.setAttribute('points',points.map(([x,y])=>`${mapX(x)},${y}`).join(' '));
+        }
       };
-      viewport.addEventListener('scroll',()=>{
-        if(viewport.clientWidth)this.forecastScrollPositions.set(key,viewport.scrollWidth-viewport.clientWidth-viewport.scrollLeft<4?'end':viewport.scrollLeft);
-      });
-      const schedule=()=>{if(typeof globalThis.requestAnimationFrame==='function')globalThis.requestAnimationFrame(restore);else restore();};
-      viewport.closest?.('[data-room-accordion]')?.addEventListener('toggle',schedule);
-      schedule();
+      charts.set(svg,resize);resize();
+      svg.closest?.('[data-room-accordion]')?.addEventListener('toggle',resize);
     });
+    if(typeof ResizeObserver!=='undefined'){
+      this.temperatureResizeObserver=new ResizeObserver(entries=>{for(const entry of entries)charts.get(entry.target)?.();});
+      for(const svg of charts.keys())this.temperatureResizeObserver.observe(svg);
+    }
   }
   currentPlanForecast(roomId,hours){
     if(![1,3,6].includes(Number(hours)))return [];
@@ -542,14 +553,16 @@ class ThermalPilotPanel extends HTMLElement {
     return [{time:now,temperature:interpolate(now)},...points.filter(point=>point.time>now&&point.time<end),{time:end,temperature:interpolate(end)}];
   }
   forecastHistoryView(rows,roomId=rows[0]?.room_id){
-    const hours=this.forecastHours||3;
+    const hours=this.forecastHours||3,now=Date.now()/1000,start=now-24*3600;
+    rows=rows.filter(row=>Number(row.time)>=start&&Number(row.time)<=now);
+    const future=this.currentPlanForecast(roomId,hours);
     const cards=[1,3,6].map(h=>{
       const details=rows.map(r=>r[`forecast_${h}h_details`]).filter(Boolean);
       const count=details.length,mean=key=>count?(details.reduce((sum,d)=>sum+d[key],0)/count).toFixed(2)+' °C':'—';
       return `<div class="forecast-metric" title="${escapeHTML(this.t(h+'-hour forecast'))}"><span class="forecast-metric-label">${h} h</span><b class="forecast-metric-value">${mean('error')}</b></div>`;
     }).join('');
     const count=rows.filter(r=>r[`forecast_${hours}h_details`]).length;
-    return `<h3 class="forecast-heading">${escapeHTML(this.t('Forecast accuracy'))}<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t('Forecast accuracy'))}" aria-describedby="forecast-help-${escapeHTML(roomId||'room')}">${tooltipInfoIcon}</button><span id="forecast-help-${escapeHTML(roomId||'room')}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t('These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.'))}</span></span></h3><div class="forecast-toolbar"><div class="forecast-metrics"><span class="forecast-metrics-title">Mean error:</span>${cards}</div><label class="forecast-selection">Chart forecast<select data-forecast-hours>${[1,3,6].map(h=>`<option value="${h}" ${hours===h?'selected':''}>${h} ${h===1?'hour':'hours'} ahead</option>`).join('')}</select></label></div>${!count?`<p class="notice notice-info" role="status">${statusIcon('info')}<span class="notice-text">No completed ${hours}-hour forecasts in this period yet. New forecasts start being recorded after updating; previous short-term predictions cannot be converted into these comparisons.</span></p>`:''}${this.chart(rows,'temperature',`forecast_${hours}h`,`Saved ${hours}-hour forecast`,{twoHourTicks:true,future:this.currentPlanForecast(roomId,hours),scrollKey:`${roomId}:${this.historyHours}:${hours}`})}`;
+    return `<h3 class="forecast-heading">${escapeHTML(this.t('Forecast accuracy'))}<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t('Forecast accuracy'))}" aria-describedby="forecast-help-${escapeHTML(roomId||'room')}">${tooltipInfoIcon}</button><span id="forecast-help-${escapeHTML(roomId||'room')}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t('These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.'))}</span></span></h3><div class="forecast-toolbar"><div class="forecast-metrics"><span class="forecast-metrics-title">Mean error:</span>${cards}</div><label class="forecast-selection">Chart forecast<select data-forecast-hours>${[1,3,6].map(h=>`<option value="${h}" ${hours===h?'selected':''}>${h} ${h===1?'hour':'hours'} ahead</option>`).join('')}</select></label></div>${!count?`<p class="notice notice-info" role="status">${statusIcon('info')}<span class="notice-text">No completed ${hours}-hour forecasts in this period yet. New forecasts start being recorded after updating; previous short-term predictions cannot be converted into these comparisons.</span></p>`:''}${this.chart(rows,'temperature',`forecast_${hours}h`,`Saved ${hours}-hour forecast`,{twoHourTicks:true,future,rangeStart:start,rangeEnd:future.at(-1)?.time??now})}`;
   }
   roomDisclosureOpen(id){return this.roomDisclosureState.get(`${this.tab}:${id}`)===true;}
   learningPercent(room){
@@ -1041,8 +1054,8 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
       <div class="status-block"><dt>Stored history</dt><dd>${escapeHTML(Number(data.history_info?.rows??0).toLocaleString())}<span class="status-unit"> samples</span></dd><small class="collection-date">Collection started: ${data.history_info?.started_at!=null?escapeHTML(dateLabel(data.history_info.started_at*1000)):'No observations yet'}</small><small>Local database: ${((data.history_info?.bytes??0)/1048576).toFixed(1)} MiB</small></div>
       <div class="status-block"><dt>Last update</dt><dd class="status-time">${escapeHTML(data.updated?timeLabel(data.updated):'—')}</dd><small>Latest calculation and observation.</small></div>
     </dl></section>${(data.warnings||[]).map(w=>statusNotice(w,statusMessageLevel(w))).join('')}${!rooms.length?'<section>Add rooms on the Settings page.</section>':''}
-    ${data.price_outlook?.enabled?`<p class="notice notice-${data.price_outlook.available?'info':'warning'}" role="status">${statusIcon(data.price_outlook.available?'info':'warning')}<span class="notice-text">${data.price_outlook.available?`Price forecast available · ${data.price_outlook.reserve_hours>6?'Extra heat storage considered ahead of expensive hours.':'No extra heat storage needed.'}`:`Price forecast: ${escapeHTML(data.price_outlook.reason||'Waiting for confirmed prices.')}`}</span></p>`:''}<div class="plan-comparison-grid">${(electricHeating(this.settings)||(this.settings.heating_zones||[]).length)?this.priceChart(false):''}${this.heatRetentionView()}</div><div class="observation-cards">${rooms.map(([id,r])=>{const p=r.plan,m=r.model||{};return `<section class="observation-card${this.isGarageRoom(id,r)?' garage-observation-card':''}"><details class="observation-accordion" data-room-accordion="${escapeHTML(id)}" ${this.roomDisclosureOpen(id)?'open':''}><summary><h2><span data-user-text>${escapeHTML(r.name)}</span> ${this.roomHeatingBadge(r,id)} ${this.learningBadge(r)} <small>${r.pump_suggestion?escapeHTML(r.pump_suggestion.mode==='heat'?'Heat pump: Heating':r.pump_suggestion.mode==='off'?'Heat pump: Off':'Heat pump: Fan only'):r.zone_monitor?'Shared zone':p?(p.heat?'Boosted thermostat target':p.mode==='normal'?'Normal thermostat target temperature':'Reduced thermostat target temperature'):'No suggestion'}</small></h2></summary><div class="observation-content"><div class="metrics"><div>Measured<strong>${escapeHTML(r.temperature??'—')} °C</strong></div><div>${r.air_control?'Heat pump heating setpoint':'Suggested thermostat target'}<strong>${escapeHTML(r.air_control?(r.pump_suggestion?.target??'—'):(p?.setpoint??'—'))} °C</strong></div></div>${r.error?statusNotice(r.error,'error'):p?.reason?.startsWith('Temperature limit risk:')?statusNotice(p.reason,'warning'):`<p>${escapeHTML(p?.reason||'Waiting for data.')}</p>`}${r.pump_suggestion?`<p>${escapeHTML(r.pump_suggestion.reason)}${r.is_garage?' · '+this.t('Garage limits')+': '+escapeHTML(this.settings.rooms.find(room=>room.id===id)?.garage_minimum)+'–'+escapeHTML(this.settings.rooms.find(room=>room.id===id)?.garage_maximum)+' °C':''}</p>`:''}${r.pump_control&&!r.pump_control.confirmed?`<p class="notice notice-info">Waiting for pump confirmation: <span>${escapeHTML(this.t(pumpStageLabels[r.pump_control.stage]||r.pump_control.stage))}</span></p>`:''}${r.zone_monitor?'<p>This room is monitored as part of a shared zone. The zone issues one set of commands to its pump.</p>':''}${this.learningView(r)}
-    ${p?`<h3>${r.air_control?'Heat pump timing':'Thermostat timing'}</h3><p>${r.air_control?'Heat means heating mode; pauses use fan-only. Room sensors govern temperature limits. The device setpoint is separate from those limits.':'Target changes include the shared start/stop offsets. The temperature forecast models the planned heating period; actual valve and heat-pump delays must be checked against observations.'}</p><div class="scroll timing-table"><table><thead><tr><th>Change target at</th><th>Action</th><th>Target (°C)</th></tr></thead><tbody>${(p.commands||[]).map(c=>`<tr><td>${escapeHTML(timeLabel(c.time))}</td><td>${p.air_control?(c.mode==='boost'?'Heat':'Fan only'):c.action==='raise'?'Boost':c.action==='restore'?'Restore normal':'Reduce'}</td><td>${p.air_control?(c.mode==='boost'?p.device_target:'—'):c.setpoint}</td></tr>`).join('')||'<tr><td class="empty-table" colspan="3">No thermostat target changes planned.</td></tr>'}</tbody></table></div>${this.chart(p.slots,'temperature')}<p>Blue: predicted temperature under the proposed plan. This outcome has not been observed.</p>`:''}</div></details></section>`;}).join('')}</div>`;
+    ${data.price_outlook?.enabled?`<p class="notice notice-${data.price_outlook.available?'info':'warning'}" role="status">${statusIcon(data.price_outlook.available?'info':'warning')}<span class="notice-text">${data.price_outlook.available?`Price forecast available · ${data.price_outlook.reserve_hours>6?'Extra heat storage considered ahead of expensive hours.':'No extra heat storage needed.'}`:`Price forecast: ${escapeHTML(data.price_outlook.reason||'Waiting for confirmed prices.')}`}</span></p>`:''}<div class="plan-comparison-grid">${(electricHeating(this.settings)||(this.settings.heating_zones||[]).length)?this.priceChart(false):''}${this.heatRetentionView()}</div><div class="observation-cards">${rooms.map(([id,r])=>{const p=r.plan,m=r.model||{};return `<section class="observation-card${this.isGarageRoom(id,r)?' garage-observation-card':''}"><details class="observation-accordion" data-room-accordion="${escapeHTML(id)}" ${this.roomDisclosureOpen(id)?'open':''}><summary><h2><span data-user-text>${escapeHTML(r.name)}</span> ${this.roomHeatingBadge(r,id)} ${this.learningBadge(r)} <small>${r.pump_suggestion?escapeHTML(r.pump_suggestion.mode==='heat'?'Heat pump: Heating':r.pump_suggestion.mode==='off'?'Heat pump: Off':'Heat pump: Fan only'):r.zone_monitor?'Shared zone':p?(p.heat?'Boosted thermostat target':p.mode==='normal'?'Normal thermostat target temperature':'Reduced thermostat target temperature'):'No suggestion'}</small></h2></summary><div class="observation-content"><div class="metrics"><div>Measured<strong>${escapeHTML(r.temperature??'—')} °C</strong></div><div>${r.air_control?'Heat pump heating setpoint':'Suggested thermostat target'}<strong>${escapeHTML(r.air_control?(r.pump_suggestion?.target??'—'):(p?.setpoint??'—'))} °C</strong></div></div>${r.error?statusNotice(r.error,'error'):p?.reason?.startsWith('Temperature limit risk:')?statusNotice(p.reason,'warning'):p?.reason==='Heat storage or a bridging run ahead of predicted cooling.'?'':`<p>${escapeHTML(p?.reason||'Waiting for data.')}</p>`}${r.pump_suggestion?`<p>${escapeHTML(r.pump_suggestion.reason)}${r.is_garage?' · '+this.t('Garage limits')+': '+escapeHTML(this.settings.rooms.find(room=>room.id===id)?.garage_minimum)+'–'+escapeHTML(this.settings.rooms.find(room=>room.id===id)?.garage_maximum)+' °C':''}</p>`:''}${r.pump_control&&!r.pump_control.confirmed?`<p class="notice notice-info">Waiting for pump confirmation: <span>${escapeHTML(this.t(pumpStageLabels[r.pump_control.stage]||r.pump_control.stage))}</span></p>`:''}${r.zone_monitor?'<p>This room is monitored as part of a shared zone. The zone issues one set of commands to its pump.</p>':''}${this.learningView(r)}
+    ${p?`<h3>${r.air_control?'Heat pump timing':'Thermostat timing'}</h3><p>${r.air_control?'Heat means heating mode; pauses use fan-only. Room sensors govern temperature limits. The device setpoint is separate from those limits.':'Target changes include the shared start/stop offsets. The temperature forecast models the planned heating period; actual valve and heat-pump delays must be checked against observations.'}</p><div class="scroll timing-table"><table><thead><tr><th>Change target at</th><th>Planned target change</th><th>Target (°C)</th></tr></thead><tbody>${(p.commands||[]).slice(-3).map(c=>`<tr><td>${escapeHTML(timeLabel(c.time))}</td><td>${p.air_control?(c.mode==='boost'?'Heat':'Fan only'):c.action==='raise'?'Boost':c.action==='restore'?'Restore normal':'Reduce'}</td><td>${p.air_control?(c.mode==='boost'?p.device_target:'—'):c.setpoint}</td></tr>`).join('')||'<tr><td class="empty-table" colspan="3">No thermostat target changes planned.</td></tr>'}</tbody></table></div>${this.chart(p.slots,'temperature',null,'Saved forecast',{fillWidth:true})}<p>Blue: predicted temperature under the proposed plan. This outcome has not been observed.</p>`:''}</div></details></section>`;}).join('')}</div>`;
   }
   historySectionOpen(section){
     const key=`thermal_pilot:${this.entry||'preview'}:history-sections`;
@@ -1260,7 +1273,7 @@ header.page-layout{padding-bottom:0}
 .observation-card .scroll{max-height:250px}
 .observation-card th{white-space:normal;vertical-align:bottom;line-height:1.3}
 .observation-card th,.observation-card td{padding:8px}
-.observation-card .temperature-chart svg{min-width:560px;max-height:220px}
+.observation-card .temperature-chart{overflow:hidden}.observation-card .temperature-chart svg{min-width:0;width:100%;max-height:220px}
 .observation-card .chart-legend{gap:8px 16px;font-size:14px}
 @media(min-width:1200px){.observation-cards,.history-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){
@@ -1514,7 +1527,7 @@ details{scroll-margin-block:16px}
     this.shadowRoot.querySelector('#ha-menu')?.addEventListener('click',()=>this.openSidebar());
     this.bindStatusTemperatures();
     this.bindHistorySections();
-    this.bindForecastScroll();
+    this.bindResponsiveTemperatureCharts();
     this.bindSettingTooltips();
     const statusDetails=this.shadowRoot.querySelector('#status-details');statusDetails?.addEventListener('toggle',()=>{this.statusDetailsOpen=statusDetails.open;});
     const retention=this.shadowRoot.querySelector('#retention-accordion');if(retention)retention.addEventListener('toggle',()=>{this.retentionOpen=retention.open;});
