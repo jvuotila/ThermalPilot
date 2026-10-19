@@ -389,6 +389,29 @@ Do not claim functionality was verified unless it was tested.
 
 ---
 
+## Refactoring for Human Readability
+
+When refactoring existing code, the primary objective is to reduce
+the cognitive effort required to understand the implementation.
+
+- Prefer explicit, linear execution flow.
+- Keep related operations together.
+- Avoid excessive indirection between functions.
+- Do not extract helper functions unless they meaningfully improve
+  readability, reuse, or separation of responsibilities.
+- Use intermediate variables to explain complex calculations.
+- Add comments explaining non-obvious decisions and algorithms.
+- Prefer several simple statements over one complex expression.
+- Optimize for understanding the code during debugging.
+
+A developer should be able to follow the main execution path
+without constantly navigating between functions or files.
+
+When deciding between two implementations, prefer the one
+that requires less mental effort to understand and maintain.
+
+---
+
 ## Final Principle
 
 Write code for the developer who will maintain it next.

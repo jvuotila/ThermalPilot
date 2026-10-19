@@ -15,7 +15,7 @@ class PilotActive(CoordinatorEntity, SwitchEntity):
     def __init__(self, coordinator):
         super().__init__(coordinator)
         self._attr_unique_id = f'{coordinator.entry.entry_id}_active'
-        self._attr_device_info = {'identifiers':{(DOMAIN,coordinator.entry.entry_id)}}
+        self._attr_device_info = {'identifiers': {(DOMAIN, coordinator.entry.entry_id)}}
 
     @property
     def is_on(self):
@@ -28,5 +28,5 @@ class PilotActive(CoordinatorEntity, SwitchEntity):
         self._set(False)
 
     def _set(self, active):
-        settings = {**self.coordinator.settings, 'heating_enabled':active}
+        settings = {**self.coordinator.settings, 'heating_enabled': active}
         self.hass.config_entries.async_update_entry(self.coordinator.entry, options=settings)

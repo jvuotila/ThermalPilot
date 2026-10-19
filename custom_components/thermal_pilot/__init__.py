@@ -20,8 +20,16 @@ async def async_setup_entry(hass, entry):
     if not domain.get('_registered'):
         await hass.http.async_register_static_paths([StaticPathConfig(
             '/thermal_pilot/localization.js', str(Path(__file__).parent/'frontend'/'localization.js'), False),
-            StaticPathConfig('/thermal_pilot/languages',str(Path(__file__).parent/'frontend'/'languages'), False),
-            StaticPathConfig('/thermal_pilot/panel.js', str(Path(__file__).parent/'frontend'/'panel.js'), False),
+            StaticPathConfig(
+                '/thermal_pilot/languages',
+                str(Path(__file__).parent/'frontend'/'languages'),
+                False
+            ),
+            StaticPathConfig(
+                '/thermal_pilot/panel.js',
+                str(Path(__file__).parent/'frontend'/'panel.js'),
+                False
+            ),
             StaticPathConfig('/thermal_pilot/plan-chart-card.js',
                 str(Path(__file__).parent/'frontend'/'plan-chart-card.js'), False),
             StaticPathConfig('/thermal_pilot/heat-retention-card.js',
@@ -82,26 +90,39 @@ def get_coordinator(hass, connection, msg):
 
 def chart_history_entities(hass, coordinator):
     """Only entity references needed for the native history action."""
-    registry=er.async_get(hass)
-    settings=coordinator.settings
-    rooms={room['id']:room.get('temperature_entity','') for room in settings['rooms']}
-    zones={}
+    registry = er.async_get(hass)
+    settings = coordinator.settings
+    rooms = {room['id']: room.get('temperature_entity', '') for room in settings['rooms']}
+    zones = {}
     for zone in settings.get('heating_zones',[]):
-        if zone.get('source_type','air_to_air')!='air_to_air':continue
-        if zone.get('temperature_policy','main')=='main':
-            main=next((room for room in settings['rooms'] if room['id']==zone.get('main_room_id') and room.get('heating_zone_id')==zone['id'] and not room.get('is_garage')),None)
-            entity=main.get('temperature_entity') if main else None
+        if zone.get('source_type', 'air_to_air') != 'air_to_air':
+            continue
+        if zone.get('temperature_policy', 'main') == 'main':
+            main = next(
+                (room for room in settings['rooms'] if room['id'] == zone.get('main_room_id') and room.get('heating_zone_id') == zone['id'] and (not room.get('is_garage'))),
+                None
+            )
+            entity = main.get('temperature_entity') if main else None
         else:
-            entity=registry.async_get_entity_id('sensor',DOMAIN,f'{coordinator.entry.entry_id}_zone_{zone["id"]}_current_temperature')
-        if entity:zones[zone['id']]=entity
-    return {'rooms':rooms,'zones':zones}
+            entity = registry.async_get_entity_id(
+                'sensor',
+                DOMAIN,
+                f"{coordinator.entry.entry_id}_zone_{zone['id']}_current_temperature"
+            )
+        if entity:
+            zones[zone['id']] = entity
+    return {'rooms': rooms, 'zones': zones}
 
 
 def retention_history_entities(hass, coordinator):
     """Resolve registered entity IDs so renamed sensors still open correctly."""
-    registry=er.async_get(hass)
+    registry = er.async_get(hass)
     return {room['id']:{metric:entity for metric in ('drop_6h','hours_per_degree')
-                       if (entity:=registry.async_get_entity_id('sensor',DOMAIN,f'{coordinator.entry.entry_id}_{room["id"]}_retention_{metric}'))}
+                       if (entity:=registry.async_get_entity_id(
+                           'sensor',
+                           DOMAIN,
+                           f'{coordinator.entry.entry_id}_{room["id"]}_retention_{metric}'
+                       ))}
             for room in coordinator.settings['rooms']}
 
 
@@ -115,7 +136,12 @@ def ws_get(hass, connection, msg):
             'suggested':registry.async_get_entity_id('binary_sensor',DOMAIN,f'{c.entry.entry_id}_{room["id"]}_heat'),
             'actual':room['activity_entity'] or registry.async_get_entity_id('binary_sensor',DOMAIN,f'{c.entry.entry_id}_{room["id"]}_activity'),
         } for room in c.settings['rooms']}
-        connection.send_result(msg['id'], {'settings':c.settings, 'data':{**(c.data or {}),'chart_temperatures':c.chart_temperatures(),'temperature_history_entities':chart_history_entities(hass,c),'retention_history_entities':retention_history_entities(hass,c)}, 'room_entities':room_entities,
+        connection.send_result(msg['id'], {'settings':c.settings, 'data':{
+            **(c.data or {}),
+            'chart_temperatures':c.chart_temperatures(),
+            'temperature_history_entities':chart_history_entities(hass,c),
+            'retention_history_entities':retention_history_entities(hass,c)
+        }, 'room_entities':room_entities,
             'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS})
 
 
@@ -123,19 +149,26 @@ def ws_get(hass, connection, msg):
 @callback
 def ws_retention(hass, connection, msg):
     """Read-only dashboard data for authenticated users; no source/settings access."""
-    coordinators={key:value for key,value in hass.data.get(DOMAIN,{}).items() if isinstance(value,PilotCoordinator)}
-    entries=[{'entry_id':key,'title':getattr(value.entry,'title','ThermalPilot')} for key,value in coordinators.items()]
-    entry_id=msg.get('entry_id')
-    if not entry_id and len(entries)==1:entry_id=entries[0]['entry_id']
+    coordinators = {
+        key: value for key,
+        value in hass.data.get(DOMAIN, {}).items() if isinstance(value, PilotCoordinator)
+    }
+    entries = [
+        {'entry_id': key, 'title': getattr(value.entry, 'title', 'ThermalPilot')} for key,
+        value in coordinators.items()
+    ]
+    entry_id = msg.get('entry_id')
+    if not entry_id and len(entries) == 1:
+        entry_id = entries[0]['entry_id']
     if not entry_id:
         connection.send_result(msg['id'],{'entries':entries,'rooms':[],'requires_selection':len(entries)>1})
         return
-    coordinator=coordinators.get(entry_id)
+    coordinator = coordinators.get(entry_id)
     if coordinator is None:
         connection.send_error(msg['id'],'not_loaded','Integration is not loaded.')
         return
-    settings={room['id']:room for room in coordinator.settings['rooms']}
-    history_entities=retention_history_entities(hass,coordinator)
+    settings = {room['id']: room for room in coordinator.settings['rooms']}
+    history_entities = retention_history_entities(hass, coordinator)
     rooms=[{'id':room_id,'name':settings.get(room_id,{}).get('name',room.get('name','')),
             'is_garage':bool(settings.get(room_id,{}).get('is_garage',room.get('is_garage',False))),
             'heat_retention':room['heat_retention'],'history_entities':history_entities.get(room_id,{})}
@@ -148,42 +181,62 @@ def ws_retention(hass, connection, msg):
 @websocket_api.async_response
 async def ws_plan_chart(hass, connection, msg):
     """Read-only chart snapshot; expose chart weather, exclude private settings and room-model internals."""
-    coordinators={key:value for key,value in hass.data.get(DOMAIN,{}).items() if isinstance(value,PilotCoordinator)}
-    entries=[{'entry_id':key,'title':getattr(value.entry,'title','ThermalPilot')} for key,value in coordinators.items()]
-    entry_id=msg.get('entry_id') or (entries[0]['entry_id'] if len(entries)==1 else None)
+    coordinators = {
+        key: value for key,
+        value in hass.data.get(DOMAIN, {}).items() if isinstance(value, PilotCoordinator)
+    }
+    entries = [
+        {'entry_id': key, 'title': getattr(value.entry, 'title', 'ThermalPilot')} for key,
+        value in coordinators.items()
+    ]
+    entry_id = msg.get('entry_id') or (entries[0]['entry_id'] if len(entries) == 1 else None)
     if not entry_id:
         connection.send_result(msg['id'],{'entries':entries,'requires_selection':len(entries)>1})
         return
-    coordinator=coordinators.get(entry_id)
+    coordinator = coordinators.get(entry_id)
     if coordinator is None:
         connection.send_error(msg['id'],'not_loaded','Integration is not loaded.')
         return
-    rows=await hass.async_add_executor_job(coordinator.history_db.read,dt_util.utcnow().timestamp()-48*3600)
-    def subset(value,keys):return {key:value[key] for key in keys if key in value}
-    settings=coordinator.settings;data=coordinator.data or {}
-    room_keys=('id','name','is_garage','heat_control','garage_strategy','heating_zone_id')
-    zone_keys=('id','name','source_type','heating_strategy','climate_mode','main_room_id')
-    chart_rooms={}
+    rows = await hass.async_add_executor_job(coordinator.history_db.read, dt_util.utcnow().timestamp() - 48 * 3600)
+    def subset(value,keys):return {key: value[key] for key in keys if key in value}
+    settings = coordinator.settings
+    data = coordinator.data or {}
+    room_keys = ('id', 'name', 'is_garage', 'heat_control', 'garage_strategy', 'heating_zone_id')
+    zone_keys = ('id', 'name', 'source_type', 'heating_strategy', 'climate_mode', 'main_room_id')
+    chart_rooms = {}
     for room_id,room in data.get('rooms',{}).items():
-        chart_rooms[room_id]=subset(room,('air_control','is_garage'))
-        if plan:=room.get('plan'):
+        chart_rooms[room_id] = subset(room, ('air_control', 'is_garage'))
+        if (plan := room.get('plan')):
             chart_rooms[room_id]['plan']={'commands':[subset(command,('time','action')) for command in plan.get('commands',[])],
                 'slots':[{'end':plan['slots'][-1]['end']}] if plan.get('slots') else []}
-    chart_zones={}
+    chart_zones = {}
     for zone_id,zone in data.get('zones',{}).items():
-        plan=zone.get('plan')
+        plan = zone.get('plan')
         chart_zones[zone_id]={'plan':{'commands':[subset(command,('time','action')) for command in plan.get('commands',[])],
             'slots':[{'end':plan['slots'][-1]['end']}] if plan.get('slots') else []} if plan else None}
     connection.send_result(msg['id'],{'entry_id':entry_id,'entries':entries,
         'settings':{'language':settings.get('language','en'),'house_heat_source':settings.get('house_heat_source'),
                     'rooms':[subset(room,room_keys) for room in settings.get('rooms',[])],
                     'heating_zones':[subset(zone,zone_keys) for zone in settings.get('heating_zones',[])]},
-        'data':{'rooms':chart_rooms,'zones':chart_zones,'chart_temperatures':coordinator.chart_temperatures(),'temperature_history_entities':chart_history_entities(hass,coordinator),'weather_forecast':[subset(row,('datetime','temperature','condition')) for row in data.get('weather_forecast',[])],'price_chart':[subset(slot,('start','end','price')) for slot in data.get('price_chart',[])]},
+        'data':{
+            'rooms':chart_rooms,
+            'zones':chart_zones,
+            'chart_temperatures':coordinator.chart_temperatures(),
+            'temperature_history_entities':chart_history_entities(hass,coordinator),
+            'weather_forecast':[subset(row,('datetime','temperature','condition')) for row in data.get('weather_forecast',[])],
+            'price_chart':[subset(slot,('start','end','price')) for slot in data.get('price_chart',[])]
+        },
         'history':[subset(row,('room_id','time','activity','suggested_heat','pump_mode','pump_basis','pump_entity',
                                'zone_id','zone_mode','zone_basis','zone_entity')) for row in rows]})
 
 
-@websocket_api.websocket_command({vol.Required('type'):'thermal_pilot/save', vol.Required('entry_id'):str, vol.Required('settings'):dict, vol.Optional('enable_live_control',default=False):bool, vol.Optional('confirm_learning_reset',default=False):bool})
+@websocket_api.websocket_command({
+    vol.Required('type'):'thermal_pilot/save',
+    vol.Required('entry_id'):str,
+    vol.Required('settings'):dict,
+    vol.Optional('enable_live_control',default=False):bool,
+    vol.Optional('confirm_learning_reset',default=False):bool
+})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_save(hass, connection, msg):
@@ -192,7 +245,7 @@ async def ws_save(hass, connection, msg):
     async with c.backup_lock:
         try:
             settings = validate(msg['settings'], hass)
-            settings = confirm_control_settings(settings,c.settings,msg.get('enable_live_control',False))
+            settings = confirm_control_settings(settings, c.settings, msg.get('enable_live_control', False))
         except ValueError as error:
             connection.send_error(msg['id'], 'invalid_settings', str(error))
             return
@@ -200,18 +253,26 @@ async def ws_save(hass, connection, msg):
         connection.send_result(msg['id'], {'saved':True})
 
 
-@websocket_api.websocket_command({vol.Required('type'):'thermal_pilot/history', vol.Required('entry_id'):str, vol.Optional('hours',default=48):vol.All(vol.Coerce(int),vol.Range(min=1,max=2160))})
+@websocket_api.websocket_command({
+    vol.Required('type'):'thermal_pilot/history',
+    vol.Required('entry_id'):str,
+    vol.Optional('hours',default=48):vol.All(vol.Coerce(int),vol.Range(min=1,max=2160))
+})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_history(hass, connection, msg):
     if (c := get_coordinator(hass, connection, msg)) is not None:
         from homeassistant.util import dt as dt_util
-        cutoff = dt_util.utcnow().timestamp()-msg['hours']*3600
+        cutoff = dt_util.utcnow().timestamp() - msg['hours'] * 3600
         rows = await hass.async_add_executor_job(c.history_db.read, cutoff)
         connection.send_result(msg['id'], rows)
 
 
-@websocket_api.websocket_command({vol.Required('type'):'thermal_pilot/reset', vol.Required('entry_id'):str, vol.Required('room_id'):str})
+@websocket_api.websocket_command({
+    vol.Required('type'):'thermal_pilot/reset',
+    vol.Required('entry_id'):str,
+    vol.Required('room_id'):str
+})
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_reset(hass, connection, msg):

@@ -15,9 +15,9 @@ class PilotHeating(CoordinatorEntity, BinarySensorEntity):
     def __init__(self, coordinator, room):
         super().__init__(coordinator)
         self.room_id = room['id']
-        self._attr_unique_id = f'{coordinator.entry.entry_id}_{room["id"]}_heat'
-        self._attr_name = f'{room["name"]} Suggested heating run'
-        self._attr_device_info = {'identifiers':{(DOMAIN,coordinator.entry.entry_id)}}
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{room['id']}_heat"
+        self._attr_name = f"{room['name']} Suggested heating run"
+        self._attr_device_info = {'identifiers': {(DOMAIN, coordinator.entry.entry_id)}}
 
     @property
     def available(self):
@@ -25,7 +25,7 @@ class PilotHeating(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def _plan(self):
-        return (self.coordinator.data or {}).get('rooms',{}).get(self.room_id,{}).get('plan')
+        return (self.coordinator.data or {}).get('rooms', {}).get(self.room_id, {}).get('plan')
 
     @property
     def is_on(self):
@@ -46,13 +46,13 @@ class PilotActivity(CoordinatorEntity, BinarySensorEntity):
     def __init__(self, coordinator, room):
         super().__init__(coordinator)
         self.room_id = room['id']
-        self._attr_unique_id = f'{coordinator.entry.entry_id}_{room["id"]}_activity'
-        self._attr_name = f'{room["name"]} Observed thermostat demand'
-        self._attr_device_info = {'identifiers':{(DOMAIN,coordinator.entry.entry_id)}}
+        self._attr_unique_id = f"{coordinator.entry.entry_id}_{room['id']}_activity"
+        self._attr_name = f"{room['name']} Observed thermostat demand"
+        self._attr_device_info = {'identifiers': {(DOMAIN, coordinator.entry.entry_id)}}
 
     @property
     def _activity(self):
-        return (self.coordinator.data or {}).get('rooms',{}).get(self.room_id,{}).get('actual_activity')
+        return (self.coordinator.data or {}).get('rooms', {}).get(self.room_id, {}).get('actual_activity')
 
     @property
     def available(self):

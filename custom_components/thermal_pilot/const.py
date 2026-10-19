@@ -1,12 +1,12 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.54'
+VERSION = '0.9.55'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
 HISTORY_DAYS = 30
 WATER_REFERENCE = 32.0
-AIR_INITIAL_LAG_HOURS = 10/60
+AIR_INITIAL_LAG_HOURS = 10 / 60
 DEFAULTS = {
     'price_entity': '', 'price_forecast_entity': '', 'price_unit': 'c/kWh',
     'pricing_mode': 'flexible', 'minimum_run_minutes': 60,
@@ -40,7 +40,19 @@ ROOM_DEFAULTS = {
     'fireplace_reduction': 0.0, 'solar_direction': 'disabled', 'solar_exposure': 'clear',
 }
 
-ZONE_DEFAULTS = {'heating_enabled':False, 'climate_mode':'heat', 'heating_strategy':'temperature', 'cooling_target':24.0, 'source_type':'air_to_air', 'name':'', 'thermostat':'', 'main_room_id':'', 'temperature_policy':'main', 'fireplace_entity':'', 'fireplace_active_state':'on'}
+ZONE_DEFAULTS = {
+    'heating_enabled': False,
+    'climate_mode': 'heat',
+    'heating_strategy': 'temperature',
+    'cooling_target': 24.0,
+    'source_type': 'air_to_air',
+    'name': '',
+    'thermostat': '',
+    'main_room_id': '',
+    'temperature_policy': 'main',
+    'fireplace_entity': '',
+    'fireplace_active_state': 'on'
+}
 
 # Starting reference cooling time only; replaced by learned garage loss.
 GARAGE_INITIAL_COOLING_HOURS = 4.0

@@ -8,13 +8,13 @@ from typing import Any
 from .model import number
 
 TARGET_TOLERANCE = 0.001
-STEP_ROUNDING_TOLERANCE = 1e-9
+STEP_ROUNDING_TOLERANCE = 1e-09
 RETRY_INTERVAL_SECONDS = 60
 SERVICE_TIMEOUT_SECONDS = 15
 
 
 class ThermostatControl:
-    def __init__(self, hass: Any, require_initial_write: bool = False) -> None:
+    def __init__(self, hass: Any, require_initial_write: bool=False) -> None:
         self.hass = hass
         self.pending = {}
         self.results = {}
@@ -67,7 +67,7 @@ class ThermostatControl:
                 if maximum is not None and control_maximum is not None:
                     maximum = min(maximum, control_maximum)
 
-                if minimum is None or maximum is None or not minimum <= requested <= maximum:
+                if minimum is None or maximum is None or (not minimum <= requested <= maximum):
                     errors.append(f"{room['name']}: target is outside thermostat limits.")
                     continue
 
@@ -101,7 +101,7 @@ class ThermostatControl:
                     actual is not None and abs(actual - target) < TARGET_TOLERANCE
                 )
                 pending_target_changed = previous and previous['target'] != target
-                if initial_write_complete and actual_matches and not pending_target_changed:
+                if initial_write_complete and actual_matches and (not pending_target_changed):
                     self.pending.pop(entity, None)
                     self.results[room['id']] = target
                     continue
