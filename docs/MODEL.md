@@ -71,6 +71,11 @@ normalized price objective plus small switching/deviation penalties. A bounded
 beam retains up to 80 different thermal/runtime states per slot. Minimum run
 constraints prevent a new flexible heating run ending before its configured
 length. Previously suggested runtime is carried across replanning within a session.
+Once advance opening begins, only the configured minimum run is protected;
+the remainder of an old forecast can shorten when measurements or prices change.
+Continuing runs keep their original start across restarts, while a later separate
+run cannot inherit that start across a pause. Boost is not retained above its
+target merely to avoid a target-change penalty after the minimum run has elapsed.
 The last known price horizon includes an estimated no-heating reserve penalty.
 
 This heuristic can miss the globally optimal schedule and does not coordinate

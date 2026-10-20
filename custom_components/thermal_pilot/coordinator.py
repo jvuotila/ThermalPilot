@@ -522,6 +522,14 @@ class PilotCoordinator(DataUpdateCoordinator):
                 for window in previous.get('thermostat_windows', []):
                     if cutoff < stamp(window['end']) <= now and window not in windows:
                         windows.append(deepcopy(window))
+                    elif (planned.get('heat') is False
+                          and stamp(window['start']) <= now < stamp(window['end'])):
+                        # A replan can end a boost after its minimum run, before
+                        # the old forecast's closing time. Save the actual new
+                        # boundary so restarting cannot erase the ensuing pause.
+                        closed_window = {**window, 'end': now.isoformat()}
+                        if closed_window not in windows:
+                            windows.append(closed_window)
             if not windows and not sessions:
                 continue
             checkpoints[room_id] = {
@@ -540,7 +548,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             self.session_plans = checkpoints
 
     def committed_session(self, rid, now):
-        """Keep a published session once its advance opening time has arrived."""
+        """Return active session timing; the planner protects its minimum duration."""
         previous_plan = self.previous_session_plan(rid)
         for session in previous_plan.get('sessions',[]):
             start, end = (stamp(session['start']), stamp(session['end']))

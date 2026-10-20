@@ -190,3 +190,12 @@ and transition evidence, retain the seed without cycles or with excluded data,
 persist learned response, keep floor lag behavior unchanged, and use learned lag
 in garage forecasts. Standby swing follows the same staged acknowledgement checks.
 Synthetic response identification is not validation on real equipment.
+
+
+Long-session regression checks use representative room model parameters from a
+reported 36-hour plan and a warm kitchen with a 14-hour saved session. They verify
+that replanning protects the configured minimum rather than the entire old
+forecast, later boosts do not bridge a planned pause, and repeated replans retain
+the original run start. A coordinator restart check covers the 15-minute pause
+after ending a session earlier than its previous forecast. Weather and prices
+in these checks are controlled inputs, not a replay of the full original forecast.

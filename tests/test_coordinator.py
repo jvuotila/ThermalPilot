@@ -363,6 +363,29 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(reloaded.boost_resume_after(room_id, closing + timedelta(minutes=15)))
         self.assertIsNone(reloaded.committed_session(room_id, end + timedelta(hours=1)))
 
+    async def test_shortened_session_keeps_pause_across_restart(self):
+        restarted, room_id, start, end, current = await self.checkpointed_restart()
+        # The published session runs for many hours, but a new observation makes
+        # boost unnecessary after the protected first hour has already elapsed.
+        checkpoint = restarted.session_plans[room_id]
+        checkpoint['sessions'][0]['end'] = (start + timedelta(hours=14)).isoformat()
+        checkpoint['thermostat_windows'][0]['end'] = (start + timedelta(hours=14)).isoformat()
+        stopped_at = start + timedelta(hours=2)
+        restarted.suggested_runs[room_id] = {
+            'heat': False, 'mode': 'normal', 'since': stopped_at.timestamp(),
+        }
+        await restarted.save_heating_sessions({'rooms': {room_id: {'plan': {
+            'heat': False, 'sessions': [], 'thermostat_windows': [],
+        }}}}, stopped_at)
+        reloaded = PilotCoordinator(self.hass, restarted.entry)
+        reloaded.store.saved = deepcopy(restarted.store.saved)
+        with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=stopped_at):
+            await reloaded.load()
+        self.assertIsNone(reloaded.committed_session(room_id, stopped_at))
+        self.assertEqual(reloaded.boost_resume_after(room_id, stopped_at),
+                         (stopped_at + timedelta(minutes=15)).isoformat())
+        self.assertIsNone(reloaded.boost_resume_after(room_id, stopped_at + timedelta(minutes=15)))
+
     async def test_failed_checkpoint_save_does_not_publish_unpersisted_session(self):
         from thermal_pilot.model import thermostat_timing
         room_id = self.c.settings['rooms'][0]['id']

@@ -724,9 +724,11 @@ def thermostat_timing(rows, settings, baseline, now):
     committed = settings.get('committed_session')
     if committed:
         start, end = (stamp(committed['start']), stamp(committed['end']))
-        # Rows are clipped to now; retain the original start for advance commands.
+        # Rows are clipped to now; retain the original start only while the
+        # same run continues. A later boost must not bridge a newly planned pause.
         for session in sessions:
-            if stamp(session['start']) < end and stamp(session['end']) > start:
+            if (stamp(session['start']) < end and stamp(session['end']) > start
+                    and stamp(session['start']) <= max(now, start)):
                 session['start'] = min(start, stamp(session['start'])).isoformat()
                 break
     windows = []
@@ -812,13 +814,19 @@ def plan(
 
     committed = room.get('committed_session')
     committed_start = stamp(committed['start']) if committed else None
-    committed_end = stamp(committed['end']) if committed else None
+    published_end = stamp(committed['end']) if committed else None
     loss = model['loss']
     gain = model['gain']
     if fireplace:
         loss *= 1 + room['fireplace_reduction'] / 100
 
     minimum_run = room.get('minimum_run_minutes', 60) / 60
+    # Protect the minimum run, not every hour of an earlier forecast. Locking
+    # the whole session prevents new measurements/prices from shortening it;
+    # adjacent future boosts can then keep extending that commitment on replans.
+    committed_end = None
+    if committed:
+        committed_end = min(published_end, committed_start + timedelta(hours=minimum_run))
     minimum_pause = max(15, room.get('minimum_pause_minutes', 15))
     # The pause applies to thermostat targets, including advance valve commands.
     if minimum_pause:
@@ -885,7 +893,7 @@ def plan(
                     and max(now, slot.start) < committed_end
                 )
                 if committed_now and (not boosted):
-                    # Do not cancel a published session after valve opening begins.
+                    # Once valve opening begins, finish the protected minimum run.
                     continue
                 opening = max(now, slot.start) - timedelta(
                     minutes=room.get('start_offset_minutes', 0)
@@ -919,6 +927,12 @@ def plan(
                     demand = boosted
                 else:
                     demand = current_temperature < requested_target
+                    if (boosted and not demand and not committed_now
+                            and (last_mode != 2 or run_duration >= minimum_run - 1e-6)):
+                        # Above the boosted target this mode adds no heat. Without
+                        # this guard, avoiding a target-change penalty can keep an
+                        # unnecessary boost displayed for the entire horizon.
+                        continue
                 within_air_limit = not room.get('air_control') or current_temperature < room['maximum']
                 heating = 1.0 if demand and within_air_limit else 0.0
                 next_response, average_response = response_step(

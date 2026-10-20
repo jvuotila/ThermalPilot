@@ -105,6 +105,70 @@ class PlannerTests(unittest.TestCase):
                 if datetime.fromisoformat(slot['start'])<end and datetime.fromisoformat(slot['end'])>start:
                     self.assertTrue(slot['heat'])
 
+    def test_long_saved_session_can_shorten_after_minimum_run(self):
+        # Representative learned parameters and measurements from the reported
+        # 36-hour plan. Prices/weather are held constant to isolate commitment.
+        room = self.room(
+            minimum=18, maximum=24, baseline=19.5, lag_hours=3,
+            start_offset_minutes=5, stop_offset_minutes=5,
+            terminal_reserve_hours=0, wind_speed=2.0167,
+            previous_suggested_heat=True, previous_control_mode='boost',
+            previous_run_hours=15,
+            committed_session={
+                'start': (NOW - timedelta(hours=15)).isoformat(),
+                'end': (NOW + timedelta(hours=21)).isoformat(),
+            },
+        )
+        model = {**initial_model(room), 'loss': .01095674, 'gain': .7160302,
+                 'base_gain': .0805, 'response': 0, 'wind_loss': .0000049577}
+        slots = self.slots([100] * 16 + [23.436] * 80, 15)
+        replanned = plan(room, model, 19.85, [6.8] * 96, slots, NOW, 19.5, 1.57613)
+        fresh = plan({**room, 'committed_session': None}, model, 19.85,
+                     [6.8] * 96, slots, NOW, 19.5, 1.57613)
+        self.assertFalse(replanned['heat'])
+        self.assertEqual(replanned['setpoint'], 19.5)
+        self.assertLess(replanned['suggested_heating_hours'], 3)
+        self.assertEqual(replanned['sessions'], fresh['sessions'])
+        # The later run must not inherit yesterday's start and bridge the pause.
+        self.assertGreater(datetime.fromisoformat(replanned['sessions'][0]['start']), NOW)
+        self.assertGreater(datetime.fromisoformat(replanned['commands'][0]['time']), NOW)
+
+    def test_warm_kitchen_does_not_keep_old_fourteen_hour_boost(self):
+        room = self.room(
+            baseline=20, boost=2, minimum=18, maximum=24,
+            terminal_reserve_hours=0, previous_suggested_heat=True,
+            previous_control_mode='boost', previous_run_hours=10,
+            committed_session={
+                'start': (NOW - timedelta(hours=10)).isoformat(),
+                'end': (NOW + timedelta(hours=4)).isoformat(),
+            },
+        )
+        result = plan(room, initial_model(room), 21.3, [6.8] * 96,
+                      self.slots([23.436] * 96, 15), NOW, 20, 1.6542)
+        self.assertFalse(result['heat'])
+        self.assertEqual(result['setpoint'], 20)
+        self.assertEqual(result['sessions'], [])
+
+    def test_repeated_replans_do_not_restart_minimum_duration(self):
+        start = NOW
+        saved = {'start': start.isoformat(), 'end': (start + timedelta(hours=14)).isoformat()}
+        room = self.room(terminal_reserve_hours=0, lag_hours=3)
+        model = initial_model(room)
+        for minutes in (30, 40, 65):
+            current = NOW + timedelta(minutes=minutes)
+            slots = [slot for slot in self.slots([100] * 16, 15) if slot.end > current]
+            settings = {**room, 'committed_session': saved,
+                        'previous_suggested_heat': True, 'previous_control_mode': 'boost',
+                        'previous_run_hours': minutes / 60}
+            result = plan(settings, model, 22, [10] * len(slots), slots, current, 20)
+            if minutes < 60:
+                self.assertTrue(result['heat'])
+                saved = result['sessions'][0]
+                self.assertEqual(saved['start'], start.isoformat())
+                self.assertEqual(saved['end'], (start + timedelta(hours=1)).isoformat())
+            else:
+                self.assertFalse(result['heat'])
+
     def test_flexible_minimum_run(self):
         r=self.room(terminal_reserve_hours=0)
         p=plan(r,initial_model(r),20,[-10]*48,self.slots([1,1,1,1,1,50,50,50]*6,15),NOW,20)
