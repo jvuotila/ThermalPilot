@@ -261,7 +261,7 @@ assert.match(trend.statusSparkline('outdoor','#2196f3'),/linearGradient/);assert
 console.log('Outdoor temperature gradient checks passed for every threshold and out-of-range readings.');
 
 pricePanel.history=[{room_id:'r0',time:priceTime/1000,price:20,suggested_heat:1,activity:1}];
-const spacedLabels=pricePanel.priceChart(true);assert.match(spacedLabels,/<foreignObject x="20"[^>]*width="190"/);assert.match(spacedLabels,/<text x="298"[^>]*>Suggested/);assert.match(spacedLabels,/text-overflow:ellipsis/);
+const spacedLabels=pricePanel.priceChart(true);assert.match(spacedLabels,/<foreignObject x="20"[^>]*width="190"/);assert.doesNotMatch(spacedLabels,/>Suggested<\/text>|>Relay<\/text>/);assert.match(spacedLabels,/text-overflow:ellipsis/);
 console.log('History room names and activity labels occupy separate columns; long names retain a tooltip.');
 
 const axisHTML=pricePanel.priceChart(true);
@@ -826,7 +826,7 @@ zoneChartPanel.statusHistory=zoneChartPanel.history;
 const zoneHistorySVG=zoneChartPanel.priceChart(true),zonePlanSVG=zoneChartPanel.priceChart(false);
 assert.ok(zoneHistorySVG.indexOf('data-zone-timeline="z-first"')<zoneHistorySVG.indexOf('data-zone-timeline="z-cool"'));assert.ok(zoneHistorySVG.indexOf('data-zone-timeline="z-cool"')<zoneHistorySVG.indexOf('data-zone-timeline="z-last"'));
 assert.match(zoneHistorySVG,/fill="#f5f0e8"/);assert.match(zoneHistorySVG,/data-zone-period="heat"/);assert.match(zoneHistorySVG,/data-zone-period="cool"/);assert.doesNotMatch(zoneHistorySVG,/data-zone-period="plan"/);
-const zoneGroup=(html,id)=>html.match(new RegExp('<g data-zone-timeline="'+id+'">[\\s\\S]*?<\\/g>'))[0];
+const zoneGroup=(html,id)=>html.match(new RegExp('<g[^>]* data-zone-timeline="'+id+'"[^>]*>[\\s\\S]*?<\\/g>'))[0];
 assert.doesNotMatch(zoneGroup(zonePlanSVG,'z-first'),/data-zone-period="plan"/);assert.doesNotMatch(zoneGroup(zonePlanSVG,'z-cool'),/data-zone-period="plan"/);assert.match(zoneGroup(zonePlanSVG,'z-last'),/data-zone-period="plan"/);
 assert.doesNotMatch(zoneGroup(zoneHistorySVG,'z-first'),/>Off<|mode Off|data-zone-period="off"/);
 zoneChartPanel.info.data.price_chart=[];assert.match(zoneChartPanel.priceChart(false),/data-zone-timeline="z-first"/);
@@ -889,7 +889,7 @@ pumpChartPanel.settings={rooms:[{id:'garage',name:'Garage',is_garage:true,garage
 pumpChartPanel.info={data:{rooms:{garage:{air_control:true,plan:{commands:[{time:new Date(pumpNow+3600000).toISOString(),action:'raise'},{time:new Date(pumpNow+7200000).toISOString(),action:'restore'}]}}}}};
 pumpChartPanel.history=[[-30,'heat'],[-25,'heat'],[-20,null],[-15,'cool'],[-10,null]].map(([minutes,mode])=>({room_id:'garage',time:pumpNow/1000+minutes*60,pump_mode:mode,activity:mode===null?1:0}));pumpChartPanel.statusHistory=pumpChartPanel.history;
 for(const history of [true,false]){
- const svg=pumpChartPanel.priceChart(history),lane=svg.match(/<g data-pump-timeline="garage">[\s\S]*?<\/g>/)[0];
+ const svg=pumpChartPanel.priceChart(history),lane=svg.match(/<g[^>]* data-pump-timeline="garage"[^>]*>[\s\S]*?<\/g>/)[0];
  assert.match(lane,/data-pump-period="heat"/);assert.match(lane,/data-pump-period="cool"/);
  assert.doesNotMatch(lane,/>Suggested<|>Relay<|data-pump-period="plan"/);
  assert.equal((lane.match(/data-pump-period=/g)||[]).length,2);
@@ -1527,3 +1527,25 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  room.error='Thermostat unavailable';assert.match(garagePanel.roomPlanView('garage',room),/notice-error/);
  garagePanel.settings.language='en';assert.match(garagePanel.roomPlanView('garage',room),/role="tooltip">Garage upper limit reached/);
 }
+
+// Current target adjustments use the effective setpoint and remain independent of relay state.
+pricePanel.settings.rooms[0].baseline=20;
+pricePanel.info.data.rooms.r0.temperature=20.2;
+Object.assign(pricePanel.info.data.rooms.r0.plan,{mode:'boost',heat:true,setpoint:21.5});
+let adjustmentHTML=pricePanel.priceChart();
+assert.match(adjustmentHTML,/data-target-adjustment="boost"/);
+assert.match(adjustmentHTML,/Boosted thermostat target: \+1.5 °C \(20 → 21.5 °C\)/);
+Object.assign(pricePanel.info.data.rooms.r0.plan,{mode:'reduced',heat:false,setpoint:19});
+adjustmentHTML=pricePanel.priceChart();
+assert.match(adjustmentHTML,/data-target-adjustment="reduced"/);
+assert.match(adjustmentHTML,/Reduced thermostat target temperature: −1 °C \(20 → 19 °C\)/);
+assert.doesNotMatch(pricePanel.priceChart(true),/data-target-adjustment/);
+Object.assign(pricePanel.info.data.rooms.r0.plan,{mode:'normal',heat:false,setpoint:20});
+assert.doesNotMatch(pricePanel.priceChart(),/data-target-adjustment/);
+assert.match(adjustmentHTML,/chart-timeline-row/);
+console.log('Timeline row highlighting and current target adjustment tests passed.');
+
+pricePanel.settings.language='fi';
+Object.assign(pricePanel.info.data.rooms.r0.plan,{mode:'boost',heat:true,setpoint:21.5});
+const finnishAdjustment=pricePanel.priceChart();
+assert.match(finnishAdjustment,/Korotettu asetuslämpötila: \+1,5 °C \(20 → 21,5 °C\)/);
