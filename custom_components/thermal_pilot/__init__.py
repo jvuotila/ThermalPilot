@@ -34,6 +34,8 @@ async def async_setup_entry(hass, entry):
                 str(Path(__file__).parent/'frontend'/'plan-chart-card.js'), False),
             StaticPathConfig('/thermal_pilot/heat-retention-card.js',
                 str(Path(__file__).parent/'frontend'/'heat-retention-card.js'), False),
+            StaticPathConfig('/thermal_pilot/icon.png',
+                str(Path(__file__).parent/'brand'/'icon.png'), False),
             StaticPathConfig('/thermal_pilot/rooms-floor-plan.png',
                 str(Path(__file__).parent/'frontend'/'rooms-floor-plan.png'), False)])
         for handler in (ws_get, ws_retention, ws_plan_chart, ws_save, ws_history, ws_reset):
