@@ -46,14 +46,32 @@ observation and learning; their fuel costs and equipment control are not modeled
 
 ## Install
 
-1. In **HACS → Custom repositories**, add
-   `https://github.com/jvuotila/ThermalPilot` as an **Integration**.
-2. Download **ThermalPilot** and restart Home Assistant.
-3. Open **Settings → Devices & services → Add integration → ThermalPilot**.
-4. Select your sources, then open **ThermalPilot** in the sidebar.
+### Install with HACS (recommended)
 
-For manual installation, copy `custom_components/thermal_pilot` into your Home
-Assistant configuration’s `custom_components` directory and restart.
+1. [Install HACS](https://hacs.xyz/docs/use/download/download/) in your Home Assistant
+   instance if you do not already have it.
+2. Click the button below to open ThermalPilot in HACS. Confirm adding the custom
+   repository if prompted, then download the integration.
+
+   [![Open ThermalPilot in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jvuotila&repository=https%3A%2F%2Fgithub.com%2Fjvuotila%2FThermalPilot&category=integration)
+
+3. Restart Home Assistant.
+4. Open **Settings → Devices & services → Add integration**, search for
+   **ThermalPilot**, and follow the setup steps.
+5. Open **ThermalPilot** in the sidebar and follow [Get started](#get-started).
+
+If the button does not work, open **HACS → Custom repositories**, add
+`https://github.com/jvuotila/ThermalPilot` with category **Integration**, then
+find and download **ThermalPilot** in HACS. Restart Home Assistant and continue
+from step 4 above.
+
+### Manual installation
+
+1. Download the repository and copy its `custom_components/thermal_pilot` folder
+   into your Home Assistant configuration's `custom_components` directory.
+2. Restart Home Assistant.
+3. Open **Settings → Devices & services → Add integration → ThermalPilot**,
+   then follow [Get started](#get-started).
 
 ## Get started
 
