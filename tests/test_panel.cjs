@@ -410,7 +410,7 @@ console.log('Unsaved settings checks passed: edits, toggles, undo, saved baselin
 
 const retentionPanel=new Component();retentionPanel.info={data:{rooms:{fast:{name:'Fast cooling',heat_retention:{drop_6h:2,hours_per_degree:3,heating_hours:20,idle_hours:30,updated:true}},slow:{name:'Slow <cooling>',heat_retention:{drop_6h:.7,hours_per_degree:8,heating_hours:0,idle_hours:3,updated:false}}}}};
 let retentionHTML=retentionPanel.heatRetentionView();
-assert.ok(retentionHTML.indexOf('Slow &lt;cooling&gt;')<retentionHTML.indexOf('Fast cooling'));
+assert.ok(retentionHTML.indexOf('Fast cooling')<retentionHTML.indexOf('Slow &lt;cooling&gt;'));
 assert.match(retentionHTML,/0.70 °C/);assert.match(retentionHTML,/8.0 hours/);assert.match(retentionHTML,/Initial estimate/);assert.match(retentionHTML,/Adapting/);assert.match(retentionHTML,/not measured energy efficiency/);
 assert.match(retentionHTML,/id="retention-accordion" open/);retentionPanel.retentionOpen=false;assert.doesNotMatch(retentionPanel.heatRetentionView(),/id="retention-accordion" open/);
 retentionPanel.info.data.rooms.garageZ={name:'Garage Z',is_garage:true,heat_retention:{drop_6h:.1,hours_per_degree:10,updated:false}};
@@ -420,7 +420,7 @@ retentionHTML=retentionPanel.heatRetentionView();
 assert.ok(retentionHTML.indexOf('Fast cooling')<retentionHTML.indexOf('Garage A'));
 assert.ok(retentionHTML.indexOf('Garage A')<retentionHTML.indexOf('Garage Z'));
 assert.equal((retentionHTML.match(/class="garage-retention-row"/g)||[]).length,2);
-console.log('Room retention UI checks passed: common reference, slower-first sorting, escaped names, data labels and accordion state.');
+console.log('Room retention UI checks passed: common reference, alphabetical default sorting, escaped names, data labels and accordion state.');
 
 const windMatches=vm.runInContext('entityMatches',context);
 assert.equal(windMatches({entity_id:'sensor.netatmo_tuuli_ms',attributes:{unit_of_measurement:'m/s'}},{kind:'wind'}),true);
@@ -905,9 +905,9 @@ const sortPanel=new Component();sortPanel.settings={rooms:[]};
 const retentionRoom=(name,hours,updated=true)=>({name,heat_retention:{drop_6h:6/hours,hours_per_degree:hours,updated,heating_hours:0,idle_hours:0}});
 sortPanel.info={data:{rooms:{slow:retentionRoom('Slow',9),fast:retentionRoom('Fast',.5),learning:retentionRoom('Learning',4,false),garage:{...retentionRoom('Garage',12),is_garage:true}}}};
 sortPanel.render=()=>{};const roomOrder=()=>Array.from(sortPanel.heatRetentionView().matchAll(/<span data-user-text>([^<]+)<\/span>/g),m=>m[1]);
-assert.deepEqual(roomOrder(),['Slow','Learning','Fast','Garage']);
-sortPanel.sortRetention('drop');assert.deepEqual(roomOrder(),['Fast','Learning','Slow','Garage']);
-assert.match(sortPanel.heatRetentionView(),/aria-sort="descending"/);
+assert.deepEqual(roomOrder(),['Fast','Learning','Slow','Garage']);
+sortPanel.sortRetention('drop');assert.deepEqual(roomOrder(),['Slow','Learning','Fast','Garage']);
+assert.match(sortPanel.heatRetentionView(),/aria-sort="ascending"/);
 sortPanel.sortRetention('hours');assert.deepEqual(roomOrder(),['Fast','Learning','Slow','Garage']);
 sortPanel.sortRetention('hours');assert.deepEqual(roomOrder(),['Slow','Learning','Fast','Garage']);
 sortPanel.sortRetention('speed');assert.deepEqual(roomOrder(),['Fast','Slow','Learning','Garage']);
@@ -1549,3 +1549,33 @@ pricePanel.settings.language='fi';
 Object.assign(pricePanel.info.data.rooms.r0.plan,{mode:'boost',heat:true,setpoint:21.5});
 const finnishAdjustment=pricePanel.priceChart();
 assert.match(finnishAdjustment,/Korotettu asetuslämpötila: \+1,5 °C \(20 → 21,5 °C\)/);
+
+// Room-name sorting toggles direction while keeping garages after ordinary rooms.
+const nameSortPanel=new Component();
+nameSortPanel.settings={language:'fi',rooms:[{id:'garageA',is_garage:true}]};
+nameSortPanel.info=structuredClone(retentionPanel.info);
+let nameSortRenderCount=0,focusedNameSort='';
+nameSortPanel.render=()=>nameSortRenderCount++;
+nameSortPanel.shadowRoot.querySelector=selector=>({focus:()=>{focusedNameSort=selector;}});
+let nameSortHTML=nameSortPanel.heatRetentionView();
+assert.match(nameSortHTML,/aria-sort="ascending"><button[^>]*data-retention-sort="room"/);
+assert.ok(nameSortHTML.indexOf('Fast cooling')<nameSortHTML.indexOf('Slow &lt;cooling&gt;'));
+assert.ok(nameSortHTML.indexOf('Slow &lt;cooling&gt;')<nameSortHTML.indexOf('Garage A'));
+assert.ok(nameSortHTML.indexOf('Garage A')<nameSortHTML.indexOf('Garage Z'));
+assert.match(nameSortHTML,/<span>Huone<\/span>/);
+nameSortPanel.sortRetention('room');
+assert.equal(focusedNameSort,'[data-retention-sort="room"]');
+nameSortHTML=nameSortPanel.heatRetentionView();
+assert.match(nameSortHTML,/aria-sort="descending"><button[^>]*data-retention-sort="room"/);
+assert.ok(nameSortHTML.indexOf('Slow &lt;cooling&gt;')<nameSortHTML.indexOf('Fast cooling'));
+assert.ok(nameSortHTML.indexOf('Fast cooling')<nameSortHTML.indexOf('Garage Z'));
+assert.ok(nameSortHTML.indexOf('Garage Z')<nameSortHTML.indexOf('Garage A'));
+assert.equal(nameSortRenderCount,1);
+console.log('Integration heat-retention room-name sorting passed in both directions.');
+
+const alphabetPanel=new Component();
+alphabetPanel.settings={language:'fi',rooms:[]};
+alphabetPanel.info={data:{rooms:Object.fromEntries(['Öljyhuone','Äidin huone','Zebra','Åke','Aula'].map(name=>[name,retentionRoom(name,4)]))}};
+const alphabeticalNames=Array.from(alphabetPanel.heatRetentionView().matchAll(/<span data-user-text>([^<]+)<\/span>/g),m=>m[1]);
+assert.deepEqual(alphabeticalNames,['Aula','Zebra','Åke','Äidin huone','Öljyhuone']);
+console.log('Default room-name sorting follows Finnish A–Ö collation.');

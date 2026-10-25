@@ -15,7 +15,7 @@ const sample={language:'fi',entries:[{entry_id:'one',title:'Home'}],rooms:[room(
  assert.equal(calls.length,0);card.connectedCallback();await new Promise(setImmediate);
  assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{type:'thermal_pilot/retention'}]);
  assert.match(card.shadowRoot.innerHTML,/Huone/);assert.match(card.shadowRoot.innerHTML,/Mukautuva/);assert.doesNotMatch(card.shadowRoot.innerHTML,/<h2|<p>|<summary/);
- assert.deepEqual(Array.from(card.sortedRooms(),r=>r.id),['Slow','Learning','Fast','Garage']);
+ assert.deepEqual(Array.from(card.sortedRooms(),r=>r.id),['Fast','Learning','Slow','Garage']);
  const headers=card.shadowRoot.handlers;headers.find(button=>button.dataset.sort==='drop_1c').click();
  assert.deepEqual(Array.from(card.sortedRooms(),r=>r.id),['Fast','Learning','Slow','Garage']);
  card.shadowRoot.handlers.find(button=>button.dataset.sort==='drop_1c').click();assert.equal(card.sortedRooms()[0].id,'Slow');
@@ -82,3 +82,12 @@ const sample={language:'fi',entries:[{entry_id:'one',title:'Home'}],rooms:[room(
  assert.equal(context.customCards.length,1);vm.runInContext(src,context);assert.equal(context.customCards.length,1);
  console.log('Dashboard card passed: columns, sorting, garage grouping, integration language, escaping, read-only polling, cleanup, response races, editor and badge parity.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
+const alphabeticalCard=new Card();alphabeticalCard.setConfig({});
+alphabeticalCard._data={language:'fi',rooms:['Öljyhuone','Äidin huone','Zebra','Åke','Aula'].map(name=>room(name,4))};
+assert.deepEqual(Array.from(alphabeticalCard.sortedRooms(),r=>r.name),['Aula','Zebra','Åke','Äidin huone','Öljyhuone']);
+alphabeticalCard._sort.direction=-1;
+assert.deepEqual(Array.from(alphabeticalCard.sortedRooms(),r=>r.name),['Öljyhuone','Äidin huone','Åke','Zebra','Aula']);
+alphabeticalCard.setConfig({sort_by:'loss_6h',sort_direction:'desc'});
+assert.equal(alphabeticalCard._sort.key,'loss_6h');assert.equal(alphabeticalCard._sort.direction,-1);
+console.log('Custom card defaults to language-aware A–Ö sorting and preserves explicit sort configuration.');

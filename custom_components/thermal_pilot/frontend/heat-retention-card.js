@@ -38,10 +38,10 @@ const compactStyles=`@container(max-width:650px){
  .status-info{margin-left:3px;width:12px;height:12px}
 }`;
 class RetentionCard extends HTMLElement{
- constructor(){super();this.attachShadow({mode:'open'});this._config=config({});this._sort={key:'loss_6h',direction:1};this._request=0;this._connected=false;}
+ constructor(){super();this.attachShadow({mode:'open'});this._config=config({});this._sort={key:'room',direction:1};this._request=0;this._connected=false;}
  static getConfigElement(){return document.createElement('thermal-pilot-heat-retention-card-editor');}
  static getStubConfig(){return {columns:[...optionalColumns]};}
- setConfig(value){this._config=config(value);this._sort={key:value.sort_by||'loss_6h',direction:value.sort_direction==='desc'?-1:1};this._data=null;this._error=null;this._request++;this.render();this.refresh();}
+ setConfig(value){this._config=config(value);this._sort={key:value.sort_by||'room',direction:value.sort_direction==='desc'?-1:1};this._data=null;this._error=null;this._request++;this.render();this.refresh();}
  set hass(value){const changed=this._hass?.connection!==value?.connection,languageChanged=this._hass?.language!==value?.language;this._hass=value;if(changed||!this._data)this.refresh();else if(languageChanged)this.render();}
  connectedCallback(){this._connected=true;this.refresh();clearInterval(this._timer);this._timer=setInterval(()=>this.refresh(),60000);}
  disconnectedCallback(){this._connected=false;clearInterval(this._timer);this._request++;this._loading=false;}
@@ -56,9 +56,17 @@ class RetentionCard extends HTMLElement{
   finally{if(request===this._request){this._loading=false;this.render();}else if(this._connected){this._loading=false;this.refresh();}}
  }
  sortedRooms(){
-  const value=room=>{const v=room.heat_retention||{};return this._sort.key==='room'?room.name:this._sort.key==='loss_6h'?v.drop_6h:this._sort.key==='drop_1c'?v.hours_per_degree:rating(v).rank;};
-  const valid=v=>this._sort.key==='room'?true:Number.isFinite(v);
-  return [...(this._data?.rooms||[])].sort((a,b)=>Number(Boolean(a.is_garage))-Number(Boolean(b.is_garage))||Number(!valid(value(a)))-Number(!valid(value(b)))||(valid(value(a))&&valid(value(b))?this._sort.direction*(this._sort.key==='room'?String(value(a)).localeCompare(String(value(b))):value(a)-value(b)):0)||String(a.name).localeCompare(String(b.name)));
+  const language=this._config.language&&this._config.language!=='auto'?this._config.language:this._data?.language||this._hass?.language||'en';
+  const names=(a,b)=>String(a.name||'').trim().localeCompare(String(b.name||'').trim(),language,{sensitivity:'base',numeric:true});
+  const value=room=>{const v=room.heat_retention||{};return this._sort.key==='loss_6h'?v.drop_6h:this._sort.key==='drop_1c'?v.hours_per_degree:rating(v).rank;};
+  return [...(this._data?.rooms||[])].sort((a,b)=>{
+   const group=Number(Boolean(a.is_garage))-Number(Boolean(b.is_garage));
+   if(group)return group;
+   if(this._sort.key==='room')return this._sort.direction*names(a,b);
+   const av=value(a),bv=value(b);
+   const validA=Number.isFinite(av),validB=Number.isFinite(bv);
+   return Number(!validA)-Number(!validB)||(validA&&validB?this._sort.direction*(av-bv):0)||names(a,b);
+  });
  }
  historyValue(room,metric,value){
   const entity=room.history_entities?.[metric];
