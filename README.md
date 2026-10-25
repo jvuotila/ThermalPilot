@@ -79,26 +79,113 @@ from step 4 above.
    Match the price unit to your source; prices must include the variable charges
    you want scheduling to consider.
 2. In **Rooms and zones**, choose the house heating system and add each room’s
-   thermostat and temperature sensor. Set targets and comfort limits.
+   thermostat and temperature sensor. Follow the [sensor placement guidance](#temperature-sensor-placement)
+   before starting learning, then set targets and comfort limits.
 3. Keep **Enable simulation** on and **Apply season setpoints** off for a trial
    that does not change thermostats. Keep your existing heating controls running.
-4. Review **Plan** and **History** as observations accumulate. Use field info
+4. Work through [Before you start learning](#before-you-start-learning), then
+   review **Plan** and **History** as observations accumulate. Use field info
    buttons for setting-specific help.
 
 Zones are secondary sources: adding a heat-pump zone preserves each room’s
 primary thermostat and heating plan. New zones are observation-only until their
 own control switch is enabled.
 
+## Temperature sensor placement
+
+Place each sensor where it measures the room's representative air temperature,
+away from local heat sources and cold drafts. ThermalPilot uses these readings to
+learn how the room heats and cools; a sensor heated by sunlight or an appliance
+can produce misleading forecasts and heat-retention estimates.
+
+- Keep it out of direct sunlight throughout the day, including sunlight that
+  reaches the location in other seasons.
+- Keep it away from radiators, fireplaces, stoves and cooking appliances such as
+  ovens and air fryers.
+- Avoid the direct airflow from heat pumps, air conditioners and ventilation
+  outlets, as well as drafts from doors or windows.
+- Choose a location at normal occupied height with air circulating around it.
+  Avoid the ceiling, floor, cold exterior surfaces, enclosed shelves and spots
+  behind curtains or furniture. Follow the sensor manufacturer's mounting guidance.
+- Keep the location consistent. After handling or moving the sensor, let its
+  reading settle before judging room temperature or model behaviour.
+
+The aim is to measure the temperature people experience in the room, rather than
+an unusually warm or cold spot. ThermalPilot cannot reliably correct a poorly
+placed sensor. Its filter for rapid temperature changes does not remove every
+misleading reading, particularly the slower cooling after a local heat spike.
+
+If a sensor has been learning in an unsuitable location, move it first and let it
+settle. Consider resetting learning for that room using its circular-arrow button
+under **Rooms and zones**. This clears the learned parameters while retaining
+observation history; the room then needs fresh heating and idle observations.
+
+## Before you start learning
+
+- **Check temperature readings.** Follow the [placement guidance](#temperature-sensor-placement)
+  and check that the room and outdoor sensors report plausible values and update
+  regularly. Let a sensor settle after handling it.
+- **Check heating activity.** Use the room thermostat's reported heating activity
+  or select its heating relay as the optional activity source. Verify that it
+  changes when that room requests heating. A device being powered on or set to
+  Heat mode is not enough. A relay indicates demand, not proof that heat reaches
+  the room; water circulation and equipment delays still matter.
+  See [sources and room setup](docs/GUIDE.md#sources-and-room-setup) and the
+  [room thermostat example](docs/configuration-examples/room-thermostat.md).
+- **Account for other heat sources.** Configure secondary heat pumps and observed
+  fireplaces where applicable. Unreported heating from another appliance or
+  heater can be mistaken for the primary system's output. Check the
+  [secondary zone guidance](docs/GUIDE.md#secondary-zones).
+- **Check electricity prices.** Match the selected unit to the source and include
+  applicable variable charges, such as VAT, retailer margin and consumption-based
+  grid charges or taxes. ThermalPilot does not add these costs. Check that the
+  source supplies prices for the expected hours; see the
+  [total electricity price example](docs/configuration-examples/total-electricity-price.md).
+- **Keep existing heating working during simulation.** Leave **Enable simulation**
+  on and **Apply season setpoints** off while observing. Before enabling live
+  control, disable competing schedules or automations that change the same
+  thermostat targets. Keep the thermostat's own temperature regulation and
+  equipment safety controls in place.
+- **Review learning after significant changes.** A relocated or replaced sensor,
+  different heating equipment, or insulation changes may make earlier observations
+  less representative. Settings changes do not automatically reset learning.
+  Consider a reset for the affected room once its new readings have settled;
+  routine target adjustments do not require starting over. See
+  [learning resets and stored data](docs/GUIDE.md#sensor-warnings-and-stored-data).
+
+## Understanding the estimates
+
+- **100% initial collection is not an accuracy score.** It means at least 12
+  accepted heating hours and 12 idle hours have accumulated. Learning continues,
+  and reaching 100% never enables control automatically. Mild weather may provide
+  little heating evidence, so there is no fixed number of days until accuracy.
+- **Heat retention uses reference conditions.** The table models cooling from
+  20°C indoors with −10°C outdoors, with heating and background gains excluded.
+  Its six-hour loss and time per 1°C drop describe those conditions, rather than
+  today's expected temperature change. The badges are not certified insulation
+  ratings or safe durations for switching heating off.
+- **A plan is different from actual heating.** The suggested heating track shows
+  planned periods; the recorded track shows observed activity. Raising a
+  thermostat target does not guarantee its relay stays on. On the Plan chart,
+  red up and blue down arrows indicate the current planned target adjustment;
+  hover over an arrow for the amount and target temperatures.
+- **Check forecasts against measurements.** Compare saved forecasts with later
+  room readings and the no-temperature-change benchmark, including periods where
+  actual heating matched the plan. Stable room temperatures alone do not prove
+  that heating capacity or timing is modeled correctly.
+- **Treat unusual results as a reason to investigate.** Sunlight, cooking, open
+  windows, sensor handling and unreported heat sources can distort estimates.
+  Check sensor history and heating activity before interpreting a sudden change
+  as a change in the room's insulation or cooling speed.
+
+See [learning and interpreting charts](docs/GUIDE.md#learning-and-interpreting-charts)
+for more detail.
 
 ## Before enabling control
 
-Initial collection reaches 100% after at least 12 heating hours and 12 idle hours.
-That measures collected data, **not reliability**. Learning continues; there is no
-automatic activation or guaranteed completion date.
-
-Compare saved forecasts with measurements and the no-temperature-change benchmark
-across heating, idle and cold-weather periods. Heat-retention badges are model
-estimates, not certified efficiency or insulation ratings.
+Review forecast accuracy across heating, idle and cold-weather periods before
+considering live control. Allow enough observation to understand how your own
+system behaves; initial data collection alone does not establish reliability.
 
 To enable scheduled control, turn off **Enable simulation**, save and confirm.
 Disable other automations controlling the same thermostats first. **Apply season
