@@ -491,7 +491,10 @@
     "{count} comparisons": "Salīdzinājumu skaits: {count}",
     "{count} comparisons · {similar} with similar heating": "{count} salīdzinājumi · {similar} ar līdzīgu apkuri",
     "{days} more days to the initial thresholds at recent observation rates.": "Aptuveni {days} dienas līdz sākuma sliekšņiem pašreizējā tempā.",
-    "— Select / not used —": "— Izvēlēties / netiek lietots —"
+    "— Select / not used —": "— Izvēlēties / netiek lietots —",
+    "Static price": "Fiksēta cena",
+    "Static price (c/kWh)": "Fiksēta cena (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Ievadiet fiksēto kopējo elektroenerģijas cenu, ieskaitot patēriņa maksas, c/kWh."
   },
   "legacy": {},
   "cardMessages": {

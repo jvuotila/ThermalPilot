@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} usporedbi",
     "{count} comparisons · {similar} with similar heating": "{count} usporedbi · {similar} sa sličnim grijanjem",
     "{days} more days to the initial thresholds at recent observation rates.": "Oko {days} dana do početnih pragova pri sadašnjem tempu.",
-    "— Select / not used —": "— Odaberi / ne koristi se —"
+    "— Select / not used —": "— Odaberi / ne koristi se —",
+    "Static price": "Fiksna cijena",
+    "Static price (c/kWh)": "Fiksna cijena (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Unesite fiksnu ukupnu cijenu električne energije s naknadama po potrošnji u c/kWh."
   },
   "legacy": {},
   "cardMessages": {

@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} συγκρίσεις",
     "{count} comparisons · {similar} with similar heating": "{count} συγκρίσεις · {similar} με παρόμοια θέρμανση",
     "{days} more days to the initial thresholds at recent observation rates.": "Περίπου {days} ημέρες έως τα αρχικά όρια με τρέχοντα ρυθμό.",
-    "— Select / not used —": "— Επιλογή / δεν χρησιμοποιείται —"
+    "— Select / not used —": "— Επιλογή / δεν χρησιμοποιείται —",
+    "Static price": "Σταθερή τιμή",
+    "Static price (c/kWh)": "Σταθερή τιμή (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Εισαγάγετε τη σταθερή συνολική τιμή ηλεκτρικής ενέργειας με τις χρεώσεις κατανάλωσης σε c/kWh."
   },
   "legacy": {},
   "cardMessages": {

@@ -35,6 +35,7 @@ SOURCE_FIELDS = [
  ),
  ('house_foundation','Foundation','select:slab_on_ground,crawl_space,basement,other,unknown'),
  ('price_entity','Price sensor','sensor',{'kind':'price'}),
+ ('static_price','Static price (c/kWh)','number',-1000,10000,.01),
  ('price_forecast_entity','Price forecast (optional)','sensor',{'kind':'price_forecast'}),
  ('price_unit','Source price unit','select:c/kWh,€/kWh'),
  ('pricing_mode','Scheduling mode','select:hourly,quarterly,flexible'),
@@ -382,7 +383,19 @@ def validate(payload, hass=None):
                         raise ValueError(f'{label}: incorrect entity domain.')
                     if hass is not None and hass.states.get(value) is None:
                         raise ValueError(f'{label}: entity {value} was not found.')
-    fields = [(field[0], field[1], 'text') if field[0] == 'water_entity' and (not water_distribution(result)) or (field[0] in ('price_entity', 'price_forecast_entity') and (not electric_heating(result))) else field for field in SOURCE_FIELDS]
+    fields = []
+    for field in SOURCE_FIELDS:
+        key = field[0]
+        unused_water = key == 'water_entity' and not water_distribution(result)
+        unused_price_sensor = key in ('price_entity', 'price_forecast_entity') and (
+            not electric_heating(result) or result['price_entity'] == 'static'
+        )
+        # In fixed-price mode 'static' is a built-in choice, not an HA entity.
+        # Retain an unused forecast selection so switching back is reversible.
+        if unused_water or unused_price_sensor:
+            fields.append((key, field[1], 'text'))
+        else:
+            fields.append(field)
     check(result,fields)
     if hass is not None and result['fireplace_entity']:
         state = hass.states.get(result['fireplace_entity'])

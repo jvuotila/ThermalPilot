@@ -40,6 +40,24 @@ Raw arrays are preferred and handle 23/25-hour days. List-only sources are
 accepted solely on regular 24-hour days, with their interval detected from
     24 or 96 entries per day. Gaps stop the usable horizon.
 """
+    if config.get('price_entity') == 'static':
+        # A fixed tariff is known through tomorrow. Build elapsed-time intervals
+        # in UTC so local daylight-saving days have the correct 23/25-hour length.
+        price = number(config.get('static_price'))
+        if price is None or not -1000 <= price <= 10000:
+            raise ValueError('Static price (c/kWh): value is outside the allowed range.')
+        step = 60 if config['pricing_mode'] == 'hourly' else 15
+        first = now.astimezone(timezone.utc)
+        first = first.replace(minute=first.minute // step * step, second=0, microsecond=0)
+        final_day = now.astimezone(tz).date() + timedelta(days=2)
+        end = datetime.combine(final_day, datetime.min.time(), tzinfo=tz).astimezone(timezone.utc)
+        output = []
+        start = first
+        while start < end:
+            stop = min(start + timedelta(minutes=step), end)
+            output.append(Slot(start, stop, price))
+            start = stop
+        return output
     factor = 100.0 if config['price_unit'] == '€/kWh' else 1.0
     raw = []
     for key in ('raw_today', 'raw_tomorrow'):

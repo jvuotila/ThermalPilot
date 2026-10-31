@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.63 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.64 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -75,9 +75,10 @@ from step 4 above.
 
 ## Get started
 
-1. In **Settings**, select your electricity-price and outdoor-temperature sources.
-   Match the price unit to your source; prices must include the variable charges
-   you want scheduling to consider.
+1. In **Settings**, select your outdoor-temperature source and choose a price
+   sensor or **Static price**. For a sensor, match its price unit; for a fixed
+   tariff, enter the total price in c/kWh. Include the consumption-based charges
+   you want scheduling to consider. See [electricity tariffs](#electricity-tariffs).
 2. In **Rooms and zones**, choose the house heating system and add each room’s
    thermostat and temperature sensor. Follow the [sensor placement guidance](#temperature-sensor-placement)
    before starting learning, then set targets and comfort limits.
@@ -120,6 +121,30 @@ settle. Consider resetting learning for that room using its circular-arrow butto
 under **Rooms and zones**. This clears the learned parameters while retaining
 observation history; the room then needs fresh heating and idle observations.
 
+## Electricity tariffs
+
+In **Settings → Electricity price settings → Price sensor**, choose either:
+
+- **A price sensor** supplying timestamped prices or today/tomorrow lists, with
+  its matching source price unit. Use this for spot prices or any tariff whose
+  total price varies by time.
+- **Static price**, then enter **Static price (c/kWh)**. Include the fixed energy
+  price and applicable per-kWh transfer charges, taxes and retailer margin.
+  For example, 8 c/kWh for energy plus 4 c/kWh for transfer and taxes is
+  **12 c/kWh**. Exclude fixed monthly fees. No price sensor or price forecast is
+  needed in this mode.
+
+A static price applies equally to every hour. ThermalPilot still uses room
+measurements, comfort limits and weather to plan heating and learn the room's
+response; a fixed tariff does not make the thermal predictions inherently more
+accurate or remove the need to validate them.
+
+If your energy price is fixed but the transfer tariff changes between day and
+night, use a custom price sensor combining both into the total per-kWh price for
+each period. Select that sensor instead of **Static price**. A sensor reporting
+only the current value is insufficient: the planner needs a price list covering
+future periods. See the [total electricity price example](docs/configuration-examples/total-electricity-price.md).
+
 ## Before you start learning
 
 - **Check temperature readings.** Follow the [placement guidance](#temperature-sensor-placement)
@@ -136,7 +161,8 @@ observation history; the room then needs fresh heating and idle observations.
   fireplaces where applicable. Unreported heating from another appliance or
   heater can be mistaken for the primary system's output. Check the
   [secondary zone guidance](docs/GUIDE.md#secondary-zones).
-- **Check electricity prices.** Match the selected unit to the source and include
+- **Check electricity prices.** For a sensor, match the selected unit to the source;
+  for **Static price**, use c/kWh. Include
   applicable variable charges, such as VAT, retailer margin and consumption-based
   grid charges or taxes. ThermalPilot does not add these costs. Check that the
   source supplies prices for the expected hours; see the

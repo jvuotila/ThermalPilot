@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} összehasonlítás",
     "{count} comparisons · {similar} with similar heating": "{count} összevetés · {similar} hasonló fűtéssel",
     "{days} more days to the initial thresholds at recent observation rates.": "Körülbelül {days} nap a kezdeti küszöbig jelenlegi ütemmel.",
-    "— Select / not used —": "— Válasszon / nincs használatban —"
+    "— Select / not used —": "— Válasszon / nincs használatban —",
+    "Static price": "Fix ár",
+    "Static price (c/kWh)": "Fix ár (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Adja meg a rögzített teljes villamosenergia-árat a fogyasztásfüggő díjakkal együtt, c/kWh egységben."
   },
   "legacy": {},
   "cardMessages": {

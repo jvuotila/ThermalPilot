@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} porovnání",
     "{count} comparisons · {similar} with similar heating": "{count} porovnání · {similar} s podobným topením",
     "{days} more days to the initial thresholds at recent observation rates.": "Asi {days} dní do počátečních prahů při aktuálním tempu.",
-    "— Select / not used —": "— Vybrat / nepoužito —"
+    "— Select / not used —": "— Vybrat / nepoužito —",
+    "Static price": "Pevná cena",
+    "Static price (c/kWh)": "Pevná cena (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Zadejte pevnou celkovou cenu elektřiny včetně poplatků podle spotřeby v c/kWh."
   },
   "legacy": {},
   "cardMessages": {

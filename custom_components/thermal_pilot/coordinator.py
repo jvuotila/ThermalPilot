@@ -71,7 +71,8 @@ class PilotCoordinator(DataUpdateCoordinator):
             'price_entity', 'price_forecast_entity', 'outdoor_entity',
             'water_entity', 'weather_entity', 'wind_entity', 'fireplace_entity',
         )
-        entities = {self.settings[key] for key in source_keys if self.settings[key]}
+        entities = {self.settings[key] for key in source_keys if self.settings[key] and self.settings[key] != 'static'
+                    and not (self.settings['price_entity'] == 'static' and key == 'price_forecast_entity')}
         rooms = resolved_rooms(self.settings) + zone_rooms(self.settings)
         for room in rooms:
             for key in ('temperature_entity', 'thermostat', 'activity_entity', 'zone_fireplace_entity'):
@@ -455,6 +456,7 @@ class PilotCoordinator(DataUpdateCoordinator):
     def session_fingerprint(self, room: dict[str, Any]) -> list:
         """Invalidate a checkpoint when device mapping or heating policy changes."""
         effective = room_settings(room, self.settings)
+        price_policy = ['static', self.settings['static_price']] if self.settings['price_entity'] == 'static' else []
         return learning_fingerprint(room, self.settings) + [
             effective.get('heat_control'), effective.get('minimum'), effective.get('maximum'),
             effective.get('boost'), effective.get('setback'), room.get('garage_strategy'),
@@ -467,7 +469,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             self.settings['minimum_run_minutes'], self.settings['start_offset_minutes'],
             self.settings['stop_offset_minutes'], self.settings['heating_enabled'],
             self.settings['simulation_enabled'],
-        ]
+        ] + price_policy
 
     def previous_session_plan(self, room_id: str) -> dict[str, Any]:
         """Use the persisted last plan when HA has not published data since startup."""
@@ -648,6 +650,11 @@ class PilotCoordinator(DataUpdateCoordinator):
         chart_prices = []
         if not scheduling:
             pass
+        elif self.settings['price_entity'] == 'static':
+            slots = price_slots({}, self.settings, now, ZoneInfo(self.hass.config.time_zone))
+            midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+            chart_prices = [{'start':slot.start.isoformat(), 'end':slot.end.isoformat(), 'price':slot.price}
+                            for slot in price_slots({}, self.settings, midnight, ZoneInfo(self.hass.config.time_zone))]
         elif source is None or source.state in ('unknown', 'unavailable'):
             warnings.append('Price sensor is missing or unavailable.')
         else:
@@ -663,7 +670,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         if not forecasts:
             warnings.append('No weather forecast: current outdoor temperature is held constant. '+(self.forecast_error or 'No usable forecast was returned.'))
         price_outlook = {
-            'enabled': scheduling and bool(self.settings['price_forecast_entity']),
+            'enabled': scheduling and self.settings['price_entity'] != 'static' and bool(self.settings['price_forecast_entity']),
             'reserve_hours': RESERVE_HOURS,
             'available': False
         }
@@ -1056,7 +1063,10 @@ class PilotCoordinator(DataUpdateCoordinator):
         water = number(water_state.attributes.get('current_temperature') if snapshot['water_entity'].startswith('climate.') else water_state.state) if water_state else None
         price_state = self.hass.states.get(snapshot['price_entity'])
         try:
-            prices = price_slots(price_state.attributes, snapshot, now, ZoneInfo(self.hass.config.time_zone)) if price_state and price_state.state not in ('unknown', 'unavailable') else []
+            if snapshot['price_entity'] == 'static':
+                prices = price_slots({}, snapshot, now, ZoneInfo(self.hass.config.time_zone))
+            else:
+                prices = price_slots(price_state.attributes, snapshot, now, ZoneInfo(self.hass.config.time_zone)) if price_state and price_state.state not in ('unknown', 'unavailable') else []
         except ValueError:
             prices = []
         sources_ok = sources_ok and bool(prices)

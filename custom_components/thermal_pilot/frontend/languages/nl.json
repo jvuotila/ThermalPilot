@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} vergelijkingen",
     "{count} comparisons · {similar} with similar heating": "{count} vergelijkingen · {similar} met vergelijkbare verwarming",
     "{days} more days to the initial thresholds at recent observation rates.": "Ongeveer {days} dagen tot begindrempels bij huidig tempo.",
-    "— Select / not used —": "— Selecteren / niet gebruikt —"
+    "— Select / not used —": "— Selecteren / niet gebruikt —",
+    "Static price": "Vaste prijs",
+    "Static price (c/kWh)": "Vaste prijs (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Voer de vaste totale elektriciteitsprijs inclusief verbruiksafhankelijke kosten in c/kWh in."
   },
   "legacy": {},
   "cardMessages": {

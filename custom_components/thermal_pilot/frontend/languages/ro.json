@@ -491,7 +491,10 @@
     "{count} comparisons": "Comparații: {count}",
     "{count} comparisons · {similar} with similar heating": "{count} comparații · {similar} cu încălzire similară",
     "{days} more days to the initial thresholds at recent observation rates.": "Circa {days} zile până la praguri inițiale la ritmul actual.",
-    "— Select / not used —": "— Selectare / neutilizat —"
+    "— Select / not used —": "— Selectare / neutilizat —",
+    "Static price": "Preț fix",
+    "Static price (c/kWh)": "Preț fix (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Introduceți prețul total fix al energiei electrice, inclusiv taxele pe consum, în c/kWh."
   },
   "legacy": {},
   "cardMessages": {

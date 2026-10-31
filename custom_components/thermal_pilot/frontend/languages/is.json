@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} samanburðir",
     "{count} comparisons · {similar} with similar heating": "{count} samanburðir · {similar} við svipaða hitun",
     "{days} more days to the initial thresholds at recent observation rates.": "Um {days} dagar að upphafsmörkum miðað við nýlegar mælingar.",
-    "— Select / not used —": "— Velja / ekki notað —"
+    "— Select / not used —": "— Velja / ekki notað —",
+    "Static price": "Fast verð",
+    "Static price (c/kWh)": "Fast verð (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Sláðu inn fast heildarverð raforku ásamt notkunartengdum gjöldum í c/kWh."
   },
   "legacy": {},
   "cardMessages": {

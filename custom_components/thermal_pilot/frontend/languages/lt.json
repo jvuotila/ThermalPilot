@@ -491,7 +491,10 @@
     "{count} comparisons": "Palyginimų: {count}",
     "{count} comparisons · {similar} with similar heating": "{count} palyginimų · {similar} su panašiu šildymu",
     "{days} more days to the initial thresholds at recent observation rates.": "Apie {days} dienų iki pradinių ribų dabartiniu tempu.",
-    "— Select / not used —": "— Pasirinkti / nenaudojama —"
+    "— Select / not used —": "— Pasirinkti / nenaudojama —",
+    "Static price": "Fiksuota kaina",
+    "Static price (c/kWh)": "Fiksuota kaina (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Įveskite fiksuotą bendrą elektros kainą su vartojimo mokesčiais, c/kWh."
   },
   "legacy": {},
   "cardMessages": {

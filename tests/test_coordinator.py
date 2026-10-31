@@ -45,6 +45,30 @@ class Hass:
     async def async_add_executor_job(self,fn,*args):return fn(*args)
 
 class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_static_price_plans_and_records_without_price_sensor(self):
+        self.c.settings.update(price_entity='static',static_price=8.75,price_forecast_entity='sensor.absent')
+        del self.hass.states['sensor.price']
+        data=await self.c._async_update_data()
+        self.assertTrue(data['price_chart'])
+        self.assertEqual({slot['price'] for slot in data['price_chart']},{8.75})
+        self.assertFalse(data['price_outlook']['enabled'])
+        self.assertTrue(data['rooms'][self.c.settings['rooms'][0]['id']]['plan'])
+        self.assertFalse(any('Price sensor is missing' in w or 'No continuous prices' in w for w in data['warnings']))
+        room=self.c.settings['rooms'][0]
+        old=self.c.session_fingerprint(room)
+        self.c.settings['static_price']=9
+        self.assertNotEqual(old,self.c.session_fingerprint(room))
+
+    async def test_static_price_live_control_still_checks_other_essential_inputs(self):
+        self.c.settings.update(price_entity='static',static_price=11,simulation_enabled=False,live_control_confirmed=True)
+        del self.hass.states['sensor.price']
+        self.hass.states['sensor.room'].state='18'
+        data=await self.c._async_update_data()
+        self.assertNotIn('Study',data['control']['fallback_rooms'])
+        self.hass.states['sensor.out'].state='unavailable'
+        data=await self.c._async_update_data()
+        self.assertIn('Study',data['control']['fallback_rooms'])
+
     async def test_hourly_weather_display_filters_normalizes_and_orders_real_rows(self):
         self.c.settings['weather_entity']='weather.home'
         self.hass.states['weather.home']=State('cloudy',{'temperature_unit':'°F'})

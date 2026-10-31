@@ -217,7 +217,7 @@ const previewInfo=JSON.parse(preview.match(/const demo=([\s\S]*?);const states=/
 const previewPanel=new Component();previewPanel._hass={states:{}};previewPanel.settings=previewInfo.settings;previewPanel.info=previewInfo;
 const previewSettings=previewPanel.settingsView();
 for(const field of previewInfo.source_fields){
- assert.equal(previewSettings.split(`data-field="source.${field[0]}"`).length-1,1,`${field[0]} must remain editable exactly once`);
+ assert.equal(previewSettings.split(`data-field="source.${field[0]}"`).length-1,field[0]==='static_price'?0:1,`${field[0]} must follow the selected price source`);
 }
 assert.match(previewSettings,/<h3>Electricity price settings<\/h3>/);
 assert.match(previewSettings,/<h3>Integration settings<\/h3>/);
@@ -1579,3 +1579,17 @@ alphabetPanel.info={data:{rooms:Object.fromEntries(['Öljyhuone','Äidin huone',
 const alphabeticalNames=Array.from(alphabetPanel.heatRetentionView().matchAll(/<span data-user-text>([^<]+)<\/span>/g),m=>m[1]);
 assert.deepEqual(alphabeticalNames,['Aula','Zebra','Åke','Äidin huone','Öljyhuone']);
 console.log('Default room-name sorting follows Finnish A–Ö collation.');
+
+const staticPricePanel=new Component();
+staticPricePanel._hass={states:{'sensor.price':{entity_id:'sensor.price',state:'10',attributes:{friendly_name:'Market price',today:[10]}}}};
+staticPricePanel.settings={rooms:[],price_entity:'static',static_price:12.5,house_heat_source:'electric_resistance'};
+staticPricePanel.info={source_fields:[['price_entity','Price sensor','sensor'],['static_price','Static price (c/kWh)','number',-1000,10000,.01],['price_forecast_entity','Price forecast (optional)','sensor'],['price_unit','Source price unit','select:c/kWh,€/kWh']]};
+let staticPriceHTML=staticPricePanel.settingsGroups([['Electricity price settings',['price_entity','static_price','price_forecast_entity','price_unit']]]);
+assert.match(staticPriceHTML,/<option value="static" selected>Static price<\/option>/);
+assert.match(staticPriceHTML,/data-field="source.static_price" value="12.5"/);
+assert.doesNotMatch(staticPriceHTML,/data-field="source.price_unit"|data-field="source.price_forecast_entity"|static.*\(unavailable\)/);
+staticPricePanel.settings.price_entity='sensor.price';
+staticPriceHTML=staticPricePanel.settingsGroups([['Electricity price settings',['price_entity','static_price','price_forecast_entity','price_unit']]]);
+assert.doesNotMatch(staticPriceHTML,/data-field="source.static_price"/);
+assert.match(staticPriceHTML,/data-field="source.price_unit"/);
+console.log('Static price selector and conditional tariff fields passed.');

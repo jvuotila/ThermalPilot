@@ -718,7 +718,10 @@
     "{heating} observed heating hours; {idle} idle hours. Enough observations do not by themselves prove accuracy.": "{heating} observed heating hours; {idle} idle hours. Enough observations do not by themselves prove accuracy.",
     "{prefix}{name}: heat pump heating setpoint is outside device limits.": "{prefix}{name}: heat pump heating setpoint is outside device limits.",
     "{prefix}{name}: heat pump heating setpoint {target} °C is outside device limits ({minimum}–{maximum} °C).": "{prefix}{name}: heat pump heating setpoint {target} °C is outside device limits ({minimum}–{maximum} °C).",
-    "— Select / not used —": "— Select / not used —"
+    "— Select / not used —": "— Select / not used —",
+    "Static price": "Static price",
+    "Static price (c/kWh)": "Static price (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Enter the total fixed electricity price, including variable charges, in c/kWh."
   },
   "legacy": {},
   "cardMessages": {

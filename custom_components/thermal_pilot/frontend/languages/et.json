@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} võrdlust",
     "{count} comparisons · {similar} with similar heating": "{count} võrdlust · {similar} sarnase küttega",
     "{days} more days to the initial thresholds at recent observation rates.": "Algkünnisteni umbes {days} päeva praeguse vaatlustempoga.",
-    "— Select / not used —": "— Vali / ei kasutata —"
+    "— Select / not used —": "— Vali / ei kasutata —",
+    "Static price": "Fikseeritud hind",
+    "Static price (c/kWh)": "Fikseeritud hind (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Sisesta elektri fikseeritud koguhind koos tarbimispõhiste tasudega ühikus c/kWh."
   },
   "legacy": {},
   "cardMessages": {

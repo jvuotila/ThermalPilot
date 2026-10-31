@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} krahasime",
     "{count} comparisons · {similar} with similar heating": "{count} krahasime · {similar} me ngrohje të ngjashme",
     "{days} more days to the initial thresholds at recent observation rates.": "Rreth {days} ditë deri te pragjet fillestare me ritmin aktual.",
-    "— Select / not used —": "— Zgjidh / nuk përdoret —"
+    "— Select / not used —": "— Zgjidh / nuk përdoret —",
+    "Static price": "Çmim fiks",
+    "Static price (c/kWh)": "Çmim fiks (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Vendosni çmimin total fiks të energjisë elektrike, përfshirë tarifat e konsumit, në c/kWh."
   },
   "legacy": {},
   "cardMessages": {

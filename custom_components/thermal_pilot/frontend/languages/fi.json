@@ -345,7 +345,10 @@
     "{count} comparisons · {similar} with similar heating": "{count} vertailua · {similar} vastaavalla lämmityksellä",
     "{heating} observed heating hours; {idle} idle hours. Enough observations do not by themselves prove accuracy.": "Havaittua lämmitystä {heating} tuntia; lepoa {idle} tuntia. Riittävä havaintomäärä ei yksin takaa ennusteiden tarkkuutta.",
     "{prefix}{name}: heat pump heating setpoint is outside device limits.": "{prefix}{name}: Pumpun lämmityksen asetuslämpötila on laitteen salliman lämpötila-alueen ulkopuolella.",
-    "{prefix}{name}: heat pump heating setpoint {target} °C is outside device limits ({minimum}–{maximum} °C).": "{prefix}{name}: Pumpun lämmityksen asetuslämpötila {target} °C on laitteen salliman alueen ulkopuolella ({minimum}–{maximum} °C)."
+    "{prefix}{name}: heat pump heating setpoint {target} °C is outside device limits ({minimum}–{maximum} °C).": "{prefix}{name}: Pumpun lämmityksen asetuslämpötila {target} °C on laitteen salliman alueen ulkopuolella ({minimum}–{maximum} °C).",
+    "Static price": "Kiinteä hinta",
+    "Static price (c/kWh)": "Kiinteä hinta (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Anna sähkön kiinteä kokonaishinta kulutusperusteisine lisämaksuineen yksikössä c/kWh."
   },
   "legacy": {
     "Plan": "Suunnitelma",

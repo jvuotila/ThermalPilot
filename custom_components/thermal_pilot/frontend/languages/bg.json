@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} сравнения",
     "{count} comparisons · {similar} with similar heating": "{count} сравнения · {similar} с подобно отопление",
     "{days} more days to the initial thresholds at recent observation rates.": "Около {days} дни до началните прагове при текущия темп.",
-    "— Select / not used —": "— Избор / не се използва —"
+    "— Select / not used —": "— Избор / не се използва —",
+    "Static price": "Фиксирана цена",
+    "Static price (c/kWh)": "Фиксирана цена (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Въведете фиксираната обща цена на електроенергията с таксите за потребление в c/kWh."
   },
   "legacy": {},
   "cardMessages": {

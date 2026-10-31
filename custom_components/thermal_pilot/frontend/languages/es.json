@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} comparaciones",
     "{count} comparisons · {similar} with similar heating": "{count} comparaciones · {similar} con calefacción similar",
     "{days} more days to the initial thresholds at recent observation rates.": "Unos {days} días hasta umbrales iniciales al ritmo actual.",
-    "— Select / not used —": "— Seleccionar / sin uso —"
+    "— Select / not used —": "— Seleccionar / sin uso —",
+    "Static price": "Precio fijo",
+    "Static price (c/kWh)": "Precio fijo (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Introduzca el precio total fijo de la electricidad, incluidos los cargos por consumo, en c/kWh."
   },
   "legacy": {},
   "cardMessages": {

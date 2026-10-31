@@ -9,7 +9,7 @@ Choose entities from your own Home Assistant installation; none are preselected.
 
 | Input | Use |
 | --- | --- |
-| Electricity prices | Required for tariff scheduling; use a source with complete price lists and the correct unit |
+| Electricity prices | Choose Static price (c/kWh), or a sensor with complete price lists and the correct unit |
 | Outdoor temperature | Current outdoor measurement for planning and learning |
 | Room temperature | One measured temperature source for each room |
 | Thermostat | Each room’s primary controller, including rooms linked to secondary zones |
@@ -21,6 +21,12 @@ Choose entities from your own Home Assistant installation; none are preselected.
 A thermostat target alone does not establish actual heating. A relay indicates
 heating demand, not guaranteed heat flow. Check that activity readings reflect
 how your installation works before judging learned behavior.
+
+For a fixed total per-kWh tariff, select **Static price** in the **Price sensor**
+field and enter the total in c/kWh. This mode does not require price entities or
+a price forecast. Time-based transfer charges require a custom sensor supplying
+the combined energy and transfer price lists instead. Fixed monthly fees are not
+part of the per-kWh price.
 
 Price lists should already include VAT, retailer margin, grid charges and taxes
 that vary with consumption. ThermalPilot does not add these costs. Timestamped

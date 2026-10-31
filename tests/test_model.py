@@ -585,3 +585,36 @@ class MinimumPauseTests(unittest.TestCase):
         result=plan(room,initial_model(room),20.5,[-15]*len(slots),slots,current,20)
         self.assertTrue(result['thermostat_windows'])
         self.assertTrue(all(datetime.fromisoformat(window['start'])>=NOW+timedelta(minutes=25) for window in result['thermostat_windows']))
+
+
+class StaticPriceTests(unittest.TestCase):
+    def test_static_tariff_uses_fixed_cents_and_ignores_sensor_lists_and_unit(self):
+        settings={**DEFAULTS,'price_entity':'static','static_price':12.34,'price_unit':'€/kWh'}
+        slots=price_slots({'today':[99]*24},settings,NOW,UTC)
+        self.assertEqual(len(slots),192)
+        self.assertEqual({slot.price for slot in slots},{12.34})
+        self.assertEqual(slots[0].start,NOW)
+        self.assertEqual(slots[-1].end,NOW+timedelta(days=2))
+        self.assertTrue(all(a.end==b.start for a,b in zip(slots,slots[1:])))
+
+    def test_static_tariff_handles_local_dst_days_in_elapsed_time(self):
+        tz=ZoneInfo('Europe/Helsinki')
+        for month,day,hours in [(3,29,47),(10,25,49)]:
+            start=datetime(2026,month,day,tzinfo=tz)
+            for mode,per_hour in [('hourly',1),('flexible',4),('quarterly',4)]:
+                slots=price_slots({}, {**DEFAULTS,'price_entity':'static','static_price':0,'pricing_mode':mode},start,tz)
+                self.assertEqual(len(slots),hours*per_hour)
+                self.assertEqual(slots[-1].end.astimezone(tz).hour,0)
+
+    def test_static_price_validation_and_legacy_defaults(self):
+        from types import SimpleNamespace
+        hass=SimpleNamespace(states={'sensor.out':object()})
+        settings={**DEFAULTS,'price_entity':'static','static_price':7.5,'outdoor_entity':'sensor.out'}
+        self.assertEqual(validate(settings,hass)['static_price'],7.5)
+        for invalid in [None,float('nan'),float('inf'),10001,-1001]:
+            with self.assertRaises(ValueError):validate({**settings,'static_price':invalid},hass)
+            with self.assertRaises(ValueError):price_slots({}, {**settings,'static_price':invalid},NOW,UTC)
+        for valid in [0,-1]:
+            self.assertEqual(validate({**settings,'static_price':valid},hass)['static_price'],valid)
+        with self.assertRaises(ValueError):validate({**settings,'price_entity':'static.invalid'},hass)
+        self.assertEqual(stored_settings({'price_entity':'sensor.price'}, {})['price_entity'],'sensor.price')

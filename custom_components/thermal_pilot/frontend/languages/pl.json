@@ -491,7 +491,10 @@
     "{count} comparisons": "Liczba porównań: {count}",
     "{count} comparisons · {similar} with similar heating": "{count} porównań · {similar} z podobnym grzaniem",
     "{days} more days to the initial thresholds at recent observation rates.": "Około {days} dni do progów początkowych przy obecnym tempie.",
-    "— Select / not used —": "— Wybierz / nieużywane —"
+    "— Select / not used —": "— Wybierz / nieużywane —",
+    "Static price": "Stała cena",
+    "Static price (c/kWh)": "Stała cena (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Podaj stałą całkowitą cenę energii elektrycznej wraz z opłatami zależnymi od zużycia w c/kWh."
   },
   "legacy": {},
   "cardMessages": {

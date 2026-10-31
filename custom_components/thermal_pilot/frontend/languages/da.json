@@ -491,7 +491,10 @@
     "{count} comparisons": "{count} sammenligninger",
     "{count} comparisons · {similar} with similar heating": "{count} sammenligninger · {similar} med lignende varme",
     "{days} more days to the initial thresholds at recent observation rates.": "Cirka {days} dage til startgrænserne med den aktuelle observationstakt.",
-    "— Select / not used —": "— Vælg / ikke brugt —"
+    "— Select / not used —": "— Vælg / ikke brugt —",
+    "Static price": "Fast pris",
+    "Static price (c/kWh)": "Fast pris (c/kWh)",
+    "Enter the total fixed electricity price, including variable charges, in c/kWh.": "Angiv den faste samlede elpris inklusive forbrugsafhængige afgifter i c/kWh."
   },
   "legacy": {},
   "cardMessages": {
