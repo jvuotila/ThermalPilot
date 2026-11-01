@@ -70,6 +70,7 @@ const settingHelp = {
   summer_minimum_temperature: 'Summer fallback follows the daily minimum temperature. With incomplete forecasts, Home Assistant location provides a warm-weather estimate: June–August north or December–February south, outside the tropics. Colder readings override the estimate; insufficient evidence selects winter. Summer uses the shared summer setpoint; winter uses normal room targets.',
   fireplace_reduction: 'Negative values reduce estimated heat loss while the fireplace is active; −20% means a 20% reduction.',
   static_price: 'Enter the total fixed electricity price, including variable charges, in c/kWh.',
+  transfer_tariff: 'Add transfer charges only if they are not already included in the selected price.',
   price_entity: 'Prefer a sensor that includes electricity prices and additional costs, such as VAT, transfer tariffs, electricity tax and retailer margin. A variable electricity-price sensor without these costs also works. If transfer tariffs differ between day and night, including them helps ThermalPilot choose the cheapest heating hours; omitting them can shift heating to hours that are less economical overall. Select a source containing today/tomorrow or timestamped raw_today/raw_tomorrow price lists, and choose the matching source price unit.',
   pricing_mode: 'Hourly average uses fixed hourly averages of the source prices. 15 minutes plans using quarter-hour intervals. Flexible builds heating sessions in 15-minute steps, allowing runs such as 60 or 75 minutes while respecting the minimum flexible heating run.',
   minimum_run_minutes: 'The shortest planned heating session in flexible scheduling mode. Longer sessions can be chosen in 15-minute steps. This setting applies to flexible runs; valve opening and closing offsets are applied separately.',
@@ -85,7 +86,7 @@ const settingHelp = {
 };
 const sourceSettingGroups = [
   ['Integration settings',['heating_enabled','simulation_enabled','language']],
-  ['Electricity price settings',['price_entity','static_price','price_forecast_entity','price_unit','pricing_mode']],
+  ['Electricity price settings',['price_entity','static_price','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode']],
   ['Weather and forecast settings',['weather_entity','outdoor_entity','wind_entity','summer_minimum_temperature']],
   ['Heating settings',['minimum_run_minutes','fireplace_entity','fireplace_active_state']],
   ['Miscellaneous',['sensor_warning_hours']],
@@ -403,17 +404,20 @@ class ThermalPilotPanel extends HTMLElement {
       const options=key==='heating_zone_id'?(this.settings.heating_zones||[]):this.settings.rooms.filter(r=>r.heating_zone_id===obj.id);
       input=`<select data-field="${name}"><option value="">— Select / not used —</option>${options.map(v=>`<option data-user-text value="${escapeHTML(v.id)}" ${v.id===value?'selected':''}>${escapeHTML(v.name||'New room')}</option>`).join('')}</select>`;
     }
-    else if(type.startsWith('select:'))input=`<select data-field="${name}">${type.slice(7).split(',').map(v=>`<option ${v===value?'selected':''} value="${escapeHTML(v)}">${escapeHTML(key==='language'?({'en':'🇬🇧 English','fi':'🇫🇮 Finnish'}[v]||v):['heat_control','garage_strategy','temperature_policy','air_zone_temperature','source_type','climate_mode','heating_strategy'].includes(key)?controlOptionLabels[v]||v:key==='pricing_mode'?schedulingLabels[v]||v:(key.startsWith('house_')||key==='garage_construction')?houseOptionLabels[v]||v:key==='solar_direction'&&v==='disabled'?'Solar heating off':['solar_direction','solar_exposure'].includes(key)?v.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase()):v)}</option>`).join('')}</select>`;
+    else if(type.startsWith('select:'))input=`<select data-field="${name}">${type.slice(7).split(',').map(v=>`<option ${v===value?'selected':''} value="${escapeHTML(v)}">${escapeHTML(key==='language'?({'en':'🇬🇧 English','fi':'🇫🇮 Finnish'}[v]||v):['heat_control','garage_strategy','temperature_policy','air_zone_temperature','source_type','climate_mode','heating_strategy'].includes(key)?controlOptionLabels[v]||v:key==='transfer_tariff'?({included:'Already included / no addition',fixed:'Fixed transfer price',day_night:'Day/night transfer prices'}[v]):key==='pricing_mode'?schedulingLabels[v]||v:(key.startsWith('house_')||key==='garage_construction')?houseOptionLabels[v]||v:key==='solar_direction'&&v==='disabled'?'Solar heating off':['solar_direction','solar_exposure'].includes(key)?v.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase()):v)}</option>`).join('')}</select>`;
+    else if(type==='time')input=`<input type="time" step="60" data-field="${name}" value="${escapeHTML(value)}">`;
     else if(type==='number')input=`<input type="number" step="${step}" min="${min}" max="${max}" data-field="${name}" value="${escapeHTML(value)}">`;
     else if(type==='text')input=`<input data-field="${name}" value="${escapeHTML(value)}">`;
     else{
       const domains=type.split(','),rule=field[3]||{};const entities=Object.values(this._hass.states).filter(s=>domains.includes(s.entity_id.split('.')[0])&&entityMatches(s,rule,obj)).sort((a,b)=>entityLabel(a).localeCompare(entityLabel(b)));
       const retained=value&&!(key==='price_entity'&&value==='static')&&!entities.some(s=>s.entity_id===value)?`<option selected value="${escapeHTML(value)}">${escapeHTML(entityLabel(this._hass.states[value]))} (${this._hass.states[value]?'does not match filter':'unavailable'})</option>`:'';
-      input=`<select data-field="${name}"><option value="">— Select / not used —</option>${key==='price_entity'?`<option value="static" ${value==='static'?'selected':''}>${escapeHTML(this.t('Static price'))}</option>`:''}${retained}${entities.map(s=>`<option data-user-text value="${escapeHTML(s.entity_id)}" ${s.entity_id===value?'selected':''}>${escapeHTML(entityLabel(s))}</option>`).join('')}</select>`;
+      input=`<select data-field="${name}"><option value="" ${!value?'selected':''}>${key==='price_entity'?escapeHTML(this.t('Not configured')):'— Select / not used —'}</option>${key==='price_entity'?`<option value="static" ${value==='static'?'selected':''}>${escapeHTML(this.t('Static price'))}</option>`:''}${retained}${entities.map(s=>`<option data-user-text value="${escapeHTML(s.entity_id)}" ${s.entity_id===value?'selected':''}>${escapeHTML(entityLabel(s))}</option>`).join('')}</select>`;
     }
     if(sourceReadingKeys.includes(key))input+=`<small class="source-current-state" data-source-reading="${key}" role="status">${escapeHTML(this.t('Current state:'))} ${escapeHTML(this.t(sourceReading(key,value,this._hass?.states?.[value])))}</small>`;
     if(key==='fireplace_reduction')input=`<span class="number-unit">${input}<span>%</span></span>`;
-    const helpText=settingHelp[prefix.startsWith('zone')&&key==='heating_enabled'?'zone_heating_enabled':key];
+    let helpText=settingHelp[prefix.startsWith('zone')&&key==='heating_enabled'?'zone_heating_enabled':key];
+    if(key==='static_price'&&obj.transfer_tariff&&obj.transfer_tariff!=='included')helpText='Enter the price before transfer charges.';
+    if(key==='transfer_day_start'||key==='transfer_night_start')helpText='Repeats daily in Home Assistant’s time zone.';
     const helpId=`help-${prefix}-${key}`;
     const help=helpText?` <span class="setting-help"><button type="button" class="setting-info" aria-label="About ${escapeHTML(label)}" aria-describedby="${helpId}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle class="info-dot" cx="12" cy="7" r="1"/></svg></button><span id="${helpId}" class="setting-tooltip" role="tooltip">${escapeHTML(helpText)}</span></span>`:'';
     const tag=(type.startsWith('entities:')||type==='rooms')?'div':'label';
@@ -423,8 +427,32 @@ class ThermalPilotPanel extends HTMLElement {
     const fields=new Map(this.info.source_fields.map(field=>[field[0],field]));
     return groups.map(([title,keys])=>{
       const staticPrice=this.settings.price_entity==='static';
-      const available=keys.filter(key=>key==='static_price'?staticPrice:!staticPrice||!['price_forecast_entity','price_unit'].includes(key)).map(key=>fields.get(key)).filter(Boolean);
-      return available.length?`<div class="settings-group" ${title==='Integration settings'?'data-integration-group':''} ${title==='Electricity price settings'?`data-electric-group ${electricHeating(this.settings)?'':'hidden'}`:title==='Air-to-air heat pump settings'?`data-air-group ${this.settings.rooms.some(r=>!r.is_garage&&r.heat_control==='air_to_air')||(this.settings.heating_zones||[]).some(z=>z.source_type!=='fireplace')||this.settings.house_heat_source==='air_to_air'?'':'hidden'}`:title==='Water heating'?`data-water-group ${waterDistribution(this.settings)?'':'hidden'}`:''}><h3>${escapeHTML(title)}</h3>${title==='Miscellaneous'?'<p>Warn when room temperature readings stay unchanged or unavailable.</p>':''}<div class="grid">${available.map(field=>this.field(field,this.settings,'source')).join('')}</div>${title==='Miscellaneous'?this.backupControls():''}</div>`:'';
+      const available=keys.filter(key=>{
+        if(key==='static_price')return staticPrice;
+        if(staticPrice&&['price_forecast_entity','price_unit'].includes(key))return false;
+        if(key==='transfer_fixed_price')return this.settings.transfer_tariff==='fixed';
+        if(['transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price'].includes(key))return this.settings.transfer_tariff==='day_night';
+        return true;
+      }).map(key=>fields.get(key)).filter(Boolean);
+      let fieldMarkup=`<div class="grid">${available.map(field=>this.field(field,this.settings,'source')).join('')}</div>`;
+      if(title==='Electricity price settings'){
+        const row=keys=>{
+          const selected=keys.map(key=>available.find(field=>field[0]===key)).filter(Boolean);
+          return selected.length?`<div class="grid price-fields">${selected.map(field=>this.field(field,this.settings,'source')).join('')}</div>`:'';
+        };
+        // Keep energy inputs together, then transfer selection and complete
+        // time/rate pairs. Row boundaries stay the same at every desktop width.
+        fieldMarkup=`<div class="price-settings-fields">
+          ${row(['price_entity','static_price','price_unit','price_forecast_entity'])}
+          <div class="price-transfer-fields">
+            ${row(['transfer_tariff','transfer_fixed_price'])}
+            ${row(['transfer_day_start','transfer_day_price'])}
+            ${row(['transfer_night_start','transfer_night_price'])}
+          </div>
+          ${row(['pricing_mode'])}
+        </div>`;
+      }
+      return available.length?`<div class="settings-group" ${title==='Integration settings'?'data-integration-group':''} ${title==='Electricity price settings'?`data-electric-group ${electricHeating(this.settings)?'':'hidden'}`:title==='Air-to-air heat pump settings'?`data-air-group ${this.settings.rooms.some(r=>!r.is_garage&&r.heat_control==='air_to_air')||(this.settings.heating_zones||[]).some(z=>z.source_type!=='fireplace')||this.settings.house_heat_source==='air_to_air'?'':'hidden'}`:title==='Water heating'?`data-water-group ${waterDistribution(this.settings)?'':'hidden'}`:''}><h3>${escapeHTML(title)}</h3>${title==='Miscellaneous'?'<p>Warn when room temperature readings stay unchanged or unavailable.</p>':''}${fieldMarkup}${title==='Miscellaneous'?this.backupControls():''}</div>`:'';
     }).join('');
   }
   backupControls(){
@@ -1707,6 +1735,15 @@ details{scroll-margin-block:16px}
  .compact-status.compact-no-water{grid-template-columns:minmax(280px,1fr) 110px minmax(190px,220px)}
  }
  
+
+/* Price source and transfer time/rate pairs use explicit rows, not auto-flow. */
+#settings .price-settings-fields{max-width:1000px}
+#settings .price-settings-fields .grid.price-fields{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:16px}
+#settings .price-transfer-fields{border-top:1px solid var(--divider-color,#dce4e8);padding-top:16px}
+#settings .price-fields input[type="time"]{width:180px;max-width:100%}
+@media(max-width:600px){
+ #settings .price-settings-fields .grid.price-fields{grid-template-columns:minmax(0,1fr)}
+}
 </style>
     <header class="page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}"><div class="page-title"><button type="button" class="menu-button" id="ha-menu" aria-label="Open Home Assistant menu" title="Open Home Assistant menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><img class="header-logo" src="/thermal_pilot/icon.png" width="36" height="36" alt="" aria-hidden="true"><h1>ThermalPilot</h1></div>${this.headerStatus()}${this.compactStatusView()}<nav class="tab-list" role="tablist" aria-label="ThermalPilot pages">${[['overview','Plan'],['history','History'],['rooms','Rooms and zones'],['settings','Settings']].map(([id,label])=>`<button id="tab-${id}" role="tab" aria-selected="${this.tab===id}" aria-controls="thermal-pilot-tab-panel" tabindex="${this.tab===id?0:-1}" data-tab="${id}" class="${this.tab===id?'active':''}">${label}</button>`).join('')}</nav>${this.message&&!this.saveConfirmation&&!(['settings','rooms'].includes(this.tab)&&this.messageLevel==='error')?`${statusNotice(this.message,this.messageLevel||'info','message')}`:''}</header><main id="thermal-pilot-tab-panel" role="tabpanel" aria-labelledby="tab-${this.tab}" class="tab-panel page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}">${!this.info?'Loading…':['settings','rooms'].includes(this.tab)?this.settingsView(this.tab):this.tab==='history'?this.historyView():this.overview()}</main>${this.message&&this.saveConfirmation?`<div class="message save-toast notice-info" role="status" aria-live="polite">${statusIcon('info')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span></div>`:''}${this.message&&!this.saveConfirmation&&['settings','rooms'].includes(this.tab)&&this.messageLevel==='error'?`<div class="message save-toast notice-error save-error" role="alert" aria-live="assertive" tabindex="-1">${statusIcon('error')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span><button type="button" id="dismiss-save-error" aria-label="Dismiss error notification" title="Dismiss error notification">×</button></div>`:''}`;
     this.shadowRoot.querySelector('#dismiss-save-error')?.addEventListener('click',()=>{this.message='';this.saveConfirmation=false;this.shadowRoot.querySelector('.save-error')?.remove();});
@@ -1767,7 +1804,7 @@ details{scroll-margin-block:16px}
       if(key==='zone_rooms'){const selected=new Set(values.filter(Boolean));this.settings.rooms.forEach(room=>{if(room.heating_zone_id===obj.id&&!selected.has(room.id))room.heating_zone_id='';});if(!selected.has(obj.main_room_id))obj.main_room_id=this.settings.rooms.find(room=>selected.has(room.id))?.id||'';}
       clearSaveMessage();this.render();
     });
-    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if(event?.target?.hasAttribute?.('data-zone-member')){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','heat_control','thermostat','heating_zone_id','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(event?.target?.dataset?.field==='source.price_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.shadowRoot.querySelectorAll('[data-water-group]').forEach(group=>group.hidden=!waterDistribution({house_distribution:event.target.value}));}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
+    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if(event?.target?.hasAttribute?.('data-zone-member')){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','heat_control','thermostat','heating_zone_id','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.shadowRoot.querySelectorAll('[data-water-group]').forEach(group=>group.hidden=!waterDistribution({house_distribution:event.target.value}));}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
     settingsForm?.addEventListener('submit',async e=>{
       e.preventDefault();if(this.saving||this.backupBusy)return;this.capture();
       const enableLive=electricHeating(this.settings)&&this.settings.simulation_enabled===false&&!this.info.settings?.live_control_confirmed;

@@ -33,6 +33,58 @@ class Slot:
     price: float
 
 
+def tariff_minutes(value):
+    """Parse a local daily tariff boundary without accepting ambiguous time text."""
+    try:
+        parsed = datetime.strptime(value, '%H:%M')
+    except (ValueError, TypeError):
+        raise ValueError('Use a time in HH:MM format.') from None
+    if parsed.strftime('%H:%M') != value:
+        raise ValueError('Use a time in HH:MM format.')
+    return parsed.hour * 60 + parsed.minute
+
+
+def apply_transfer_tariff(slots, config, tz):
+    """Add only explicitly configured transfer charges to normalized c/kWh prices.
+
+    Average by elapsed minutes when a boundary falls inside a planning interval.
+    Walking UTC time counts both repeated autumn hours and skips spring's missing
+    hour, while tariff selection always follows the installation's local clock.
+    """
+    tariff = config.get('transfer_tariff', 'included')
+    if tariff == 'included':
+        return slots
+    if tariff == 'fixed':
+        fee = config['transfer_fixed_price']
+        return [Slot(slot.start, slot.end, slot.price + fee) for slot in slots]
+    if tariff != 'day_night':
+        raise ValueError('Transfer tariff: unknown option.')
+    day_start = tariff_minutes(config['transfer_day_start'])
+    night_start = tariff_minutes(config['transfer_night_start'])
+    if day_start == night_start:
+        raise ValueError('Day and night start times must differ.')
+    result = []
+    for slot in slots:
+        current = slot.start.astimezone(timezone.utc)
+        end = slot.end.astimezone(timezone.utc)
+        total_fee = 0.0
+        while current < end:
+            local = current.astimezone(tz)
+            minute = local.hour * 60 + local.minute
+            if day_start < night_start:
+                daytime = day_start <= minute < night_start
+            else:
+                daytime = minute >= day_start or minute < night_start
+            fee = config['transfer_day_price'] if daytime else config['transfer_night_price']
+            next_minute = current.replace(second=0, microsecond=0) + timedelta(minutes=1)
+            stop = min(next_minute, end)
+            total_fee += fee * (stop - current).total_seconds()
+            current = stop
+        seconds = (end - slot.start.astimezone(timezone.utc)).total_seconds()
+        result.append(Slot(slot.start, slot.end, slot.price + total_fee / seconds))
+    return result
+
+
 def price_slots(attributes, config, now, tz):
     """Normalize timestamped prices to elapsed UTC hours; reject ambiguous lists.
 
@@ -57,7 +109,7 @@ accepted solely on regular 24-hour days, with their interval detected from
             stop = min(start + timedelta(minutes=step), end)
             output.append(Slot(start, stop, price))
             start = stop
-        return output
+        return apply_transfer_tariff(output, config, tz)
     factor = 100.0 if config['price_unit'] == '€/kWh' else 1.0
     raw = []
     for key in ('raw_today', 'raw_tomorrow'):
@@ -113,7 +165,7 @@ accepted solely on regular 24-hour days, with their interval detected from
             break
         price = total / duration
         output.append(Slot(a, b, price))
-    return output
+    return apply_transfer_tariff(output, config, tz)
 
 
 def price_forecast_reserve(

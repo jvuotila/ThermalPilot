@@ -205,3 +205,14 @@ resets are performed only through the explicit room or zone reset action. This i
 manufacturer-specific equipment control is outside the current implementation.
 
 Without usable water readings, hydronic systems also use a unit heating factor. Missing water does not force live comfort fallback or pause collection. A measured water reading retains the original bounded water-factor calculation. This removes information about changing flow temperature, so predictions require validation.
+
+
+## Transfer tariffs
+
+Price normalization optionally adds fixed or daily day/night transfer charges in
+c/kWh to the source price. The default adds nothing, preserving total-price sensors.
+Every planning interval receives its duration-weighted charge using local clock
+times and elapsed UTC minutes. This handles non-aligned rate boundaries, overnight
+windows and daylight-saving transitions. Charts, stored observation prices and
+live-control price readiness all use the same normalized prices. The optional
+external price forecast remains a trend signal rather than confirmed payable prices.

@@ -22,11 +22,20 @@ A thermostat target alone does not establish actual heating. A relay indicates
 heating demand, not guaranteed heat flow. Check that activity readings reflect
 how your installation works before judging learned behavior.
 
-For a fixed total per-kWh tariff, select **Static price** in the **Price sensor**
-field and enter the total in c/kWh. This mode does not require price entities or
-a price forecast. Time-based transfer charges require a custom sensor supplying
-the combined energy and transfer price lists instead. Fixed monthly fees are not
-part of the per-kWh price.
+The price source may remain **Not configured** while saving settings and finishing
+house setup on another tab. This blocks electricity-tariff plans, not saving or
+observation. Non-electric primary heating does not need a price; electric tariff
+rooms and zones need a sensor or an explicitly selected static price before
+planning. Existing live-control fallback behaviour applies while prices are absent.
+
+For a fixed energy tariff, select **Static price** in the **Price sensor** field
+and enter c/kWh. **Transfer tariff** can add either a fixed fee or daily day/night
+rates to a static price or a price sensor. **Already included / no addition** is
+the default: retain it when the sensor or static value already includes transfer.
+The day/night start times use Home Assistant's local time zone, repeat daily and
+handle clock changes. Weekend, holiday and seasonal exceptions need a custom
+total-price sensor instead. Include applicable taxes once; exclude monthly fees.
+See [electricity tariffs](../README.md#electricity-tariffs) for a worked example.
 
 Price lists should already include VAT, retailer margin, grid charges and taxes
 that vary with consumption. ThermalPilot does not add these costs. Timestamped

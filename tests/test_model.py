@@ -205,6 +205,19 @@ class PlannerTests(unittest.TestCase):
 
 
 class SettingsTests(unittest.TestCase):
+    def test_unconfigured_price_can_be_saved_before_heating_system_setup(self):
+        # Settings and house heat source are on separate tabs. Neither tab may
+        # force a made-up tariff just to complete configuration on the other.
+        for source in ['air_to_water','electric_resistance','wood_boiler','oil_boiler',
+                       'gas_boiler','pellet_boiler','district_heating']:
+            for rooms in [[],[{**ROOM_DEFAULTS,'id':'11111111-1111-4111-8111-111111111111',
+                               'name':'Study','thermostat':'climate.room','temperature_entity':'sensor.room'}]]:
+                settings=validate({**DEFAULTS,'outdoor_entity':'sensor.out',
+                                   'house_heat_source':source,'price_entity':'','rooms':rooms})
+                self.assertEqual(settings['price_entity'],'')
+        with self.assertRaisesRegex(ValueError,'Select an outdoor temperature source'):
+            validate({**DEFAULTS,'house_heat_source':'wood_boiler','price_entity':''})
+
     def test_negative_idle_adjustment_and_legacy_conversion(self):
         original={'setback':1.5}
         converted=stored_settings(original,{})
@@ -618,3 +631,67 @@ class StaticPriceTests(unittest.TestCase):
             self.assertEqual(validate({**settings,'static_price':valid},hass)['static_price'],valid)
         with self.assertRaises(ValueError):validate({**settings,'price_entity':'static.invalid'},hass)
         self.assertEqual(stored_settings({'price_entity':'sensor.price'}, {})['price_entity'],'sensor.price')
+
+
+class TransferTariffTests(unittest.TestCase):
+    def settings(self, **changes):
+        return {**DEFAULTS,'price_entity':'static','static_price':8,
+                'transfer_tariff':'day_night','transfer_day_price':7.45,
+                'transfer_night_price':5.68,**changes}
+
+    def test_fixed_energy_and_daily_transfer_boundaries(self):
+        slots=price_slots({},self.settings(),NOW,UTC)
+        prices={slot.start.strftime('%H:%M'):slot.price for slot in slots[:96]}
+        self.assertAlmostEqual(prices['00:00'],13.68)
+        self.assertAlmostEqual(prices['06:45'],13.68)
+        self.assertAlmostEqual(prices['07:00'],15.45)
+        self.assertAlmostEqual(prices['21:45'],15.45)
+        self.assertAlmostEqual(prices['22:00'],13.68)
+
+    def test_variable_energy_is_converted_before_adding_fees(self):
+        settings=self.settings(price_entity='sensor.price',price_unit='€/kWh')
+        slots=price_slots({'today':[.08]*24},settings,NOW,UTC)
+        self.assertAlmostEqual(slots[0].price,13.68)
+        self.assertAlmostEqual(slots[28].price,15.45)
+        fixed=price_slots({'today':[.08]*24},{**settings,'transfer_tariff':'fixed','transfer_fixed_price':4},NOW,UTC)
+        self.assertEqual({slot.price for slot in fixed},{12})
+        included=price_slots({'today':[.08]*24},{**settings,'transfer_tariff':'included'},NOW,UTC)
+        self.assertEqual({slot.price for slot in included},{8})
+
+    def test_non_aligned_boundary_uses_elapsed_duration_average(self):
+        slots=price_slots({},self.settings(transfer_day_start='07:05'),NOW,UTC)
+        slot=next(slot for slot in slots if slot.start.hour==7 and slot.start.minute==0)
+        self.assertAlmostEqual(slot.price,8+(5*5.68+10*7.45)/15)
+        hourly=price_slots({},self.settings(pricing_mode='hourly',transfer_day_start='07:30'),NOW,UTC)
+        self.assertAlmostEqual(hourly[7].price,8+(5.68+7.45)/2)
+
+    def test_day_window_can_cross_midnight(self):
+        slots=price_slots({},self.settings(transfer_day_start='22:00',transfer_night_start='07:00'),NOW,UTC)
+        self.assertAlmostEqual(slots[0].price,15.45)
+        self.assertAlmostEqual(slots[28].price,13.68)
+        self.assertAlmostEqual(slots[88].price,15.45)
+
+    def test_local_dst_hours_use_local_tariff_without_missing_or_duplicating_time(self):
+        tz=ZoneInfo('Europe/Helsinki')
+        for month,day,hours in [(3,29,47),(10,25,49)]:
+            start=datetime(2026,month,day,tzinfo=tz)
+            slots=price_slots({},self.settings(),start,tz)
+            self.assertEqual(len(slots),hours*4)
+            for slot in slots:
+                local=slot.start.astimezone(tz)
+                fee=7.45 if 7<=local.hour<22 else 5.68
+                self.assertAlmostEqual(slot.price,8+fee)
+            self.assertTrue(all(a.end==b.start for a,b in zip(slots,slots[1:])))
+
+    def test_transfer_settings_are_validated_and_old_settings_add_nothing(self):
+        settings=self.settings(outdoor_entity='sensor.out')
+        self.assertEqual(validate(settings)['transfer_day_start'],'07:00')
+        for changes in [dict(transfer_tariff='invalid'),dict(transfer_day_start='7:00'),
+                        dict(transfer_day_start='24:00'),dict(transfer_night_start='07:00'),
+                        dict(transfer_day_price=-1),dict(transfer_fixed_price=float('nan'))]:
+            with self.assertRaises(ValueError):validate({**settings,**changes})
+        legacy=stored_settings({'price_entity':'sensor.price'}, {})
+        self.assertEqual(legacy['transfer_tariff'],'included')
+        for price in [-2,0,10]:
+            slots=price_slots({},self.settings(static_price=price,transfer_tariff='included'),NOW,UTC)
+            self.assertEqual(slots[0].price,price)

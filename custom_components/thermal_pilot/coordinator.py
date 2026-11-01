@@ -457,6 +457,11 @@ class PilotCoordinator(DataUpdateCoordinator):
         """Invalidate a checkpoint when device mapping or heating policy changes."""
         effective = room_settings(room, self.settings)
         price_policy = ['static', self.settings['static_price']] if self.settings['price_entity'] == 'static' else []
+        if self.settings['transfer_tariff'] != 'included':
+            price_policy += [self.settings[key] for key in (
+                'transfer_tariff', 'transfer_fixed_price', 'transfer_day_start',
+                'transfer_day_price', 'transfer_night_start', 'transfer_night_price'
+            )]
         return learning_fingerprint(room, self.settings) + [
             effective.get('heat_control'), effective.get('minimum'), effective.get('maximum'),
             effective.get('boost'), effective.get('setback'), room.get('garage_strategy'),
@@ -650,6 +655,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         chart_prices = []
         if not scheduling:
             pass
+        elif not self.settings['price_entity']:
+            warnings.append('Choose a price sensor or Static price to enable heating plans.')
         elif self.settings['price_entity'] == 'static':
             slots = price_slots({}, self.settings, now, ZoneInfo(self.hass.config.time_zone))
             midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -665,7 +672,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                     for price_slot in (price_slots(source.attributes,self.settings,midnight,ZoneInfo(self.hass.config.time_zone)) or slots)]
             except ValueError as error:
                 warnings.append(str(error))
-        if scheduling and (not slots):
+        if scheduling and self.settings['price_entity'] and (not slots):
             warnings.append('No continuous prices from now: no heating plan is available.')
         if not forecasts:
             warnings.append('No weather forecast: current outdoor temperature is held constant. '+(self.forecast_error or 'No usable forecast was returned.'))

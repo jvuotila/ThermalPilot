@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.64 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.65 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -123,27 +123,56 @@ observation history; the room then needs fresh heating and idle observations.
 
 ## Electricity tariffs
 
-In **Settings → Electricity price settings → Price sensor**, choose either:
+The price source starts as **Not configured**. You can save settings in that
+state and finish choosing the house heat source under **Rooms and zones**.
+Oil, gas, wood, pellet and district heating do not require an electricity price
+for observation and learning. Separate electric rooms or zones using tariff
+scheduling still need one.
+
+For electric tariff planning, choose either option under
+**Settings → Electricity price settings → Price sensor**:
 
 - **A price sensor** supplying timestamped prices or today/tomorrow lists, with
   its matching source price unit. Use this for spot prices or any tariff whose
   total price varies by time.
-- **Static price**, then enter **Static price (c/kWh)**. Include the fixed energy
-  price and applicable per-kWh transfer charges, taxes and retailer margin.
-  For example, 8 c/kWh for energy plus 4 c/kWh for transfer and taxes is
-  **12 c/kWh**. Exclude fixed monthly fees. No price sensor or price forecast is
+- **Static price**, then enter **Static price (c/kWh)**. If you add transfer
+  charges separately below, enter the energy price without those charges.
+  Otherwise enter the total per-kWh price. No price sensor or price forecast is
   needed in this mode.
 
-A static price applies equally to every hour. ThermalPilot still uses room
-measurements, comfort limits and weather to plan heating and learn the room's
-response; a fixed tariff does not make the thermal predictions inherently more
-accurate or remove the need to validate them.
+Until a price source is configured, tariff heating plans are unavailable.
+Observation and learning can continue with valid inputs; enabled live controllers
+use their normal fallback behaviour instead of a tariff plan.
 
-If your energy price is fixed but the transfer tariff changes between day and
-night, use a custom price sensor combining both into the total per-kWh price for
-each period. Select that sensor instead of **Static price**. A sensor reporting
-only the current value is insufficient: the planner needs a price list covering
-future periods. See the [total electricity price example](docs/configuration-examples/total-electricity-price.md).
+**Transfer tariff** controls optional charges added to the selected price:
+
+| Option | What to enter |
+| --- | --- |
+| Already included / no addition | Nothing. This is the default for existing installations and total-price sensors. |
+| Fixed transfer price | One additional transfer price in c/kWh. |
+| Day/night transfer prices | Day and night start times and their respective c/kWh prices. |
+
+For example, set a static energy price of **8 c/kWh**, day starts **07:00** at
+**7.45 c/kWh**, and night starts **22:00** at **5.68 c/kWh**. The resulting total
+is **15.45 c/kWh** during the day and **13.68 c/kWh** at night. The same transfer
+settings also work with a variable energy-price sensor.
+
+The daily schedule follows Home Assistant's configured time zone, including
+summer/winter clock changes. Both start times are editable; the night period can
+cross midnight. Rates repeat every day without weekend, holiday or seasonal
+exceptions. A boundary inside a planning interval uses the duration-weighted
+average fee for that interval.
+
+Include applicable taxes in your entered per-kWh components, but never add the
+same charge twice. Fixed monthly fees are excluded. If your selected sensor
+already combines energy and transfer, leave **Already included / no addition**
+selected. More complex schedules still need a custom total-price sensor supplying
+future price lists; see the [total electricity price example](docs/configuration-examples/total-electricity-price.md).
+
+A fixed energy price with day/night transfer rates still has different total
+costs at different hours. With an entirely fixed total price, there is no cheaper
+hour to favour. In both cases ThermalPilot uses room measurements, comfort limits
+and weather; the tariff does not make thermal predictions inherently more accurate.
 
 ## Before you start learning
 

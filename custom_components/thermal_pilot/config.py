@@ -2,7 +2,7 @@
 from copy import deepcopy
 from uuid import uuid4
 from .const import DEFAULTS, ROOM_DEFAULTS, ZONE_DEFAULTS, AIR_INITIAL_LAG_HOURS, WATER_REFERENCE
-from .model import number
+from .model import number, tariff_minutes
 
 # key, label, input type, bounds/domain; used by the dedicated settings panel.
 SOURCE_FIELDS = [
@@ -38,6 +38,12 @@ SOURCE_FIELDS = [
  ('static_price','Static price (c/kWh)','number',-1000,10000,.01),
  ('price_forecast_entity','Price forecast (optional)','sensor',{'kind':'price_forecast'}),
  ('price_unit','Source price unit','select:c/kWh,€/kWh'),
+ ('transfer_tariff','Transfer tariff','select:included,fixed,day_night'),
+ ('transfer_fixed_price','Transfer price (c/kWh)','number',0,10000,.01),
+ ('transfer_day_start','Day starts','time'),
+ ('transfer_day_price','Day transfer price (c/kWh)','number',0,10000,.01),
+ ('transfer_night_start','Night starts','time'),
+ ('transfer_night_price','Night transfer price (c/kWh)','number',0,10000,.01),
  ('pricing_mode','Scheduling mode','select:hourly,quarterly,flexible'),
  ('minimum_run_minutes','Minimum flexible heating run (minutes)','number',15,360,15),
  ('weather_entity','Weather forecast source','weather'),
@@ -363,6 +369,8 @@ def validate(payload, hass=None):
                         raise ValueError(f'{label}: incorrect entity domain.')
                     if hass is not None and hass.states.get(entity) is None:
                         raise ValueError(f'{label}: entity {entity} was not found.')
+            elif kind == 'time':
+                tariff_minutes(value)
             elif kind == 'number':
                 n = number(value)
                 if n is None or not field[3] <= n <= field[4]:
@@ -397,6 +405,8 @@ def validate(payload, hass=None):
         else:
             fields.append(field)
     check(result,fields)
+    if result['transfer_tariff'] == 'day_night' and result['transfer_day_start'] == result['transfer_night_start']:
+        raise ValueError('Day and night start times must differ.')
     if hass is not None and result['fireplace_entity']:
         state = hass.states.get(result['fireplace_entity'])
         if state is not None:
@@ -540,8 +550,10 @@ def validate(payload, hass=None):
             raise ValueError('Selected zone was not found.')
         zone = next((z for z in zones if z['id'] == room['heating_zone_id']), None)
     result['rooms'] = rooms
-    if price_required(result) and (not result['price_entity']) or not result['outdoor_entity']:
-        raise ValueError('Select required price and outdoor temperature sources.')
+    # Price setup may be completed on a different tab. Missing prices prevent
+    # tariff plans at runtime; they must not prevent saving the rest of setup.
+    if not result['outdoor_entity']:
+        raise ValueError('Select an outdoor temperature source.')
     if hass is not None and (result['apply_season_setpoints'] or not result['simulation_enabled']):
         for room in resolved_rooms(result):
             if air_room(room, result) or room['heat_control'] == 'zone_member':

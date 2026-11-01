@@ -45,6 +45,49 @@ class Hass:
     async def async_add_executor_job(self,fn,*args):return fn(*args)
 
 class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_transfer_prices_are_used_for_charts_history_and_schedule_checkpoints(self):
+        self.c.settings.update(price_entity='static',static_price=8,transfer_tariff='day_night',
+                               transfer_day_price=7.45,transfer_night_price=5.68)
+        data=await self.c._async_update_data()
+        self.assertAlmostEqual(data['price_chart'][0]['price'],13.68)
+        daytime=next(row for row in data['price_chart'] if row['start'].startswith('2026-01-02T07:00'))
+        self.assertAlmostEqual(daytime['price'],15.45)
+        history=self.c.history_db.read(0)
+        self.assertTrue(history)
+        self.assertAlmostEqual(history[0]['price'],13.68)
+        room=self.c.settings['rooms'][0]
+        before=self.c.session_fingerprint(room)
+        self.c.settings['transfer_day_start']='08:00'
+        self.assertNotEqual(before,self.c.session_fingerprint(room))
+
+    async def test_unconfigured_price_keeps_observation_but_has_no_tariff_plan(self):
+        self.c.settings['price_entity']=''
+        data=await self.c._async_update_data()
+        room_id=self.c.settings['rooms'][0]['id']
+        self.assertFalse(data['rooms'][room_id]['plan'])
+        self.assertFalse(data['price_chart'])
+        self.assertIn('Choose a price sensor or Static price to enable heating plans.',data['warnings'])
+        self.assertNotIn('Price sensor is missing or unavailable.',data['warnings'])
+        self.assertNotIn('No continuous prices from now: no heating plan is available.',data['warnings'])
+        with patch('thermal_pilot.coordinator.dt_util.utcnow',return_value=now+timedelta(minutes=5)):
+            await self.c._async_update_data()
+        self.assertGreater(self.c.models[room_id]['samples'],0)
+        self.c.settings.update(simulation_enabled=False,live_control_confirmed=True)
+        data=await self.c._async_update_data()
+        self.assertIn('Study',data['control']['fallback_rooms'])
+        self.assertFalse(data['rooms'][room_id]['plan'])
+        # Choosing a real tariff later enables planning without recreating rooms.
+        self.c.settings.update(price_entity='static',static_price=10)
+        data=await self.c._async_update_data()
+        self.assertTrue(data['rooms'][room_id]['plan'])
+        self.assertNotIn('Study',data['control']['fallback_rooms'])
+
+    async def test_wood_heating_has_no_price_setup_warning(self):
+        self.c.settings.update(house_heat_source='wood_boiler',price_entity='')
+        data=await self.c._async_update_data()
+        self.assertFalse(any('price sensor' in warning.lower() for warning in data['warnings']))
+        self.assertFalse(data['rooms'][self.c.settings['rooms'][0]['id']]['plan'])
+
     async def test_static_price_plans_and_records_without_price_sensor(self):
         self.c.settings.update(price_entity='static',static_price=8.75,price_forecast_entity='sensor.absent')
         del self.hass.states['sensor.price']

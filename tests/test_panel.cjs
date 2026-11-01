@@ -217,7 +217,7 @@ const previewInfo=JSON.parse(preview.match(/const demo=([\s\S]*?);const states=/
 const previewPanel=new Component();previewPanel._hass={states:{}};previewPanel.settings=previewInfo.settings;previewPanel.info=previewInfo;
 const previewSettings=previewPanel.settingsView();
 for(const field of previewInfo.source_fields){
- assert.equal(previewSettings.split(`data-field="source.${field[0]}"`).length-1,field[0]==='static_price'?0:1,`${field[0]} must follow the selected price source`);
+ assert.equal(previewSettings.split(`data-field="source.${field[0]}"`).length-1,['static_price','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price'].includes(field[0])?0:1,`${field[0]} must follow the selected price source`);
 }
 assert.match(previewSettings,/<h3>Electricity price settings<\/h3>/);
 assert.match(previewSettings,/<h3>Integration settings<\/h3>/);
@@ -1593,3 +1593,39 @@ staticPriceHTML=staticPricePanel.settingsGroups([['Electricity price settings',[
 assert.doesNotMatch(staticPriceHTML,/data-field="source.static_price"/);
 assert.match(staticPriceHTML,/data-field="source.price_unit"/);
 console.log('Static price selector and conditional tariff fields passed.');
+
+staticPricePanel.settings.price_entity='';
+const unconfiguredPriceHTML=staticPricePanel.settingsGroups([['Electricity price settings',['price_entity','static_price','price_unit']]]);
+assert.match(unconfiguredPriceHTML,/<option value="" selected>Not configured<\/option>/);
+assert.doesNotMatch(unconfiguredPriceHTML,/<option value="static" selected/);
+assert.doesNotMatch(unconfiguredPriceHTML,/data-field="source.static_price"/);
+console.log('Price setup defaults to Not configured without selecting an assumed static tariff.');
+
+const transferPanel=new Component();transferPanel._hass={states:{}};
+transferPanel.settings={rooms:[],house_heat_source:'electric_resistance',price_entity:'static',static_price:8,transfer_tariff:'day_night',transfer_day_start:'07:00',transfer_day_price:7.45,transfer_night_start:'22:00',transfer_night_price:5.68};
+transferPanel.info={source_fields:[...staticPricePanel.info.source_fields,['transfer_tariff','Transfer tariff','select:included,fixed,day_night'],['transfer_fixed_price','Transfer price (c/kWh)','number',0,10000,.01],['transfer_day_start','Day starts','time'],['transfer_day_price','Day transfer price (c/kWh)','number',0,10000,.01],['transfer_night_start','Night starts','time'],['transfer_night_price','Night transfer price (c/kWh)','number',0,10000,.01]]};
+const transferGroup=[['Electricity price settings',transferPanel.info.source_fields.map(field=>field[0])]];
+let transferHTML=transferPanel.settingsGroups(transferGroup);
+assert.match(transferHTML,/type="time" step="60" data-field="source.transfer_day_start" value="07:00"/);
+assert.match(transferHTML,/data-field="source.transfer_night_price" value="5.68"/);
+assert.match(transferHTML,/Enter the price before transfer charges/);
+assert.doesNotMatch(transferHTML,/data-field="source.transfer_fixed_price"/);
+transferPanel.settings.transfer_tariff='fixed';transferHTML=transferPanel.settingsGroups(transferGroup);
+assert.match(transferHTML,/data-field="source.transfer_fixed_price"/);
+assert.doesNotMatch(transferHTML,/data-field="source.transfer_day_start"/);
+transferPanel.settings.transfer_tariff='included';transferHTML=transferPanel.settingsGroups(transferGroup);
+assert.doesNotMatch(transferHTML,/data-field="source.transfer_fixed_price"|data-field="source.transfer_day_start"/);
+console.log('Transfer tariff UI shows only relevant fields and warns against double counting.');
+
+transferPanel.settings.transfer_tariff='day_night';
+const groupedTariffHTML=transferPanel.settingsGroups(transferGroup);
+const tariffRows=Array.from(groupedTariffHTML.matchAll(/class="grid price-fields">([\s\S]*?)<\/div>/g),match=>match[1]);
+assert.ok(tariffRows.some(row=>row.includes('source.transfer_day_start')&&row.includes('source.transfer_day_price')&&!row.includes('source.transfer_night_start')));
+assert.ok(tariffRows.some(row=>row.includes('source.transfer_night_start')&&row.includes('source.transfer_night_price')&&!row.includes('source.transfer_day_start')));
+assert.ok(tariffRows.some(row=>row.includes('source.price_entity')&&row.includes('source.static_price')&&!row.includes('source.transfer_tariff')));
+console.log('Tariff settings keep source inputs and each time/rate pair in explicit separate rows.');
+
+transferPanel.info.source_fields.push(['pricing_mode','Scheduling mode','select:hourly,quarterly,flexible']);
+const modeLastHTML=transferPanel.settingsGroups([['Electricity price settings',transferPanel.info.source_fields.map(field=>field[0])]]);
+assert.ok(modeLastHTML.lastIndexOf('source.pricing_mode')>modeLastHTML.lastIndexOf('source.transfer_night_price'));
+console.log('Scheduling mode follows every electricity and transfer price field.');

@@ -1,5 +1,10 @@
 # Total electricity price with day/night transfer fees
 
+For a fixed fee or simple daily day/night rates, use ThermalPilot’s built-in
+**Transfer tariff** setting instead; it works with either a static energy price or
+a price sensor. If you use the total-price sensor below, select **Already included /
+no addition** in ThermalPilot to avoid adding transfer charges twice.
+
 Optional example adapted from a Nordpool helper. It adds the supplier’s variable
 margin and a day/night transfer fee to both the current price and every confirmed
 price interval used by ThermalPilot.
