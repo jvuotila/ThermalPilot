@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.65 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.66 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -214,7 +214,9 @@ and weather; the tariff does not make thermal predictions inherently more accura
   accepted heating hours and 12 idle hours have accumulated. Learning continues,
   and reaching 100% never enables control automatically. Mild weather may provide
   little heating evidence, so there is no fixed number of days until accuracy.
-- **Heat retention uses reference conditions.** The table models cooling from
+- **Heat retention uses reference conditions.** Rooms still learning show only
+  the Learning badge; numeric values appear after their model has adapted.
+  The table models cooling from
   20°C indoors with −10°C outdoors, with heating and background gains excluded.
   Its six-hour loss and time per 1°C drop describe those conditions, rather than
   today's expected temperature change. The badges are not certified insulation

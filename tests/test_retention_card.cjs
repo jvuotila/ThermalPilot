@@ -14,10 +14,10 @@ const sample={language:'fi',entries:[{entry_id:'one',title:'Home'}],rooms:[room(
  const card=new Card(),calls=[];card.setConfig({});card.hass={language:'en',connection:{},callWS:async request=>{calls.push(request);return structuredClone(sample);}};
  assert.equal(calls.length,0);card.connectedCallback();await new Promise(setImmediate);
  assert.deepEqual(JSON.parse(JSON.stringify(calls)),[{type:'thermal_pilot/retention'}]);
- assert.match(card.shadowRoot.innerHTML,/Huone/);assert.match(card.shadowRoot.innerHTML,/Mukautuva/);assert.doesNotMatch(card.shadowRoot.innerHTML,/<h2|<p>|<summary/);
+ assert.match(card.shadowRoot.innerHTML,/Huone/);assert.match(card.shadowRoot.innerHTML,/Opettelee/);assert.doesNotMatch(card.shadowRoot.innerHTML,/Mukautuva|Alkuarvio/);assert.doesNotMatch(card.shadowRoot.innerHTML,/<h2|<p>|<summary/);
  assert.deepEqual(Array.from(card.sortedRooms(),r=>r.id),['Fast','Learning','Slow','Garage']);
  const headers=card.shadowRoot.handlers;headers.find(button=>button.dataset.sort==='drop_1c').click();
- assert.deepEqual(Array.from(card.sortedRooms(),r=>r.id),['Fast','Learning','Slow','Garage']);
+ assert.deepEqual(Array.from(card.sortedRooms(),r=>r.id),['Fast','Slow','Learning','Garage']);
  card.shadowRoot.handlers.find(button=>button.dataset.sort==='drop_1c').click();assert.equal(card.sortedRooms()[0].id,'Slow');
  card.shadowRoot.handlers.find(button=>button.dataset.sort==='cooling_speed').click();assert.deepEqual(Array.from(card.sortedRooms(),r=>r.id),['Fast','Slow','Learning','Garage']);
  card.setConfig({columns:[]});await new Promise(setImmediate);assert.equal((card.shadowRoot.innerHTML.match(/<th scope=/g)||[]).length,1);assert.match(card.shadowRoot.innerHTML,/Huone/);
@@ -34,7 +34,7 @@ const sample={language:'fi',entries:[{entry_id:'one',title:'Home'}],rooms:[room(
  // An old integration response must not overwrite a newly selected integration.
  let finishOld;const raced=new Card();raced.connectedCallback();let count=0;raced.hass={connection:{},callWS:()=>++count===1?new Promise(resolve=>finishOld=resolve):Promise.resolve({...sample,entry_id:'new'})};
  raced.setConfig({entry_id:'new'});finishOld({...sample,entry_id:'old'});await new Promise(setImmediate);assert.equal(raced._data.entry_id,'new');raced.disconnectedCallback();
- const editor=new Editor();editor.setConfig({columns:[]});editor.update({columns:['room','model']});assert.equal(editor.event.type,'config-changed');assert.deepEqual(Array.from(editor.event.detail.config.columns),['model']);assert.equal(editor.form.computeHelper({name:'columns'}),'Room (required)');
+ const editor=new Editor();editor.setConfig({columns:[]});editor.update({columns:['room','cooling_speed']});assert.equal(editor.event.type,'config-changed');assert.deepEqual(Array.from(editor.event.detail.config.columns),['cooling_speed']);assert.equal(editor.form.computeHelper({name:'columns'}),'Room (required)');
  // Simulate HA echoing every typed title back through setConfig.
  const typing=new Editor();let renders=0;const renderEditor=typing.render.bind(typing);typing.render=()=>{renders++;renderEditor();};typing.setConfig({});
  typing.dispatchEvent=event=>{typing.event=event;typing.setConfig(event.detail.config);};
@@ -45,8 +45,8 @@ const sample={language:'fi',entries:[{entry_id:'one',title:'Home'}],rooms:[room(
  const mountedForm=typing.form;typing._entries=[{entry_id:'home',title:'Home'},{entry_id:'second',title:'Second'}];typing.render();
  assert.equal(typing.form,mountedForm);assert.equal(typing.form.data.title,'Externally changed');
  assert.equal(typing.form.schema.find(field=>field.name==='entry_id').selector.select.options[1].value,'home');
- typing.form['value-changed']({stopPropagation(){},detail:{value:{title:'Typed title',entry_id:'home',language:'fi',columns:['model']}}});
- assert.equal(typing.event.detail.config.title,'Typed title');assert.deepEqual(Array.from(typing.event.detail.config.columns),['model']);
+ typing.form['value-changed']({stopPropagation(){},detail:{value:{title:'Typed title',entry_id:'home',language:'fi',columns:['cooling_speed']}}});
+ assert.equal(typing.event.detail.config.title,'Typed title');assert.deepEqual(Array.from(typing.event.detail.config.columns),['cooling_speed']);
  const languagesCard=new Card();languagesCard._data=structuredClone(sample);languagesCard._data.language='fi';
  assert.equal(languagesCard.t('Room'),'Huone');languagesCard._config={...languagesCard._config,language:'en'};assert.equal(languagesCard.t('Room'),'Room');
  languagesCard._config.language='de';assert.equal(languagesCard.t('Room'),'Raum');languagesCard._config.language='auto';assert.equal(languagesCard.t('Room'),'Huone');
@@ -91,3 +91,14 @@ assert.deepEqual(Array.from(alphabeticalCard.sortedRooms(),r=>r.name),['Öljyhuo
 alphabeticalCard.setConfig({sort_by:'loss_6h',sort_direction:'desc'});
 assert.equal(alphabeticalCard._sort.key,'loss_6h');assert.equal(alphabeticalCard._sort.direction,-1);
 console.log('Custom card defaults to language-aware A–Ö sorting and preserves explicit sort configuration.');
+
+const noModelCard=new Card();noModelCard.setConfig({columns:['loss_6h','model','drop_1c','cooling_speed']});
+assert.deepEqual(Array.from(noModelCard._config.columns),['room','loss_6h','drop_1c','cooling_speed']);
+const initialRoom=room('Initial',4,false);
+assert.equal(noModelCard.cell('loss_6h',initialRoom,2),'');
+assert.equal(noModelCard.cell('drop_1c',initialRoom,2),'');
+assert.match(noModelCard.cell('cooling_speed',initialRoom,2),/Learning/);
+const noModelEditor=new Editor();noModelEditor.setConfig({columns:['model','loss_6h']});
+const availableColumns=noModelEditor.form.schema.find(field=>field.name==='columns').selector.select.options;
+assert.ok(!availableColumns.some(option=>option.value==='model'));
+console.log('Removed Model option, retained legacy card compatibility and blanked initial numeric cells.');

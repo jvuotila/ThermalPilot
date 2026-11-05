@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Унесите цену без мрежних накнада.",
     "Repeats daily in Home Assistant’s time zone.": "Понавља се свакодневно у временској зони Home Assistant.",
     "Day and night start times must differ.": "Дан и ноћ морају почињати у различито време.",
-    "Use a time in HH:MM format.": "Користите формат времена HH:MM."
+    "Use a time in HH:MM format.": "Користите формат времена HH:MM.",
+    "Current thermostat target": "Тренутна задата температура термостата"
   },
   "legacy": {},
   "cardMessages": {

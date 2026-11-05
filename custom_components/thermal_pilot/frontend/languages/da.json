@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Angiv prisen uden netafgifter.",
     "Repeats daily in Home Assistant’s time zone.": "Gentages dagligt i Home Assistants tidszone.",
     "Day and night start times must differ.": "Dag og nat skal starte på forskellige tidspunkter.",
-    "Use a time in HH:MM format.": "Brug tidsformatet HH:MM."
+    "Use a time in HH:MM format.": "Brug tidsformatet HH:MM.",
+    "Current thermostat target": "Termostatens aktuelle setpunkt"
   },
   "legacy": {},
   "cardMessages": {

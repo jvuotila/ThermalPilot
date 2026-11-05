@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Podaj cenę bez opłat dystrybucyjnych.",
     "Repeats daily in Home Assistant’s time zone.": "Powtarza się codziennie w strefie czasowej Home Assistant.",
     "Day and night start times must differ.": "Godziny rozpoczęcia dnia i nocy muszą się różnić.",
-    "Use a time in HH:MM format.": "Użyj formatu czasu HH:MM."
+    "Use a time in HH:MM format.": "Użyj formatu czasu HH:MM.",
+    "Current thermostat target": "Aktualna nastawa termostatu"
   },
   "legacy": {},
   "cardMessages": {

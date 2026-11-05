@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Įveskite kainą be tinklo mokesčių.",
     "Repeats daily in Home Assistant’s time zone.": "Kartojasi kasdien Home Assistant laiko juostoje.",
     "Day and night start times must differ.": "Dienos ir nakties pradžios laikai turi skirtis.",
-    "Use a time in HH:MM format.": "Naudokite laiko formatą HH:MM."
+    "Use a time in HH:MM format.": "Naudokite laiko formatą HH:MM.",
+    "Current thermostat target": "Dabartinė termostato nustatyta temperatūra"
   },
   "legacy": {},
   "cardMessages": {

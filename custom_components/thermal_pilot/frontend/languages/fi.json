@@ -365,7 +365,8 @@
     "Enter the price before transfer charges.": "Anna hinta ilman siirtomaksuja.",
     "Repeats daily in Home Assistant’s time zone.": "Toistuu päivittäin Home Assistantin aikavyöhykkeellä.",
     "Day and night start times must differ.": "Päivän ja yön alkamisajat eivät saa olla samat.",
-    "Use a time in HH:MM format.": "Anna aika muodossa HH:MM."
+    "Use a time in HH:MM format.": "Anna aika muodossa HH:MM.",
+    "Current thermostat target": "Termostaatin nykyinen asetuslämpötila"
   },
   "legacy": {
     "Plan": "Suunnitelma",

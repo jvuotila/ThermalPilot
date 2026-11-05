@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Sisesta hind ilma võrgutasudeta.",
     "Repeats daily in Home Assistant’s time zone.": "Kordub iga päev Home Assistanti ajavööndis.",
     "Day and night start times must differ.": "Päeva ja öö algusajad peavad erinema.",
-    "Use a time in HH:MM format.": "Kasuta ajavormingut HH:MM."
+    "Use a time in HH:MM format.": "Kasuta ajavormingut HH:MM.",
+    "Current thermostat target": "Termostaadi praegune sihttemperatuur"
   },
   "legacy": {},
   "cardMessages": {

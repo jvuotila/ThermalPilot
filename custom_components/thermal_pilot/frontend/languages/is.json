@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Sláðu inn verð án flutningsgjalda.",
     "Repeats daily in Home Assistant’s time zone.": "Endurtekið daglega á tímabelti Home Assistant.",
     "Day and night start times must differ.": "Dagur og nótt verða að hefjast á mismunandi tímum.",
-    "Use a time in HH:MM format.": "Notaðu tímasniðið HH:MM."
+    "Use a time in HH:MM format.": "Notaðu tímasniðið HH:MM.",
+    "Current thermostat target": "Núverandi markhiti hitastillis"
   },
   "legacy": {},
   "cardMessages": {

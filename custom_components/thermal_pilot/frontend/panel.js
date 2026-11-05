@@ -649,9 +649,18 @@ class ThermalPilotPanel extends HTMLElement {
     }
     const status=actual===1?'actual':actual===0?'idle':'unknown';
     const label=actual===1?'Actual heating: On':actual===0?'Actual heating: Off':'Actual heating: Unknown';
-    const detail=`${label}. Current relay or thermostat demand; On does not guarantee water flow.`;
+    // Read the thermostat independently of the relay, and never substitute the
+    // proposed plan's setpoint for the actual device setting (especially in simulation).
+    const thermostat=this._hass?.states?.[configured?.thermostat];
+    const unavailable=thermostat&&['unknown','unavailable'].includes(thermostat.state);
+    const target=thermostat?thermostat.attributes?.temperature:this.info?.data?.chart_temperatures?.targets?.rooms?.[id];
+    const validTarget=!unavailable&&target!==null&&target!==undefined&&target!==''&&Number.isFinite(Number(target));
+    const unit=thermostat?.attributes?.temperature_unit||this._hass?.config?.unit_system?.temperature||'°C';
+    const targetValue=validTarget?`${new Intl.NumberFormat(this.settings?.language||'en',{maximumFractionDigits:2}).format(Number(target))} ${unit}`:this.t('Unavailable');
+    const targetDetail=`${this.t('Current thermostat target')}: ${targetValue}`;
+    const detail=`${this.t(`${label}. Current relay or thermostat demand; On does not guarantee water flow.`)}\n${targetDetail}`;
     const icon=status==='unknown'?'<span aria-hidden="true">?</span>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2c1 5-3 6-3 10-2-1-3-3-3-5-3 3-5 6-5 9a10 10 0 0 0 20 0c0-6-5-9-9-14Z"/></svg>';
-    return `<span class="room-heating ${status}" role="img" aria-label="${escapeHTML(label)}" title="${escapeHTML(detail)}" tabindex="0">${icon}</span>`;
+    return `<span class="room-heating ${status}" role="img" aria-label="${escapeHTML(this.t(label)+'. '+targetDetail)}" title="${escapeHTML(detail)}" tabindex="0">${icon}</span>`;
   }
   learningBadge(room){
     const percent=this.learningPercent(room);
@@ -797,7 +806,12 @@ class ThermalPilotPanel extends HTMLElement {
   const tickStep=(tickSteps.find(minutes=>span/(minutes*60000)<=maximumLabels)||11520)*60000;
   const axisTimes=[];
   for(let time=Math.ceil(start/tickStep)*tickStep;time<=end;time+=tickStep)axisTimes.push(time);
-  const axisLabel=time=>compact?`${new Date(time).getDate()}.${new Date(time).getMonth()+1}. ${new Date(time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`:timeLabel(time);
+  const axisLabel=time=>{
+   const date=new Date(time);
+   const day=String(date.getDate()).padStart(2,'0');
+   const month=String(date.getMonth()+1).padStart(2,'0');
+   return `${day}.${month}. ${date.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`;
+  };
   const labelRow=y=>axisTimes.map(time=>`<text x="${x(time)}" y="${y}" text-anchor="${time===start?'start':time===end?'end':'middle'}" fill="#526b75" font-size="11">${escapeHTML(axisLabel(time))}</text>`).join('');
   const roomGap=10,roomTop=visibility.prices?210+priceHeaderHeight:40;
   const isAirRoom=room=>Boolean(isGarage(room)||room.heat_control==='air_to_air'||this.info.data?.rooms?.[room.id]?.air_control||(room.heat_control!=='zone_member'&&this.settings.house_heat_source==='air_to_air'));
@@ -1120,7 +1134,7 @@ class ThermalPilotPanel extends HTMLElement {
     if(!rooms.length)return '';
     const isGarage=([id,room])=>Boolean(room.is_garage||this.settings?.rooms?.find(item=>item.id===id)?.is_garage);
     const sort=this.retentionSort||{key:'room',direction:1};
-    const sortValue=room=>{const value=room.heat_retention;if(sort.key==='drop')return value.drop_6h;if(sort.key==='hours')return value.hours_per_degree;const rating=retentionRating(value);return ['very-fast','fast','moderate','slow','very-slow'].indexOf(rating.level);};
+    const sortValue=room=>{const value=room.heat_retention;if(!value.updated&&sort.key!=='speed')return NaN;if(sort.key==='drop')return value.drop_6h;if(sort.key==='hours')return value.hours_per_degree;const rating=retentionRating(value);return ['very-fast','fast','moderate','slow','very-slow'].indexOf(rating.level);};
     rooms.sort((a,b)=>{
       // Garages remain a separate group for every sorting column and direction.
       const group=Number(isGarage(a))-Number(isGarage(b));
@@ -1137,10 +1151,10 @@ class ThermalPilotPanel extends HTMLElement {
       const entity=this.info?.data?.retention_history_entities?.[id]?.[metric];
       return entity?`<span${this.statusTemperatureAction(value,entity,label)}>${value}</span>`:`${value}`;
     };
-    const max=Math.max(...rooms.map(([,r])=>r.heat_retention.drop_6h),.01);
+    const max=Math.max(...rooms.filter(([,r])=>r.heat_retention.updated).map(([,r])=>r.heat_retention.drop_6h),.01);
     const reference=rooms.map(([,room])=>room.heat_retention).find(value=>value.reference_hours>0);
     const comparison=reference?`<p class="retention-reference">${escapeHTML(this.t('Construction reference:'))} <strong>${escapeHTML(this.t(houseOptionLabels[reference.reference_type]||reference.reference_type))}</strong> · ${reference.reference_hours.toFixed(1)} ${escapeHTML(this.t('hours per 1°C drop'))}. ${escapeHTML(this.t('House badges compare cooling speed with this approximate reference. Garage badges use the general bands.'))}</p>`:'';
-    return `<section class="retention-card"><details class="observation-accordion" id="retention-accordion" ${this.retentionOpen!==false?'open':''}><summary><h2>Room heat retention</h2></summary><div class="observation-content"><p class="retention-summary">${escapeHTML(this.t('Modelled cooling: 20°C indoors · −10°C outdoors · heating off'))}</p><div class="scroll"><table><thead><tr>${sortHeader('room','Room')}${sortHeader('drop','6-hour loss')}${sortHeader('hours','1°C drop')}${sortHeader('speed','Cooling speed')}<th>Model</th></tr></thead><tbody>${rooms.map(([id,r])=>{const v=r.heat_retention,rating=retentionRating(v);return `<tr data-retention-drop="${v.drop_6h}" data-retention-hours="${v.hours_per_degree}" data-retention-speed="${['very-fast','fast','moderate','slow','very-slow'].indexOf(rating.level)}" class="${isGarage([id,r])?'garage-retention-row':''}"><td><span data-user-text>${escapeHTML(r.name)}</span></td><td class="retention-numeric"><span class="retention-bar" aria-hidden="true"><i style="width:${100*v.drop_6h/max}%"></i></span><span class="retention-value">${retentionHistory(id,'drop_6h',v.drop_6h.toFixed(2),'6-hour loss')} °C</span></td><td class="retention-numeric">${retentionHistory(id,'hours_per_degree',v.hours_per_degree.toFixed(1),'1°C drop')} hours</td><td><span class="retention-rating retention-rating-${rating.level}" data-retention-rating="${rating.level}" tabindex="0" title="${escapeHTML(rating.level==='learning'?this.t('Waiting for learned heat-loss parameters.'):rating.relative?this.t('Relative to construction reference:')+' '+this.t(houseOptionLabels[v.reference_type]||v.reference_type)+' · '+v.reference_hours.toFixed(1)+' h · '+rating.ratio.toFixed(2)+'× '+this.t('reference cooling time')+'. '+this.t('Not an energy-efficiency or insulation class.'):this.t('Provisional cooling-speed band for the reference test; not an energy-efficiency or insulation class.'))}">${escapeHTML(this.t(rating.label))}${tooltipInfoIcon}</span></td><td><span class="status-pill ${v.updated?'mode':'neutral'}" tabindex="0" title="${escapeHTML(this.helpText('{heating} observed heating hours; {idle} idle hours. Enough observations do not by themselves prove accuracy.',{heating:v.heating_hours,idle:v.idle_hours}))}">${v.updated?'Adapting':'Initial estimate'}${tooltipInfoIcon}</span></td></tr>`;}).join('')}</tbody></table></div><details class="retention-help" id="retention-help" ${this.retentionHelpOpen?'open':''}><summary>${escapeHTML(this.t('About these estimates'))}</summary><p>Compare rooms under the same conditions: <b>20°C indoors, −10°C outdoors</b>, without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.</p>${comparison}<p>Cooling-speed bands are provisional: under 1 h, 1–2 h, 2–4 h, 4–8 h, and 8 h or longer per 1°C drop. For a selected house type, badges instead compare with that type: under 0.5×, 0.5–0.8×, 0.8–1.25×, 1.25–2×, and at least 2× its reference cooling time. Initial rooms share starting estimates and remain unrated. Comparisons become more useful as their heat-loss parameters adapt to observations. Wind, ventilation, sensor placement and unmeasured heat sources can affect the estimates. The listed time describes this reference test, not how long heating can safely remain off in your home.</p></details></div></details></section>`;
+    return `<section class="retention-card"><details class="observation-accordion" id="retention-accordion" ${this.retentionOpen!==false?'open':''}><summary><h2>Room heat retention</h2></summary><div class="observation-content"><p class="retention-summary">${escapeHTML(this.t('Modelled cooling: 20°C indoors · −10°C outdoors · heating off'))}</p><div class="scroll"><table><thead><tr>${sortHeader('room','Room')}${sortHeader('drop','6-hour loss')}${sortHeader('hours','1°C drop')}${sortHeader('speed','Cooling speed')}</tr></thead><tbody>${rooms.map(([id,r])=>{const v=r.heat_retention,rating=retentionRating(v);return `<tr data-retention-drop="${v.drop_6h}" data-retention-hours="${v.hours_per_degree}" data-retention-speed="${['very-fast','fast','moderate','slow','very-slow'].indexOf(rating.level)}" class="${isGarage([id,r])?'garage-retention-row':''}"><td><span data-user-text>${escapeHTML(r.name)}</span></td><td class="retention-numeric">${rating.level!=='learning'?`<span class="retention-bar" aria-hidden="true"><i style="width:${100*v.drop_6h/max}%"></i></span><span class="retention-value">${retentionHistory(id,'drop_6h',v.drop_6h.toFixed(2),'6-hour loss')} °C</span>`:''}</td><td class="retention-numeric">${rating.level!=='learning'?`${retentionHistory(id,'hours_per_degree',v.hours_per_degree.toFixed(1),'1°C drop')} hours`:''}</td><td><span class="retention-rating retention-rating-${rating.level}" data-retention-rating="${rating.level}" tabindex="0" title="${escapeHTML(rating.level==='learning'?this.t('Waiting for learned heat-loss parameters.'):rating.relative?this.t('Relative to construction reference:')+' '+this.t(houseOptionLabels[v.reference_type]||v.reference_type)+' · '+v.reference_hours.toFixed(1)+' h · '+rating.ratio.toFixed(2)+'× '+this.t('reference cooling time')+'. '+this.t('Not an energy-efficiency or insulation class.'):this.t('Provisional cooling-speed band for the reference test; not an energy-efficiency or insulation class.'))}">${escapeHTML(this.t(rating.label))}${tooltipInfoIcon}</span></td></tr>`;}).join('')}</tbody></table></div><details class="retention-help" id="retention-help" ${this.retentionHelpOpen?'open':''}><summary>${escapeHTML(this.t('About these estimates'))}</summary><p>Compare rooms under the same conditions: <b>20°C indoors, −10°C outdoors</b>, without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.</p>${comparison}<p>Cooling-speed bands are provisional: under 1 h, 1–2 h, 2–4 h, 4–8 h, and 8 h or longer per 1°C drop. For a selected house type, badges instead compare with that type: under 0.5×, 0.5–0.8×, 0.8–1.25×, 1.25–2×, and at least 2× its reference cooling time. Initial rooms share starting estimates and remain unrated. Comparisons become more useful as their heat-loss parameters adapt to observations. Wind, ventilation, sensor placement and unmeasured heat sources can affect the estimates. The listed time describes this reference test, not how long heating can safely remain off in your home.</p></details></div></details></section>`;
   }
   isGarageRoom(id,room){return Boolean(room?.is_garage||this.settings?.rooms?.find(item=>item.id===id)?.is_garage||this.info?.data?.rooms?.[id]?.is_garage);}
   overview(){
@@ -1678,7 +1692,6 @@ details{scroll-margin-block:16px}
 @media(max-width:600px){
  .retention-card th:nth-child(2),.retention-card td:nth-child(2),
  .retention-card th:nth-child(3),.retention-card td:nth-child(3),
- .retention-card th:nth-child(5),.retention-card td:nth-child(5){display:none}
  .retention-card table{table-layout:fixed}
  .retention-card th:first-child,.retention-card td:first-child{width:43%;white-space:normal;overflow-wrap:anywhere}
  .retention-card th:nth-child(4),.retention-card td:nth-child(4){white-space:normal;overflow-wrap:anywhere}

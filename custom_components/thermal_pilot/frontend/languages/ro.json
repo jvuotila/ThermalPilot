@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Introduceți prețul fără taxe de rețea.",
     "Repeats daily in Home Assistant’s time zone.": "Se repetă zilnic în fusul orar Home Assistant.",
     "Day and night start times must differ.": "Ziua și noaptea trebuie să înceapă la ore diferite.",
-    "Use a time in HH:MM format.": "Folosiți formatul orar HH:MM."
+    "Use a time in HH:MM format.": "Folosiți formatul orar HH:MM.",
+    "Current thermostat target": "Temperatura setată curent pe termostat"
   },
   "legacy": {},
   "cardMessages": {

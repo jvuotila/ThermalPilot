@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Zadajte cenu bez distribučných poplatkov.",
     "Repeats daily in Home Assistant’s time zone.": "Opakuje sa denne v časovom pásme Home Assistant.",
     "Day and night start times must differ.": "Deň a noc musia začínať v rôznych časoch.",
-    "Use a time in HH:MM format.": "Použite časový formát HH:MM."
+    "Use a time in HH:MM format.": "Použite časový formát HH:MM.",
+    "Current thermostat target": "Aktuálna nastavená teplota termostatu"
   },
   "legacy": {},
   "cardMessages": {

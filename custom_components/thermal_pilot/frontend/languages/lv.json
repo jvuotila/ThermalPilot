@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Ievadiet cenu bez tīkla maksām.",
     "Repeats daily in Home Assistant’s time zone.": "Atkārtojas katru dienu Home Assistant laika joslā.",
     "Day and night start times must differ.": "Dienas un nakts sākuma laikiem jāatšķiras.",
-    "Use a time in HH:MM format.": "Izmantojiet laika formātu HH:MM."
+    "Use a time in HH:MM format.": "Izmantojiet laika formātu HH:MM.",
+    "Current thermostat target": "Termostata pašreizējā iestatītā temperatūra"
   },
   "legacy": {},
   "cardMessages": {

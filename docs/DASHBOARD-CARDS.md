@@ -23,10 +23,11 @@ columns:
   - loss_6h
   - drop_1c
   - cooling_speed
-  - model
 ```
 
 Omit `columns` to show all columns, or use `columns: []` for Room only.
+Rooms still learning show a Learning badge and blank numeric cells. The former
+Model column has been removed; old `model` column entries are ignored.
 If more than one ThermalPilot integration is loaded, select the integration in
 the card editor. Optional YAML keys are `entry_id`, `language` (`auto` or an integration language
 code such as `fi`), `sort_by` (`room`, `loss_6h`,

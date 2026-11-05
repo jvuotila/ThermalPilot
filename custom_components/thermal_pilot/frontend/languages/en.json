@@ -738,7 +738,8 @@
     "Enter the price before transfer charges.": "Enter the price before transfer charges.",
     "Repeats daily in Home Assistant’s time zone.": "Repeats daily in Home Assistant’s time zone.",
     "Day and night start times must differ.": "Day and night start times must differ.",
-    "Use a time in HH:MM format.": "Use a time in HH:MM format."
+    "Use a time in HH:MM format.": "Use a time in HH:MM format.",
+    "Current thermostat target": "Current thermostat target"
   },
   "legacy": {},
   "cardMessages": {

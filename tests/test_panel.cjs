@@ -265,7 +265,11 @@ const spacedLabels=pricePanel.priceChart(true);assert.match(spacedLabels,/<forei
 console.log('History room names and activity labels occupy separate columns; long names retain a tooltip.');
 
 const axisHTML=pricePanel.priceChart(true);
-for(const match of axisHTML.matchAll(/>(\d+\/\d+, \d{2}:(\d{2}))<\/text>/g))assert([0,15,30,45].includes(Number(match[2])));
+const shortAxisLabels=Array.from(axisHTML.matchAll(/>(\d{2}\.\d{2}\. \d{2}:(\d{2}))<\/text>/g));
+assert.ok(shortAxisLabels.length>0);
+for(const match of shortAxisLabels)assert([0,15,30,45].includes(Number(match[2])));
+assert.doesNotMatch(axisHTML,/>\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}<\/text>/);
+assert.match(axisHTML,/Start: \d{2}\.\d{2}\.\d{4} \d{2}:\d{2}/);
 pricePanel.history=[];assert.match(pricePanel.priceChart(true),/Total electricity price/);
 console.log('History chart uses known past source prices without old observation prices, and labels quarter-hour boundaries.');
 
@@ -411,7 +415,7 @@ console.log('Unsaved settings checks passed: edits, toggles, undo, saved baselin
 const retentionPanel=new Component();retentionPanel.info={data:{rooms:{fast:{name:'Fast cooling',heat_retention:{drop_6h:2,hours_per_degree:3,heating_hours:20,idle_hours:30,updated:true}},slow:{name:'Slow <cooling>',heat_retention:{drop_6h:.7,hours_per_degree:8,heating_hours:0,idle_hours:3,updated:false}}}}};
 let retentionHTML=retentionPanel.heatRetentionView();
 assert.ok(retentionHTML.indexOf('Fast cooling')<retentionHTML.indexOf('Slow &lt;cooling&gt;'));
-assert.match(retentionHTML,/0.70 °C/);assert.match(retentionHTML,/8.0 hours/);assert.match(retentionHTML,/Initial estimate/);assert.match(retentionHTML,/Adapting/);assert.match(retentionHTML,/not measured energy efficiency/);
+assert.match(retentionHTML,/2.00 °C/);assert.match(retentionHTML,/3.0 hours/);assert.doesNotMatch(retentionHTML,/0.70 °C|8.0 hours|<th>Model<\/th>|Initial estimate|Adapting/);assert.match(retentionHTML,/data-retention-rating="learning"/);assert.match(retentionHTML,/not measured energy efficiency/);
 assert.match(retentionHTML,/id="retention-accordion" open/);retentionPanel.retentionOpen=false;assert.doesNotMatch(retentionPanel.heatRetentionView(),/id="retention-accordion" open/);
 retentionPanel.info.data.rooms.garageZ={name:'Garage Z',is_garage:true,heat_retention:{drop_6h:.1,hours_per_degree:10,updated:false}};
 retentionPanel.info.data.rooms.garageA={name:'Garage A',heat_retention:{drop_6h:4,hours_per_degree:1,updated:false}};
@@ -906,10 +910,10 @@ const retentionRoom=(name,hours,updated=true)=>({name,heat_retention:{drop_6h:6/
 sortPanel.info={data:{rooms:{slow:retentionRoom('Slow',9),fast:retentionRoom('Fast',.5),learning:retentionRoom('Learning',4,false),garage:{...retentionRoom('Garage',12),is_garage:true}}}};
 sortPanel.render=()=>{};const roomOrder=()=>Array.from(sortPanel.heatRetentionView().matchAll(/<span data-user-text>([^<]+)<\/span>/g),m=>m[1]);
 assert.deepEqual(roomOrder(),['Fast','Learning','Slow','Garage']);
-sortPanel.sortRetention('drop');assert.deepEqual(roomOrder(),['Slow','Learning','Fast','Garage']);
+sortPanel.sortRetention('drop');assert.deepEqual(roomOrder(),['Slow','Fast','Learning','Garage']);
 assert.match(sortPanel.heatRetentionView(),/aria-sort="ascending"/);
-sortPanel.sortRetention('hours');assert.deepEqual(roomOrder(),['Fast','Learning','Slow','Garage']);
-sortPanel.sortRetention('hours');assert.deepEqual(roomOrder(),['Slow','Learning','Fast','Garage']);
+sortPanel.sortRetention('hours');assert.deepEqual(roomOrder(),['Fast','Slow','Learning','Garage']);
+sortPanel.sortRetention('hours');assert.deepEqual(roomOrder(),['Slow','Fast','Learning','Garage']);
 sortPanel.sortRetention('speed');assert.deepEqual(roomOrder(),['Fast','Slow','Learning','Garage']);
 sortPanel.sortRetention('speed');assert.deepEqual(roomOrder(),['Slow','Fast','Learning','Garage']);
 assert.deepEqual(Object.keys(sortPanel.info.data.rooms),['slow','fast','learning','garage']);
@@ -1077,8 +1081,8 @@ console.log('Plan and History chart explanations are collapsed behind a localize
 const finnishHelpPanel=new Component();finnishHelpPanel.settings={language:'fi',rooms:[]};
 finnishHelpPanel.info={data:{rooms:{r:{name:'Room',heat_retention:{drop_6h:1,hours_per_degree:4,heating_hours:0,idle_hours:16.5,updated:false}}}}};
 const finnishRetentionHelp=finnishHelpPanel.heatRetentionView();
-assert.match(finnishRetentionHelp,/Havaittua lämmitystä 0 tuntia; lepoa 16,5 tuntia\./);
-assert.match(finnishRetentionHelp,/Riittävä havaintomäärä ei yksin takaa/);
+assert.match(finnishRetentionHelp,/Odotetaan opittuja lämpöhäviöparametreja/);
+assert.doesNotMatch(finnishRetentionHelp,/Alkuarvio|Mukautuva|<th>Malli<\/th>/);
 assert.doesNotMatch(finnishRetentionHelp,/observed heating hours|idle hours|Enough observations/);
 assert.match(finnishHelpPanel.collectionQuality().detail,/Kerättyjen tietojen kattavuus/);
 assert.doesNotMatch(finnishHelpPanel.collectionQuality().detail,/Collected-data|Learning continues/);
@@ -1306,7 +1310,7 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
 
 {
  const retained=new Component();retained.settings={rooms:[{id:'room',name:'Kitchen'}]};
- retained.info={data:{rooms:{room:{name:'Kitchen',heat_retention:{drop_6h:1.23,hours_per_degree:4.8}}},retention_history_entities:{room:{drop_6h:'sensor.loss_renamed',hours_per_degree:'sensor.hours_renamed'}}}};
+ retained.info={data:{rooms:{room:{name:'Kitchen',heat_retention:{drop_6h:1.23,hours_per_degree:4.8,updated:true}}},retention_history_entities:{room:{drop_6h:'sensor.loss_renamed',hours_per_degree:'sensor.hours_renamed'}}}};
  const html=retained.heatRetentionView();
  assert.match(html,/data-temperature-history-entity="sensor.loss_renamed"[^>]*style="cursor:pointer"/);
  assert.match(html,/data-temperature-history-entity="sensor.hours_renamed"/);
@@ -1629,3 +1633,27 @@ transferPanel.info.source_fields.push(['pricing_mode','Scheduling mode','select:
 const modeLastHTML=transferPanel.settingsGroups([['Electricity price settings',transferPanel.info.source_fields.map(field=>field[0])]]);
 assert.ok(modeLastHTML.lastIndexOf('source.pricing_mode')>modeLastHTML.lastIndexOf('source.transfer_night_price'));
 console.log('Scheduling mode follows every electricity and transfer price field.');
+
+const learningTableHTML=retentionPanel.heatRetentionView();
+const initialRoomRow=learningTableHTML.match(/<tr[^>]*><td><span data-user-text>Slow &lt;cooling&gt;<\/span>[\s\S]*?<\/tr>/)[0];
+assert.match(initialRoomRow,/<td class="retention-numeric"><\/td><td class="retention-numeric"><\/td>/);
+assert.doesNotMatch(initialRoomRow,/class="retention-bar"|class="retention-value"/);
+assert.match(initialRoomRow,/data-retention-rating="learning"/);
+assert.equal((learningTableHTML.match(/<th(?: |>|\n)/g)||[]).length,4);
+console.log('Learning rooms have blank retention metrics and no Model column.');
+
+const targetBadgePanel=new Component();
+targetBadgePanel.settings={language:'fi',rooms:[{id:'kitchen',thermostat:'climate.kitchen',activity_entity:'switch.kitchen'}]};
+targetBadgePanel._hass={states:{'switch.kitchen':{state:'off'},'climate.kitchen':{state:'heat',attributes:{temperature:21.5}}}};
+let targetBadgeHTML=targetBadgePanel.roomHeatingBadge({actual_activity:0,plan:{heat:true,setpoint:24}},'kitchen');
+assert.match(targetBadgeHTML,/Termostaatin nykyinen asetuslämpötila: 21,5 °C/);
+assert.doesNotMatch(targetBadgeHTML,/24 °C/);
+assert.match(targetBadgeHTML,/room-heating idle/);
+targetBadgePanel._hass.states['climate.kitchen'].state='unavailable';
+targetBadgeHTML=targetBadgePanel.roomHeatingBadge({plan:{setpoint:24}},'kitchen');
+assert.match(targetBadgeHTML,/Termostaatin nykyinen asetuslämpötila: Ei saatavilla/);
+assert.doesNotMatch(targetBadgeHTML,/21,5 °C|24 °C/);
+delete targetBadgePanel._hass.states['climate.kitchen'];
+targetBadgePanel.info={data:{chart_temperatures:{targets:{rooms:{kitchen:19}}}}};
+assert.match(targetBadgePanel.roomHeatingBadge({},'kitchen'),/nykyinen asetuslämpötila: 19 °C/);
+console.log('Room heading tooltips show actual device targets independently of relay state and simulated plans.');

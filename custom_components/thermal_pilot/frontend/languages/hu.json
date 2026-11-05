@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Adja meg az árat hálózati díjak nélkül.",
     "Repeats daily in Home Assistant’s time zone.": "Naponta ismétlődik a Home Assistant időzónájában.",
     "Day and night start times must differ.": "A nappal és az éjszaka kezdete nem lehet azonos.",
-    "Use a time in HH:MM format.": "Használja a HH:MM időformátumot."
+    "Use a time in HH:MM format.": "Használja a HH:MM időformátumot.",
+    "Current thermostat target": "A termosztát aktuális célhőmérséklete"
   },
   "legacy": {},
   "cardMessages": {

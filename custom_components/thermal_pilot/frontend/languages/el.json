@@ -511,7 +511,8 @@
     "Enter the price before transfer charges.": "Εισαγάγετε την τιμή χωρίς χρεώσεις δικτύου.",
     "Repeats daily in Home Assistant’s time zone.": "Επαναλαμβάνεται καθημερινά στη ζώνη ώρας του Home Assistant.",
     "Day and night start times must differ.": "Η ημέρα και η νύχτα πρέπει να αρχίζουν σε διαφορετικές ώρες.",
-    "Use a time in HH:MM format.": "Χρησιμοποιήστε τη μορφή ώρας HH:MM."
+    "Use a time in HH:MM format.": "Χρησιμοποιήστε τη μορφή ώρας HH:MM.",
+    "Current thermostat target": "Τρέχουσα επιθυμητή θερμοκρασία θερμοστάτη"
   },
   "legacy": {},
   "cardMessages": {

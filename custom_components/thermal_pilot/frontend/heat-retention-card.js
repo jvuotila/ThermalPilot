@@ -2,8 +2,8 @@ await import(new URL(`./localization.js${new URL(import.meta.url).search}`, impo
 /* Read-only ThermalPilot dashboard card. No thermostat or settings commands. */
 (() => {
 const tooltipInfoIcon='<svg class="status-info" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle class="status-info-dot" cx="10" cy="6" r="1"/></svg>';
-const optionalColumns=['loss_6h','drop_1c','cooling_speed','model'];
-const labels={room:'Room',loss_6h:'6-hour loss',drop_1c:'1°C drop',cooling_speed:'Cooling speed',model:'Model'};
+const optionalColumns=['loss_6h','drop_1c','cooling_speed'];
+const labels={room:'Room',loss_6h:'6-hour loss',drop_1c:'1°C drop',cooling_speed:'Cooling speed'};
 const tpI18n=globalThis.__thermalPilotLocalization;
 const cardLanguages=tpI18n.languageNames;
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -17,12 +17,13 @@ function rating(value){
 function config(value){
  if(value.language!==undefined&&value.language!=='auto'&&!Object.hasOwn(cardLanguages,value.language))throw Error('Invalid card language.');
  if(value.title!==undefined&&typeof value.title!=='string')throw Error('title must be text.');
- if(value.columns!==undefined&&(!Array.isArray(value.columns)||value.columns.some(key=>!['room',...optionalColumns].includes(key))))throw Error('Invalid columns. Use loss_6h, drop_1c, cooling_speed and model.');
- if(value.sort_by!==undefined&&!['room',...optionalColumns.filter(key=>key!=='model')].includes(value.sort_by))throw Error('Invalid sort_by.');
+ if(value.columns!==undefined&&(!Array.isArray(value.columns)||value.columns.some(key=>!['room','model',...optionalColumns].includes(key))))throw Error('Invalid columns. Use loss_6h, drop_1c and cooling_speed.');
+ if(value.sort_by!==undefined&&!['room',...optionalColumns].includes(value.sort_by))throw Error('Invalid sort_by.');
  if(value.sort_direction!==undefined&&!['asc','desc'].includes(value.sort_direction))throw Error('sort_direction must be asc or desc.');
- return {...value,columns:['room',...new Set((value.columns??optionalColumns).filter(key=>key!=='room'))]};
+ // Ignore the removed Model column in saved cards so existing dashboards still load.
+ return {...value,columns:['room',...new Set((value.columns??optionalColumns).filter(key=>key!=='room'&&key!=='model'))]};
 }
-const styles=`[data-column="loss_6h"],[data-column="drop_1c"]{text-align:right;font-variant-numeric:tabular-nums}th[data-column="loss_6h"] button,th[data-column="drop_1c"] button{justify-content:flex-end;text-align:right;width:100%}th,td{vertical-align:middle}.status-info{display:inline-block;vertical-align:middle;width:14px;height:14px;margin-left:6px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}.status-info-dot{fill:currentColor;stroke:none}.rating:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:2px}:host{display:block;min-width:0;container-type:inline-size;color:var(--primary-text-color,#213547);font:var(--paper-font-body1_-_font-size,14px) var(--paper-font-body1_-_font-family,system-ui)}ha-card{display:block;overflow:hidden;background:var(--ha-card-background,var(--card-background-color,#f5f9f8));border-radius:var(--ha-card-border-radius,12px);border:1px solid var(--ha-card-border-color,var(--divider-color,#d6dfe2));box-shadow:var(--ha-card-box-shadow,0 2px 5px #0000000a)}.title{font-size:var(--ha-card-header-font-size,20px);font-weight:500;line-height:1.4;margin:0;padding:20px 20px 4px;overflow-wrap:anywhere}.scroll{overflow-x:auto;padding:12px}table{width:100%;border-collapse:collapse;font:inherit;color:inherit}th,td{padding:10px 9px;text-align:left;border-bottom:1px solid var(--divider-color,#d6dfe2);white-space:nowrap}th{background:linear-gradient(#00857714,#00857714),var(--card-background-color,#f5f9f8);font-weight:600}tbody tr:nth-child(even){background:#0085770a}tbody tr.garage{background:linear-gradient(#91785e38,#91785e38),var(--card-background-color,#f5f9f8)}tbody tr:last-child td{border-bottom:0}button{font:inherit;color:inherit;font-weight:inherit;background:none;border:0;padding:0;cursor:pointer;display:inline-flex;gap:6px;align-items:center;text-align:left}button:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:4px}.rating{font-size:12px;font-weight:600;display:inline-block;padding:6px 18px 6px 9px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,0 100%)}.very-fast{background:#f7d5da;color:#922030}.fast{background:#ffdfb0;color:#78410d}.moderate{background:#fff2ac;color:#685614}.slow{background:#dcedc6;color:#375421}.very-slow{background:#bce8cc;color:#1b5935}.learning{background:#e6ecee;color:#526b75;clip-path:none;border-radius:4px;padding-right:9px}.model{padding:5px 9px;border-radius:6px;background:#829aa310}.model.adapting{border-left:3px solid #008577;background:#00857714}.loss{display:inline-block;min-width:0;text-align:right}.bar{display:inline-block;width:60px;height:6px;background:#829aa320;border-radius:6px;margin-right:10px;vertical-align:middle;overflow:hidden}.bar i{display:block;height:100%;background:#438fa5;border-radius:6px}.empty{text-align:center;color:var(--secondary-text-color,#60737b);white-space:normal;padding:20px}`;
+const styles=`[data-column="loss_6h"],[data-column="drop_1c"]{text-align:right;font-variant-numeric:tabular-nums}th[data-column="loss_6h"] button,th[data-column="drop_1c"] button{justify-content:flex-end;text-align:right;width:100%}th,td{vertical-align:middle}.status-info{display:inline-block;vertical-align:middle;width:14px;height:14px;margin-left:6px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}.status-info-dot{fill:currentColor;stroke:none}.rating:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:2px}:host{display:block;min-width:0;container-type:inline-size;color:var(--primary-text-color,#213547);font:var(--paper-font-body1_-_font-size,14px) var(--paper-font-body1_-_font-family,system-ui)}ha-card{display:block;overflow:hidden;background:var(--ha-card-background,var(--card-background-color,#f5f9f8));border-radius:var(--ha-card-border-radius,12px);border:1px solid var(--ha-card-border-color,var(--divider-color,#d6dfe2));box-shadow:var(--ha-card-box-shadow,0 2px 5px #0000000a)}.title{font-size:var(--ha-card-header-font-size,20px);font-weight:500;line-height:1.4;margin:0;padding:20px 20px 4px;overflow-wrap:anywhere}.scroll{overflow-x:auto;padding:12px}table{width:100%;border-collapse:collapse;font:inherit;color:inherit}th,td{padding:10px 9px;text-align:left;border-bottom:1px solid var(--divider-color,#d6dfe2);white-space:nowrap}th{background:linear-gradient(#00857714,#00857714),var(--card-background-color,#f5f9f8);font-weight:600}tbody tr:nth-child(even){background:#0085770a}tbody tr.garage{background:linear-gradient(#91785e38,#91785e38),var(--card-background-color,#f5f9f8)}tbody tr:last-child td{border-bottom:0}button{font:inherit;color:inherit;font-weight:inherit;background:none;border:0;padding:0;cursor:pointer;display:inline-flex;gap:6px;align-items:center;text-align:left}button:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:4px}.rating{font-size:12px;font-weight:600;display:inline-block;padding:6px 18px 6px 9px;clip-path:polygon(0 0,calc(100% - 10px) 0,100% 50%,calc(100% - 10px) 100%,0 100%)}.very-fast{background:#f7d5da;color:#922030}.fast{background:#ffdfb0;color:#78410d}.moderate{background:#fff2ac;color:#685614}.slow{background:#dcedc6;color:#375421}.very-slow{background:#bce8cc;color:#1b5935}.learning{background:#e6ecee;color:#526b75;clip-path:none;border-radius:4px;padding-right:9px}.loss{display:inline-block;min-width:0;text-align:right}.bar{display:inline-block;width:60px;height:6px;background:#829aa320;border-radius:6px;margin-right:10px;vertical-align:middle;overflow:hidden}.bar i{display:block;height:100%;background:#438fa5;border-radius:6px}.empty{text-align:center;color:var(--secondary-text-color,#60737b);white-space:normal;padding:20px}`;
 // HA's editor preview can be narrow even on a wide desktop screen. Base the
 // compact table on the card width so selected columns remain visible there too.
 const compactStyles=`@container(max-width:650px){
@@ -33,7 +34,7 @@ const compactStyles=`@container(max-width:650px){
  th button span:first-child{min-width:0}
  th button span[aria-hidden]{flex-shrink:0}
  .bar{display:none}
- .rating,.model{box-sizing:border-box;max-width:100%;padding:5px 6px;white-space:normal}
+ .rating{box-sizing:border-box;max-width:100%;padding:5px 6px;white-space:normal}
  .rating{clip-path:none;border-radius:4px}
  .status-info{margin-left:3px;width:12px;height:12px}
 }`;
@@ -58,7 +59,7 @@ class RetentionCard extends HTMLElement{
  sortedRooms(){
   const language=this._config.language&&this._config.language!=='auto'?this._config.language:this._data?.language||this._hass?.language||'en';
   const names=(a,b)=>String(a.name||'').trim().localeCompare(String(b.name||'').trim(),language,{sensitivity:'base',numeric:true});
-  const value=room=>{const v=room.heat_retention||{};return this._sort.key==='loss_6h'?v.drop_6h:this._sort.key==='drop_1c'?v.hours_per_degree:rating(v).rank;};
+  const value=room=>{const v=room.heat_retention||{};if(!v.updated)return null;return this._sort.key==='loss_6h'?v.drop_6h:this._sort.key==='drop_1c'?v.hours_per_degree:rating(v).rank;};
   return [...(this._data?.rooms||[])].sort((a,b)=>{
    const group=Number(Boolean(a.is_garage))-Number(Boolean(b.is_garage));
    if(group)return group;
@@ -75,17 +76,18 @@ class RetentionCard extends HTMLElement{
  cell(key,room,max){
   const v=room.heat_retention||{},badge=rating(v),number=value=>Number.isFinite(value)?value.toFixed(key==='loss_6h'?2:1):'—';
   if(key==='room')return esc(room.name);
+  if((key==='loss_6h'||key==='drop_1c')&&badge.level==='learning')return '';
   if(key==='loss_6h')return `<span class="bar" aria-hidden="true"><i style="width:${Number.isFinite(v.drop_6h)?Math.max(0,Math.min(100,100*v.drop_6h/max)):0}%"></i></span><span class="loss">${this.historyValue(room,'drop_6h',number(v.drop_6h))}${Number.isFinite(v.drop_6h)?' °C':''}</span>`;
   if(key==='drop_1c')return `${this.historyValue(room,'hours_per_degree',number(v.hours_per_degree))}${Number.isFinite(v.hours_per_degree)?' '+esc(this.t('hours')):''}`;
   if(key==='cooling_speed')return `<span class="rating ${badge.level}" tabindex="0" title="${esc(this.t(badge.level==='learning'?'Waiting for learned heat-loss parameters.':'Not an energy-efficiency or insulation class.'))}">${esc(this.t(badge.label))}${tooltipInfoIcon}</span>`;
-  return `<span class="model ${v.updated?'adapting':''}">${esc(this.t(v.updated?'Adapting':'Initial estimate'))}</span>`;
+  return '';
  }
  render(){
   tpI18n.watch(this,this._config.language&&this._config.language!=='auto'?this._config.language:this._data?.language||this._hass?.language||'en');
   if(!this.shadowRoot)return;const columns=this._config.columns,rooms=this.sortedRooms();
-  const max=Math.max(.01,...rooms.map(room=>Number.isFinite(room.heat_retention?.drop_6h)?room.heat_retention.drop_6h:0));
+  const max=Math.max(.01,...rooms.map(room=>room.heat_retention?.updated&&Number.isFinite(room.heat_retention?.drop_6h)?room.heat_retention.drop_6h:0));
   const message=this._error||(this._data?.requires_selection?'Choose a ThermalPilot integration in the card settings.':!this._data?'Loading…':!this._data.entries?.length?'ThermalPilot is not loaded.':'No room estimates yet.');
-  this.shadowRoot.innerHTML=`<style>${styles}${compactStyles}</style><ha-card>${this._config.title?.trim()?`<h2 class="title">${esc(this._config.title)}</h2>`:''}<div class="scroll"><table><thead><tr>${columns.map(key=>key==='model'?`<th scope="col">${esc(this.t(labels[key]))}</th>`:`<th scope="col" data-column="${key}" aria-sort="${this._sort.key===key?(this._sort.direction===1?'ascending':'descending'):'none'}"><button data-sort="${key}"><span>${esc(this.t(labels[key]))}</span><span aria-hidden="true">${this._sort.key===key?(this._sort.direction===1?'↑':'↓'):'↕'}</span></button></th>`).join('')}</tr></thead><tbody>${!this._error&&rooms.length?rooms.map(room=>`<tr class="${room.is_garage?'garage':''}">${columns.map(key=>`<td data-column="${key}">${this.cell(key,room,max)}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty" colspan="${columns.length}">${esc(this.t(message))}</td></tr>`}</tbody></table></div></ha-card>`;
+  this.shadowRoot.innerHTML=`<style>${styles}${compactStyles}</style><ha-card>${this._config.title?.trim()?`<h2 class="title">${esc(this._config.title)}</h2>`:''}<div class="scroll"><table><thead><tr>${columns.map(key=>`<th scope="col" data-column="${key}" aria-sort="${this._sort.key===key?(this._sort.direction===1?'ascending':'descending'):'none'}"><button data-sort="${key}"><span>${esc(this.t(labels[key]))}</span><span aria-hidden="true">${this._sort.key===key?(this._sort.direction===1?'↑':'↓'):'↕'}</span></button></th>`).join('')}</tr></thead><tbody>${!this._error&&rooms.length?rooms.map(room=>`<tr class="${room.is_garage?'garage':''}">${columns.map(key=>`<td data-column="${key}">${this.cell(key,room,max)}</td>`).join('')}</tr>`).join(''):`<tr><td class="empty" colspan="${columns.length}">${esc(this.t(message))}</td></tr>`}</tbody></table></div></ha-card>`;
   this.shadowRoot.querySelectorAll('[data-retention-history]').forEach(value=>{
    const open=event=>{event.preventDefault();event.stopPropagation();this.dispatchEvent(new CustomEvent('hass-more-info',{detail:{entityId:value.dataset.retentionHistory},bubbles:true,composed:true}));};
    value.addEventListener('click',open);value.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')open(event);});
@@ -103,7 +105,7 @@ class RetentionEditor extends HTMLElement{
   this.render();
  }
  set hass(value){this._hass=value;const form=this.shadowRoot.querySelector('ha-form');if(form)form.hass=value;if(!this._asked&&value?.callWS){this._asked=true;value.callWS({type:'thermal_pilot/retention'}).then(data=>{this._entries=data.entries||[];this._integrationLanguage=data.language;this.render();}).catch(()=>{});}}
- update(patch){this._config={...this._config,...patch};this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:{...this._config,columns:this._config.columns.filter(key=>key!=='room')}},bubbles:true,composed:true}));}
+ update(patch){this._config={...this._config,...patch};this.dispatchEvent(new CustomEvent('config-changed',{detail:{config:{...this._config,columns:this._config.columns.filter(key=>optionalColumns.includes(key))}},bubbles:true,composed:true}));}
  render(){
   if(!this._config)return;
   const language=this._config.language&&this._config.language!=='auto'?this._config.language:this._integrationLanguage||this._hass?.language||'en';
