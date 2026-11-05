@@ -277,7 +277,8 @@ if __name__=='__main__':unittest.main()
 class FlexibleRunExampleTests(unittest.TestCase):
     def test_can_choose_75_minute_run(self):
         room={**ROOM_DEFAULTS,'boost':DEFAULTS['boost'],'setback':DEFAULTS['setback'],'lag_hours':.5,'minimum_run_minutes':60,'terminal_reserve_hours':3}
-        model={**initial_model(room),'gain':1.0,'loss':.02,'base_gain':0}
+        # Enough heating capacity to use the five cheap quarter-hours as one run.
+        model={**initial_model(room),'gain':1.5,'loss':.02,'base_gain':0}
         slots=[Slot(NOW+timedelta(minutes=i*15),NOW+timedelta(minutes=(i+1)*15),1 if i<5 else 40) for i in range(32)]
         result=plan(room,model,20.2,[-10]*32,slots,NOW,20)
         lengths=[];run=0
@@ -695,3 +696,257 @@ class TransferTariffTests(unittest.TestCase):
         for price in [-2,0,10]:
             slots=price_slots({},self.settings(static_price=price,transfer_tariff='included'),NOW,UTC)
             self.assertEqual(slots[0].price,price)
+
+
+class PreheatingSearchTests(unittest.TestCase):
+    def test_night_storage_alternatives_survive_until_the_expensive_daytime(self):
+        # Controlled profiles based on three observed floor-heated room models.
+        # These do not replay the original forecast: backups do not retain it.
+        # No solar gains or varying water temperature are assumed in this case.
+        tz=ZoneInfo('Europe/Helsinki')
+        now=NOW+timedelta(hours=14,minutes=37)
+        tomorrow=(now.astimezone(tz)+timedelta(days=1)).date()
+        end=datetime.combine(tomorrow+timedelta(days=1),datetime.min.time(),tzinfo=tz).astimezone(UTC)
+        start=now.replace(minute=30,second=0,microsecond=0)
+        weather=[(0,3.9),(2,3.2),(4,2.2),(6,1.3),(8,1.0),(10,2.2),
+                 (12,3.7),(14,4.5),(16,2.9),(18,.6),(20,.3),(22,.5),(24,.5)]
+        slots=[]
+        outdoor=[]
+        while start<end:
+            local=start.astimezone(tz)
+            hour=local.hour+local.minute/60
+            expensive=local.date()==tomorrow and 8.5<=hour<21
+            slots.append(Slot(start,start+timedelta(minutes=15),29 if expensive else 8))
+            temperature=5.5
+            if local.date()==tomorrow:
+                for (a,first),(b,second) in zip(weather,weather[1:]):
+                    if a<=hour<=b:
+                        temperature=first+(second-first)*(hour-a)/(b-a)
+                        break
+            outdoor.append(temperature)
+            start+=timedelta(minutes=15)
+        profiles=[
+            # loss, gain, background gains, wind loss, current temperature,
+            # comfort target, measured water factor, previous normal-run hours
+            (.0103801274,.7374795781,.084,.0002998129,21.3,20,1.0934579439,3),
+            (.0108739402,.700593644,.0805,.0000118907,20.35,19.5,1.0858369099,3),
+            (.0123686389,.7331561699,.084,0,21.3,20,1.0934579439,3),
+        ]
+        for loss,gain,background,wind,current,baseline,water,pause in profiles:
+            with self.subTest(loss=loss):
+                room={**DEFAULTS,**ROOM_DEFAULTS,'lag_hours':3,'boost':2,'setback':-1,
+                      'minimum':18,'maximum':24,'minimum_run_minutes':60,
+                      'previous_control_mode':'normal','previous_pause_hours':pause,
+                      'wind_speed':2.15,'solar_direction':'disabled','terminal_reserve_hours':6}
+                model={**initial_model(room),'loss':loss,'gain':gain,'base_gain':background,
+                       'wind_loss':wind,'response':0}
+                result=plan(room,model,current,outdoor,slots,now,baseline,water)
+                self.assertTrue(result['sessions'])
+                expensive_demand=[row for row in result['slots'] if row['price']==29 and row['predicted_demand']]
+                self.assertEqual(expensive_demand,[])
+                self.assertGreaterEqual(min(row['temperature'] for row in result['slots']),baseline-.001)
+                self.assertLessEqual(max(row['temperature'] for row in result['slots']),24)
+                for session in result['sessions']:
+                    duration=(datetime.fromisoformat(session['end'])-datetime.fromisoformat(session['start'])).total_seconds()/60
+                    self.assertGreaterEqual(duration,60)
+
+
+    def test_preheating_covers_daytime_with_fast_and_slow_response(self):
+        slots = [
+            Slot(NOW + timedelta(minutes=15 * index),
+                 NOW + timedelta(minutes=15 * (index + 1)),
+                 30 if 56 <= index < 108 else 8)
+            for index in range(120)
+        ]
+        profiles = [
+            # Loss, gain, response lag, starting temperature, outdoor temperature.
+            (.007, .7, 1, 20.1, -8),
+            (.011, .7, 3, 21.3, 0),
+        ]
+        for loss, gain, lag, temperature, outside in profiles:
+            with self.subTest(lag=lag):
+                room = {
+                    **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
+                    'boost': 2, 'setback': -1, 'lag_hours': lag,
+                    'minimum_run_minutes': 60, 'terminal_reserve_hours': 6,
+                }
+                model = {
+                    **initial_model(room), 'loss': loss, 'gain': gain,
+                    'base_gain': .08, 'response': 0,
+                }
+                result = plan(room, model, temperature, [outside] * 120, slots, NOW, 20)
+                daytime_demand = [
+                    row for row in result['slots']
+                    if row['price'] == 30 and row['predicted_demand']
+                ]
+                self.assertEqual(daytime_demand, [])
+                self.assertGreaterEqual(result['forecast_minimum'], 19.999)
+                self.assertLessEqual(result['forecast_maximum'], 24)
+
+    def test_daytime_heating_remains_available_when_night_storage_is_insufficient(self):
+        # A long cold daytime period cannot always be bridged within the boost
+        # target. Price optimization must still preserve comfort and end reserve.
+        from thermal_pilot.model import response_step
+
+        slots = [
+            Slot(NOW + timedelta(minutes=15 * index),
+                 NOW + timedelta(minutes=15 * (index + 1)),
+                 30 if 56 <= index < 108 else 8)
+            for index in range(120)
+        ]
+        for loss, temperature, outside in [(.011, 20.1, -8), (.016, 21.3, 0)]:
+            with self.subTest(loss=loss):
+                room = {
+                    **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
+                    'boost': 2, 'setback': -1, 'lag_hours': 1,
+                    'minimum_run_minutes': 60, 'terminal_reserve_hours': 6,
+                }
+                model = {
+                    **initial_model(room), 'loss': loss, 'gain': .4,
+                    'base_gain': .08, 'response': 0,
+                }
+                result = plan(room, model, temperature, [outside] * 120, slots, NOW, 20)
+                self.assertTrue(any(
+                    row['price'] == 30 and row['predicted_demand']
+                    for row in result['slots']
+                ))
+                self.assertGreaterEqual(result['forecast_minimum'], 19.999)
+                self.assertLessEqual(result['forecast_maximum'], 24)
+
+                # Reconstruct the forecast's residual response, then coast with
+                # heating off. Cheap prefixes must not exhaust warmth exactly
+                # when the known price horizon ends.
+                response = 0
+                for row in result['slots']:
+                    response, _ = response_step(
+                        response, float(row['predicted_demand']), .25, 1
+                    )
+                _, average_response = response_step(response, 0, 6, 1)
+                final_temperature = result['slots'][-1]['temperature']
+                coasting_temperature = final_temperature + 6 * (
+                    loss * (outside - final_temperature)
+                    + .4 * average_response + .08
+                )
+                self.assertGreaterEqual(coasting_temperature, 19.999)
+
+    def test_price_peaks_can_be_in_the_evening_overnight_or_repeated(self):
+        patterns = {
+            'evening': [(16, 22)],
+            'overnight': [(22, 30)],
+            'repeated_across_days': [(8, 12), (18, 24), (32, 38), (48, 54)],
+        }
+        room = {
+            **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
+            'boost': 2, 'setback': -1, 'lag_hours': 3,
+            'minimum_run_minutes': 60, 'terminal_reserve_hours': 6,
+        }
+        model = {
+            **initial_model(room), 'loss': .011, 'gain': .7,
+            'base_gain': .08, 'response': 0,
+        }
+        for name, peaks in patterns.items():
+            with self.subTest(pattern=name):
+                slots = []
+                for index in range(288):
+                    hour = index / 4
+                    expensive = any(start <= hour < end for start, end in peaks)
+                    slots.append(Slot(
+                        NOW + timedelta(minutes=15 * index),
+                        NOW + timedelta(minutes=15 * (index + 1)),
+                        30 if expensive else 8,
+                    ))
+                result = plan(room, model, 21.3, [0] * 288, slots, NOW, 20)
+                self.assertFalse(any(
+                    row['price'] == 30 and row['predicted_demand']
+                    for row in result['slots']
+                ))
+                self.assertGreaterEqual(result['forecast_minimum'], 19.999)
+                self.assertLessEqual(result['forecast_maximum'], 24)
+
+    def test_two_day_price_peak_preserves_comfort_and_shifts_heat_to_cheaper_edges(self):
+        # Storage cannot cover 48 expensive hours. Compare against a feasible
+        # flat-price schedule to check useful shifting without forbidding heat
+        # during the expensive interval or assuming a midnight price reset.
+        for minimum_run in (60, 90):
+            with self.subTest(minimum_run=minimum_run):
+                room = {
+                    **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
+                    'boost': 2, 'setback': -1, 'lag_hours': 3,
+                    'minimum_run_minutes': minimum_run, 'terminal_reserve_hours': 6,
+                }
+                model = {
+                    **initial_model(room), 'loss': .011, 'gain': .7,
+                    'base_gain': .08, 'response': 0,
+                }
+                slots = []
+                flat_slots = []
+                for index in range(288):
+                    start = NOW + timedelta(minutes=15 * index)
+                    end = start + timedelta(minutes=15)
+                    price = 30 if 12 <= index / 4 < 60 else 8
+                    slots.append(Slot(start, end, price))
+                    flat_slots.append(Slot(start, end, 8))
+                result = plan(room, model, 21.3, [0] * 288, slots, NOW, 20)
+                flat = plan(room, model, 21.3, [0] * 288, flat_slots, NOW, 20)
+                self.assertTrue(any(
+                    row['price'] == 30 and row['predicted_demand']
+                    for row in result['slots']
+                ))
+                self.assertGreaterEqual(result['forecast_minimum'], 19.999)
+                self.assertLessEqual(result['forecast_maximum'], 24)
+                actual_cost = sum(
+                    slot.price * .25 for slot, row in zip(slots, result['slots'])
+                    if row['predicted_demand']
+                )
+                flat_schedule_cost = sum(
+                    slot.price * .25 for slot, row in zip(slots, flat['slots'])
+                    if row['predicted_demand']
+                )
+                self.assertLess(actual_cost, flat_schedule_cost)
+                for session in result['sessions']:
+                    duration = (
+                        datetime.fromisoformat(session['end'])
+                        - datetime.fromisoformat(session['start'])
+                    ).total_seconds() / 60
+                    self.assertGreaterEqual(duration, minimum_run)
+
+    def test_longer_earlier_heating_can_cost_less_than_shorter_later_heating(self):
+        room = {
+            **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
+            'boost': 2, 'setback': -1, 'lag_hours': 6,
+            'minimum_run_minutes': 60, 'terminal_reserve_hours': 0,
+        }
+        model = {
+            **initial_model(room), 'loss': .014, 'gain': .5,
+            'base_gain': .08, 'response': 0,
+        }
+        slots = []
+        flat_slots = []
+        for index in range(144):
+            start = NOW + timedelta(minutes=15 * index)
+            end = start + timedelta(minutes=15)
+            price = 40 if 14 <= index / 4 < 22 else 8
+            slots.append(Slot(start, end, price))
+            flat_slots.append(Slot(start, end, 8))
+        result = plan(room, model, 20.3, [0] * 144, slots, NOW, 20)
+        flat = plan(room, model, 20.3, [0] * 144, flat_slots, NOW, 20)
+        heating_hours = sum(.25 for row in result['slots'] if row['predicted_demand'])
+        flat_hours = sum(.25 for row in flat['slots'] if row['predicted_demand'])
+        total_cost = sum(
+            slot.price * .25 for slot, row in zip(slots, result['slots'])
+            if row['predicted_demand']
+        )
+        flat_schedule_cost = sum(
+            slot.price * .25 for slot, row in zip(slots, flat['slots'])
+            if row['predicted_demand']
+        )
+        # Compare both feasible schedules at the real prices. Extra heating is
+        # worthwhile here because it replaces substantially dearer later heat.
+        self.assertGreater(heating_hours, flat_hours)
+        self.assertLess(total_cost, flat_schedule_cost)
+        self.assertGreaterEqual(result['forecast_minimum'], 19.999)
+        self.assertLessEqual(result['forecast_maximum'], 24)
+        self.assertFalse(any(
+            row['price'] == 40 and row['predicted_demand']
+            for row in result['slots']
+        ))

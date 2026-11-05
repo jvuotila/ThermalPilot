@@ -930,6 +930,8 @@ def plan(
     # A negative duration tracks the pause since the last boosted target.
     beam = [(0.0, 0.0, 0.0, temperature, model['response'], initial_mode,
              run_hours, reduction_available, [])]
+    beam_limit = 120
+    cheap_path_limit = 40
     for slot_index, slot in enumerate(slots):
         hours = (slot.end - max(now, slot.start)).total_seconds() / 3600
         if hours <= 0:
@@ -1072,7 +1074,53 @@ def plan(
             )
             if state_bucket not in unique:
                 unique[state_bucket] = candidate
-        beam = list(unique.values())[:80]
+        ranked = list(unique.values())
+        # Prefix cost alone discards preheating before expensive hours arrive.
+        # Keep cheap paths alongside a range of room temperatures and residual
+        # heating responses at the best accumulated limit/comfort score.
+        beam = ranked[:cheap_path_limit]
+        selected_indices = set(range(len(beam)))
+        best_comfort = (round(ranked[0][0], 6), round(ranked[0][1], 6))
+        thermal_states = {}
+        for index, candidate in enumerate(ranked):
+            comfort = (round(candidate[0], 6), round(candidate[1], 6))
+            if comfort != best_comfort:
+                continue
+            thermal_state = (round(candidate[3] * 10), round(candidate[4] * 10))
+            if thermal_state not in thermal_states:
+                # Candidates are score ordered, so this is the cheapest path
+                # to this combination of air temperature and heating response.
+                thermal_states[thermal_state] = (index, candidate)
+
+        # Residual response decays after heating stops. Its time integral is
+        # response * lag, giving a rough temperature contribution gain * lag *
+        # response. Use that only to spread the search across stored-warmth
+        # alternatives; actual forecasts and costs still use the full model.
+        response_temperature_scale = gain * water_factor * response_lag(room, model)
+        ordered_thermal_states = sorted(
+            thermal_states.values(),
+            key=lambda item: item[1][3] + response_temperature_scale * item[1][4],
+        )
+        diversity_count = min(beam_limit - cheap_path_limit, len(ordered_thermal_states))
+        for position in range(diversity_count):
+            thermal_index = 0
+            if diversity_count > 1:
+                thermal_index = round(
+                    position * (len(ordered_thermal_states) - 1) / (diversity_count - 1)
+                )
+            index, candidate = ordered_thermal_states[thermal_index]
+            if index not in selected_indices:
+                beam.append(candidate)
+                selected_indices.add(index)
+
+        # Some thermal representatives are already among the cheap paths.
+        # Fill their places with mode/minimum-run alternatives, keeping at most
+        # 120 schedules per interval, bounding planning work on every update.
+        for index, candidate in enumerate(ranked):
+            if len(beam) == beam_limit:
+                break
+            if index not in selected_indices:
+                beam.append(candidate)
 
     def terminal(candidate):
         """Score remaining warmth after coasting beyond confirmed prices."""

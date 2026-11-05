@@ -216,3 +216,35 @@ times and elapsed UTC minutes. This handles non-aligned rate boundaries, overnig
 windows and daylight-saving transitions. Charts, stored observation prices and
 live-control price readiness all use the same normalized prices. The optional
 external price forecast remains a trend signal rather than confirmed payable prices.
+
+
+## Retaining preheating alternatives
+
+The planner uses a bounded search rather than examining every possible schedule.
+At each interval, it keeps up to 120 candidate paths: up to 40 leading paths by
+current score, plus up to 80 representatives spanning different air temperatures
+and residual heating responses at the best accumulated limit/comfort score. The
+representatives cover the whole available range rather than just its cheapest
+prefixes. Duplicate positions are filled with the next best paths. The existing
+fine state deduplication still keeps the best score for equivalent states.
+
+For ordering these representatives, temperature plus gain × water factor × lag ×
+residual response approximates the warmth available after heating stops. This is
+only a diversity measure: actual temperatures, losses and costs still use the
+existing interval model. The search budget rises from 80 to 120 schedules; the
+coordinator continues running planning work in its executor.
+
+This prevents many similar cheap prefixes from crowding out all warmer preheating
+alternatives before a later expensive period. Temperature limits, comfort priority,
+minimum runs, pauses and terminal reserve scoring remain unchanged. The search is
+still approximate: it does not guarantee a globally cheapest schedule or model
+heat-pump COP. Residual response is a model state, not measured slab temperature.
+
+There is no preference for a particular clock time. Known price intervals can
+contain expensive nights, evenings, repeated peaks or a continuous multi-day
+peak. An earlier, longer run can beat a shorter later run when its total modeled
+price cost is lower, including the modeled heat lost before the warmth is needed.
+If stored warmth cannot bridge a peak, comfort takes priority over avoiding its
+prices. Decisions use the available forecast horizon; prices beyond it remain
+unknown. Learned room loss and heating-response parameters inform these forecasts,
+but more observations improve them only when the measurements are representative.

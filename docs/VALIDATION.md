@@ -199,3 +199,25 @@ forecast, later boosts do not bridge a planned pause, and repeated replans retai
 the original run start. A coordinator restart check covers the 15-minute pause
 after ending a session earlier than its previous forecast. Weather and prices
 in these checks are controlled inputs, not a replay of the full original forecast.
+
+
+### Preheating search regression
+
+Three controlled floor-heating profiles exercise cheap night prices followed by
+expensive daytime prices, with a changing outdoor forecast. They require no
+predicted demand during the expensive period, no comfort shortfall beyond output
+rounding, respected temperature limits and minimum session lengths. The published
+0.9.66 search fails all three profiles; the revised search passes them with a bounded
+120-path search (40 leading paths plus up to 80 thermal representatives). These
+are representative diagnostic cases, not exact replays of a user forecast: backups retain learned models and session checkpoints, but not the
+complete future price/weather input arrays. They do not establish actual savings
+or physical heating performance in a Home Assistant installation.
+
+Additional regressions cover different response lags, cold/low-capacity rooms
+that still need expensive heating, end-of-horizon warmth, evening and overnight
+peaks, repeated peaks across days and a continuous 48-hour peak. The latter uses
+both 60- and 90-minute configured minimum runs and compares modeled price cost
+against a feasible flat-price schedule evaluated at the same actual prices.
+Another case deliberately accepts more total heating hours because their earlier,
+cheaper timing costs less while respecting the same temperature limits. These
+comparisons use normalized heating input, not measured kWh or currency savings.
