@@ -1162,7 +1162,8 @@ class ThermalPilotPanel extends HTMLElement {
     const left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0;
     const width=viewport?.width||window.innerWidth,height=viewport?.height||window.innerHeight;
     const margin=12,gap=8;
-    Object.assign(box.style,{width:Math.min(304,Math.max(0,width-2*margin))+'px',maxWidth:Math.max(0,width-2*margin)+'px',maxHeight:Math.max(0,height-2*margin)+'px',right:'auto',bottom:'auto'});
+    const preferredWidth=width>600?440:304;
+    Object.assign(box.style,{width:Math.min(preferredWidth,Math.max(0,width-2*margin))+'px',maxWidth:Math.max(0,width-2*margin)+'px',maxHeight:Math.max(0,height-2*margin)+'px',right:'auto',bottom:'auto'});
     const bounds=box.getBoundingClientRect();
     if(!bounds.width||!bounds.height)return;
     const trigger=anchor.getBoundingClientRect();
@@ -1818,7 +1819,8 @@ details{scroll-margin-block:16px}
 .setting-info svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
 .setting-info .info-dot{fill:currentColor;stroke:none}
 .setting-info:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:2px}
-.setting-tooltip{display:none;position:fixed;box-sizing:border-box;left:12px;top:12px;z-index:10000;width:304px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;overflow-wrap:anywhere;padding:12px;border-radius:8px;background:var(--primary-text-color,#213547);color:var(--card-background-color,white);font-size:13px;line-height:1.45;font-weight:normal;box-shadow:0 3px 12px #0003}
+.setting-tooltip{display:none;position:fixed;box-sizing:border-box;left:12px;top:12px;z-index:10000;width:304px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;white-space:pre-line;word-break:normal;overflow-wrap:anywhere;padding:12px;border-radius:8px;background:var(--primary-text-color,#213547);color:var(--card-background-color,white);font-size:13px;line-height:1.45;font-weight:normal;box-shadow:0 3px 12px #0003}
+@media(min-width:601px){.setting-tooltip{width:440px}}
 .setting-help.tooltip-open .setting-tooltip{display:block}
 .native-tooltip-help{max-width:100%;min-width:0}.native-tooltip-help>[data-tooltip-trigger]{cursor:help}
 .native-tooltip-help>.room-heating{margin:0;flex:0 0 30px}.native-tooltip-help>.room-learning,.native-tooltip-help>.room-forecast-badge{margin:0;max-width:100%;white-space:normal}
@@ -2334,6 +2336,7 @@ demo.data.season_summaries=demo.settings.rooms.map((room,index)=>({
 
 
 
+
 // END zone chart demonstration
 globalThis.loadCardHelpers=async()=>({createCardElement:config=>{
  const card=document.createElement('div');
@@ -2375,6 +2378,7 @@ function previewManualRequest(message){
  return {manual_controls:structuredClone(demo.manual_controls)};
 }
 // END manual session demonstration
+
 
 
 

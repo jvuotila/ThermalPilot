@@ -56,5 +56,9 @@ const cssSource=fs.readFileSync(path.join(__dirname,'../custom_components/therma
 assert.match(cssSource,/@media\(max-width:600px\)\{\s*\.retention-card \.retention-numeric\{display:none\}/);
 assert.match(cssSource,/\.retention-card \.retention-rating\{box-sizing:border-box;max-width:100%;white-space:normal;overflow-wrap:normal;word-break:normal\}/);
 assert.match(cssSource,/\.season-archives \.archive-numeric\{display:none\}/);
+// Table cells use nowrap; help must explicitly wrap and retain paragraph breaks.
+const tooltipCss=cssSource.match(/\.setting-tooltip\{([^}]+)\}/)[1];
+assert.match(tooltipCss,/white-space:pre-line/);
+assert.match(tooltipCss,/overflow-wrap:anywhere/);
 assert.doesNotMatch(cssSource,/\.setting-help:hover \.setting-tooltip/);
 console.log('Mobile help passed: touch pinning, accordion prevention, outside/Escape dismissal, keyboard support, native badge help, listener cleanup and numeric-column hiding.');

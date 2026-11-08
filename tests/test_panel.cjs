@@ -1258,7 +1258,7 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
 {
  const tooltipPanel=new Component(),style={};
  let trigger={left:460,top:190,bottom:210,width:20};
- const box={style,getBoundingClientRect:()=>({width:Math.min(304,parseFloat(style.maxWidth)),height:Math.min(120,parseFloat(style.maxHeight))})};
+ const box={style,getBoundingClientRect:()=>({width:Math.min(parseFloat(style.width),parseFloat(style.maxWidth)),height:Math.min(120,parseFloat(style.maxHeight))})};
  const anchor={getBoundingClientRect:()=>trigger,setAttribute(){}};
  const help={querySelector:selector=>selector==='.setting-tooltip'?box:anchor,classList:{add(){},remove(){}},contains:()=>false};
  context.window={innerWidth:487,innerHeight:300};
@@ -1271,6 +1271,13 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  context.window.visualViewport={offsetLeft:30,offsetTop:40,width:220,height:100};
  tooltipPanel.positionSettingTooltip(help);
  assert.equal(style.left,'42px');assert.equal(style.top,'52px');assert.equal(style.maxHeight,'76px');assert.equal(style.width,'196px');
+ // Desktop help has room for longer explanations, including at the right edge.
+ context.window={innerWidth:1280,innerHeight:800};
+ trigger={left:1230,top:400,bottom:420,width:20};
+ tooltipPanel.positionSettingTooltip(help);
+ assert.equal(style.width,'440px');
+ assert.ok(parseFloat(style.left)+440<=1268);
+ assert.equal(style.top,'272px');
  const handlers={},listeners=[],removed=[];
  help.addEventListener=(name,fn)=>handlers[name]=fn;help.removeEventListener=()=>{};
  const oldDocument=context.document;context.document={addEventListener(){},removeEventListener(){}};
