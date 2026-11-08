@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Përsëritet çdo ditë në zonën kohore të Home Assistant.",
     "Day and night start times must differ.": "Dita dhe nata duhet të fillojnë në orare të ndryshme.",
     "Use a time in HH:MM format.": "Përdorni formatin e orës HH:MM.",
-    "Current thermostat target": "Temperatura aktuale e caktuar e termostatit"
+    "Current thermostat target": "Temperatura aktuale e caktuar e termostatit",
+    "Manual heating": "Ngrohje manuale",
+    "Manual cooling": "Ftohje manuale",
+    "Ends at": "Përfundon në",
+    "Stop session": "Ndalo seancën",
+    "Update session": "Përditëso seancën",
+    "Start heating": "Nis ngrohjen",
+    "Start cooling": "Nis ftohjen",
+    "Automatic control resumes when the session ends.": "Kontrolli automatik rifillon kur përfundon seanca.",
+    "Enable confirmed live control before starting a session.": "Aktivizoni kontrollin e konfirmuar të pajisjeve përpara se të nisni një seancë.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Seanca manuale nuk mund të ndryshohej. Kontrolloni lidhjen dhe cilësimet e kontrollit.",
+    "Cancel": "Anulo",
+    "Close": "Mbyll"
   },
   "legacy": {},
   "cardMessages": {

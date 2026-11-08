@@ -299,3 +299,20 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.intent(planned={'heat':False,'setpoint':18})['mode'],'heat')
         self.hass.states['sensor.garage'].state='20.3'
         self.assertEqual(self.intent(planned={'heat':True,'setpoint':22})['mode'],'fan_only')
+
+    async def test_manual_cooling_and_heating_keep_garage_door_protection(self):
+        self.room.update(garage_door_entities=['binary_sensor.door'],
+                         manual_session={'mode':'cool','target':20,'ends':1000})
+        self.pump.state='cool'
+        self.hass.states['sensor.garage'].state='27'
+        self.hass.states['binary_sensor.door']=state('off')
+        self.assertEqual(self.intent(0)['mode'],'cool')
+        self.hass.states['binary_sensor.door'].state='on'
+        self.assertEqual(self.intent(1)['mode'],'cool')
+        self.assertEqual(self.intent(61)['mode'],'fan_only')
+        self.hass.states['binary_sensor.door'].state='off'
+        self.assertEqual(self.intent(62)['mode'],'cool')
+        self.room['manual_session']={'mode':'heat','target':20,'ends':1000}
+        self.assertEqual(self.intent(63)['mode'],'heat')
+        self.hass.states['sensor.garage'].state='unavailable'
+        self.assertEqual(self.intent(64)['mode'],'fan_only')

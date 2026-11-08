@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Naponta ismétlődik a Home Assistant időzónájában.",
     "Day and night start times must differ.": "A nappal és az éjszaka kezdete nem lehet azonos.",
     "Use a time in HH:MM format.": "Használja a HH:MM időformátumot.",
-    "Current thermostat target": "A termosztát aktuális célhőmérséklete"
+    "Current thermostat target": "A termosztát aktuális célhőmérséklete",
+    "Manual heating": "Kézi fűtés",
+    "Manual cooling": "Kézi hűtés",
+    "Ends at": "Befejezés",
+    "Stop session": "Munkamenet leállítása",
+    "Update session": "Munkamenet frissítése",
+    "Start heating": "Fűtés indítása",
+    "Start cooling": "Hűtés indítása",
+    "Automatic control resumes when the session ends.": "A munkamenet végén az automatikus vezérlés folytatódik.",
+    "Enable confirmed live control before starting a session.": "Munkamenet indítása előtt engedélyezze a jóváhagyott eszközvezérlést.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Nem sikerült módosítani a kézi munkamenetet. Ellenőrizze a kapcsolatot és a vezérlési beállításokat.",
+    "Cancel": "Mégse",
+    "Close": "Bezárás"
   },
   "legacy": {},
   "cardMessages": {

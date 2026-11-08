@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Kordub iga päev Home Assistanti ajavööndis.",
     "Day and night start times must differ.": "Päeva ja öö algusajad peavad erinema.",
     "Use a time in HH:MM format.": "Kasuta ajavormingut HH:MM.",
-    "Current thermostat target": "Termostaadi praegune sihttemperatuur"
+    "Current thermostat target": "Termostaadi praegune sihttemperatuur",
+    "Manual heating": "Käsitsi kütmine",
+    "Manual cooling": "Käsitsi jahutamine",
+    "Ends at": "Lõpeb",
+    "Stop session": "Lõpeta seanss",
+    "Update session": "Uuenda seanssi",
+    "Start heating": "Alusta kütmist",
+    "Start cooling": "Alusta jahutamist",
+    "Automatic control resumes when the session ends.": "Automaatjuhtimine jätkub seansi lõppedes.",
+    "Enable confirmed live control before starting a session.": "Enne seansi alustamist luba kinnitatud seadmejuhtimine.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Käsitsi seanssi ei saanud muuta. Kontrolli ühendust ja juhtimisseadeid.",
+    "Cancel": "Tühista",
+    "Close": "Sulge"
   },
   "legacy": {},
   "cardMessages": {

@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Endurtekið daglega á tímabelti Home Assistant.",
     "Day and night start times must differ.": "Dagur og nótt verða að hefjast á mismunandi tímum.",
     "Use a time in HH:MM format.": "Notaðu tímasniðið HH:MM.",
-    "Current thermostat target": "Núverandi markhiti hitastillis"
+    "Current thermostat target": "Núverandi markhiti hitastillis",
+    "Manual heating": "Handvirk hitun",
+    "Manual cooling": "Handvirk kæling",
+    "Ends at": "Lýkur kl.",
+    "Stop session": "Stöðva lotu",
+    "Update session": "Uppfæra lotu",
+    "Start heating": "Hefja hitun",
+    "Start cooling": "Hefja kælingu",
+    "Automatic control resumes when the session ends.": "Sjálfvirk stýring tekur við þegar lotunni lýkur.",
+    "Enable confirmed live control before starting a session.": "Virkjaðu staðfesta tækjastýringu áður en þú byrjar lotu.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Ekki tókst að breyta handvirku lotunni. Athugaðu tenginguna og stýristillingarnar.",
+    "Cancel": "Hætta við",
+    "Close": "Loka"
   },
   "legacy": {},
   "cardMessages": {

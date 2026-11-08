@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Wordt dagelijks herhaald in de tijdzone van Home Assistant.",
     "Day and night start times must differ.": "Dag en nacht moeten op verschillende tijden beginnen.",
     "Use a time in HH:MM format.": "Gebruik het tijdformaat HH:MM.",
-    "Current thermostat target": "Huidige thermostaatinstelling"
+    "Current thermostat target": "Huidige thermostaatinstelling",
+    "Manual heating": "Handmatig verwarmen",
+    "Manual cooling": "Handmatig koelen",
+    "Ends at": "Eindigt om",
+    "Stop session": "Sessie stoppen",
+    "Update session": "Sessie bijwerken",
+    "Start heating": "Verwarmen starten",
+    "Start cooling": "Koelen starten",
+    "Automatic control resumes when the session ends.": "Automatische regeling wordt hervat wanneer de sessie eindigt.",
+    "Enable confirmed live control before starting a session.": "Schakel bevestigde apparaatbesturing in voordat je een sessie start.",
+    "Unable to change the manual session. Check the connection and current control settings.": "De handmatige sessie kon niet worden gewijzigd. Controleer de verbinding en de regelinstellingen.",
+    "Cancel": "Annuleren",
+    "Close": "Sluiten"
   },
   "legacy": {},
   "cardMessages": {

@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Wiederholt sich täglich in der Zeitzone von Home Assistant.",
     "Day and night start times must differ.": "Tag und Nacht müssen zu unterschiedlichen Zeiten beginnen.",
     "Use a time in HH:MM format.": "Verwenden Sie das Zeitformat HH:MM.",
-    "Current thermostat target": "Aktueller Thermostat-Sollwert"
+    "Current thermostat target": "Aktueller Thermostat-Sollwert",
+    "Manual heating": "Manuelles Heizen",
+    "Manual cooling": "Manuelles Kühlen",
+    "Ends at": "Endet um",
+    "Stop session": "Vorgang beenden",
+    "Update session": "Vorgang aktualisieren",
+    "Start heating": "Heizen starten",
+    "Start cooling": "Kühlen starten",
+    "Automatic control resumes when the session ends.": "Nach Ablauf wird die automatische Steuerung fortgesetzt.",
+    "Enable confirmed live control before starting a session.": "Aktiviere die bestätigte Gerätesteuerung, bevor du einen Vorgang startest.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Der manuelle Vorgang konnte nicht geändert werden. Prüfe die Verbindung und die Steuerungseinstellungen.",
+    "Cancel": "Abbrechen",
+    "Close": "Schließen"
   },
   "legacy": {},
   "cardMessages": {

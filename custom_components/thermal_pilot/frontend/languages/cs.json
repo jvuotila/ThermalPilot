@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Opakuje se denně v časovém pásmu Home Assistant.",
     "Day and night start times must differ.": "Den a noc musí začínat v různých časech.",
     "Use a time in HH:MM format.": "Použijte časový formát HH:MM.",
-    "Current thermostat target": "Aktuální nastavená teplota termostatu"
+    "Current thermostat target": "Aktuální nastavená teplota termostatu",
+    "Manual heating": "Ruční vytápění",
+    "Manual cooling": "Ruční chlazení",
+    "Ends at": "Končí v",
+    "Stop session": "Ukončit relaci",
+    "Update session": "Upravit relaci",
+    "Start heating": "Spustit vytápění",
+    "Start cooling": "Spustit chlazení",
+    "Automatic control resumes when the session ends.": "Po skončení relace se obnoví automatické řízení.",
+    "Enable confirmed live control before starting a session.": "Před spuštěním relace zapněte potvrzené ovládání zařízení.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Ruční relaci se nepodařilo změnit. Zkontrolujte připojení a nastavení řízení.",
+    "Cancel": "Zrušit",
+    "Close": "Zavřít"
   },
   "legacy": {},
   "cardMessages": {

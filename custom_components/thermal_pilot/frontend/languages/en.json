@@ -739,7 +739,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Repeats daily in Home Assistant’s time zone.",
     "Day and night start times must differ.": "Day and night start times must differ.",
     "Use a time in HH:MM format.": "Use a time in HH:MM format.",
-    "Current thermostat target": "Current thermostat target"
+    "Current thermostat target": "Current thermostat target",
+    "Manual heating": "Manual heating",
+    "Manual cooling": "Manual cooling",
+    "Ends at": "Ends at",
+    "Stop session": "Stop session",
+    "Update session": "Update session",
+    "Start heating": "Start heating",
+    "Start cooling": "Start cooling",
+    "Automatic control resumes when the session ends.": "Automatic control resumes when the session ends.",
+    "Enable confirmed live control before starting a session.": "Enable confirmed live control before starting a session.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Unable to change the manual session. Check the connection and current control settings.",
+    "Cancel": "Cancel",
+    "Close": "Close"
   },
   "legacy": {},
   "cardMessages": {

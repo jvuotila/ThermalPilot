@@ -76,7 +76,10 @@ class AirHeatPumpControl:
         the external room sensor used for hysteresis and safety limits.
         """
         room = garage_sensor_lists(room)
-        if room.get('heating_zone_id') and (not room.get('is_garage')):
+        manual = room.get('manual_session')
+        if manual and manual['ends'] <= now:
+            manual = None
+        if room.get('heating_zone_id') and (not room.get('is_garage')) and not manual:
             season = self.zone_season(room['heating_zone_id'], summer, now)
             use = room.get('zone_climate_mode', 'heat')
             if season or use == 'cool':
@@ -117,6 +120,8 @@ class AirHeatPumpControl:
         else:
             heating = bool(state and state.state == 'heat')
 
+        if room.get('manual_session_ended'):
+            heating = False
         door_entities = room.get('garage_door_entities', []) if garage else []
         door_states = {entity: binary(self.hass, entity) for entity in door_entities}
         door_open = any((value is True for value in door_states.values()))
@@ -141,7 +146,7 @@ class AirHeatPumpControl:
         elif doors_valid:
             self.doors.pop(room_id, None)
 
-        valid = temperature is not None and outdoor is not None and doors_valid
+        valid = temperature is not None and (manual or outdoor is not None) and doors_valid
         if not enabled or release:
             heating = False
             reason = 'Heating paused'
@@ -152,9 +157,14 @@ class AirHeatPumpControl:
                 f"{room['name']}: required temperature or configured control input unavailable; "
                 'using fan-only standby.'
             )
-        elif paused or (door_open and (not heating)):
+        elif paused or (door_open and not (heating or (manual and state and state.state == 'cool'))):
             heating = False
             reason = 'Garage door open: heating paused'
+        elif manual:
+            heating = manual['mode'] == 'heat'
+            mode = manual['mode']
+            target = manual['target']
+            reason = 'Manual heating' if heating else 'Manual cooling'
         elif garage:
             if outdoor > lower_limit:
                 heating = False
@@ -195,7 +205,7 @@ class AirHeatPumpControl:
                 reason = 'Room heating plan' if heating else 'Standby'
         if heating:
             mode = 'heat'
-        elif garage and outdoor is not None and (outdoor > lower_limit) and (not paused) and valid:
+        elif not manual and garage and outdoor is not None and (outdoor > lower_limit) and (not paused) and valid:
             mode = 'off'
         self.cycles[room_id] = {'signature': signature, 'heating': heating}
         fan_key = 'fan_heat' if heating else 'fan_idle'
@@ -205,10 +215,16 @@ class AirHeatPumpControl:
             if any((value is True for value in presence)):
                 fan = room.get('garage_fan_presence') or fan
         swing_key = 'swing' if heating else 'swing_idle'
+        swing = values.get(prefix + swing_key, '')
+        if mode == 'cool':
+            fan = settings.get('air_fan_cool', '')
+            swing = settings.get('air_swing_cool', '')
+        if mode == 'off':
+            swing = ''
         return {
-            'mode': mode, 'target': target if heating else None,
+            'mode': mode, 'target': target if mode in ('heat', 'cool') else None,
             'fan': fan if mode != 'off' else '',
-            'swing': values.get(prefix + swing_key, '') if mode != 'off' else '',
+            'swing': swing,
             'reason': reason, 'errors': errors,
         }
 

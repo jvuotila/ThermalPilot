@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.67 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.68 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -281,3 +281,29 @@ through v0.1.40 retain their original MIT terms.
 
 ThermalPilot is experimental software, provided without warranty. Energy savings
 are not guaranteed.
+
+
+### Timed manual heating and cooling
+
+On the **Plan** chart, use the flame before a room or heat-pump zone name to
+start a manual heating session. A snowflake is available when the managed heat
+pump supports cooling. Heating-only rooms have the flame control as well.
+Choose a duration and a thermostat target; click either icon again to update
+or stop the current session. The active icon shows the target and end time.
+
+Manual sessions require confirmed live control, an active integration, and an
+enabled controller. They temporarily override the automatic plan for that device;
+one zone session controls its shared pump. Garage manual heating may exceed the
+normal maintenance range, using the chosen working-temperature target. Pump
+hardware limits, configured ordinary-room bounds, garage door-open protection
+and heating/cooling changeover protection still apply. A mode change may wait
+for the existing ten-minute changeover interval before the compressor can run.
+The displayed target is a thermostat/pump setpoint, not a promise that the room
+will reach that temperature within the selected duration.
+
+The original expiry survives a Home Assistant restart. Expiry or **Stop session**
+returns to automatic control, which may continue heating/cooling when needed.
+Pausing ThermalPilot, enabling simulation, disabling a zone or changing its device
+cancels the session. Importing a backup does not reactivate manual sessions.
+Controls are available in the integration's Plan tab; dashboard cards remain
+read-only.

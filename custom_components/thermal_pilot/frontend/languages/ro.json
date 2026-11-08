@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Se repetă zilnic în fusul orar Home Assistant.",
     "Day and night start times must differ.": "Ziua și noaptea trebuie să înceapă la ore diferite.",
     "Use a time in HH:MM format.": "Folosiți formatul orar HH:MM.",
-    "Current thermostat target": "Temperatura setată curent pe termostat"
+    "Current thermostat target": "Temperatura setată curent pe termostat",
+    "Manual heating": "Încălzire manuală",
+    "Manual cooling": "Răcire manuală",
+    "Ends at": "Se încheie la",
+    "Stop session": "Oprește sesiunea",
+    "Update session": "Actualizează sesiunea",
+    "Start heating": "Pornește încălzirea",
+    "Start cooling": "Pornește răcirea",
+    "Automatic control resumes when the session ends.": "Controlul automat se reia la încheierea sesiunii.",
+    "Enable confirmed live control before starting a session.": "Activează controlul confirmat al dispozitivelor înainte de a începe o sesiune.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Sesiunea manuală nu a putut fi modificată. Verifică conexiunea și setările de control.",
+    "Cancel": "Anulează",
+    "Close": "Închide"
   },
   "legacy": {},
   "cardMessages": {

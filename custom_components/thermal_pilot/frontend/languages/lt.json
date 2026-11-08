@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Kartojasi kasdien Home Assistant laiko juostoje.",
     "Day and night start times must differ.": "Dienos ir nakties pradžios laikai turi skirtis.",
     "Use a time in HH:MM format.": "Naudokite laiko formatą HH:MM.",
-    "Current thermostat target": "Dabartinė termostato nustatyta temperatūra"
+    "Current thermostat target": "Dabartinė termostato nustatyta temperatūra",
+    "Manual heating": "Rankinis šildymas",
+    "Manual cooling": "Rankinis vėsinimas",
+    "Ends at": "Baigiasi",
+    "Stop session": "Stabdyti seansą",
+    "Update session": "Atnaujinti seansą",
+    "Start heating": "Pradėti šildymą",
+    "Start cooling": "Pradėti vėsinimą",
+    "Automatic control resumes when the session ends.": "Automatinis valdymas tęsiamas pasibaigus seansui.",
+    "Enable confirmed live control before starting a session.": "Prieš pradėdami seansą įjunkite patvirtintą įrenginių valdymą.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Nepavyko pakeisti rankinio seanso. Patikrinkite ryšį ir valdymo nuostatas.",
+    "Cancel": "Atšaukti",
+    "Close": "Uždaryti"
   },
   "legacy": {},
   "cardMessages": {

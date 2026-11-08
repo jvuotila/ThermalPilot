@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Gjentas daglig i Home Assistants tidssone.",
     "Day and night start times must differ.": "Dag og natt må starte på ulike tider.",
     "Use a time in HH:MM format.": "Bruk tidsformatet HH:MM.",
-    "Current thermostat target": "Termostatens gjeldende settpunkt"
+    "Current thermostat target": "Termostatens gjeldende settpunkt",
+    "Manual heating": "Manuell oppvarming",
+    "Manual cooling": "Manuell kjøling",
+    "Ends at": "Slutter",
+    "Stop session": "Avslutt økten",
+    "Update session": "Oppdater økten",
+    "Start heating": "Start oppvarming",
+    "Start cooling": "Start kjøling",
+    "Automatic control resumes when the session ends.": "Automatisk styring gjenopptas når økten avsluttes.",
+    "Enable confirmed live control before starting a session.": "Aktiver bekreftet enhetsstyring før du starter en økt.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Kunne ikke endre den manuelle økten. Kontroller tilkoblingen og styringsinnstillingene.",
+    "Cancel": "Avbryt",
+    "Close": "Lukk"
   },
   "legacy": {},
   "cardMessages": {

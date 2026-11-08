@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Επαναλαμβάνεται καθημερινά στη ζώνη ώρας του Home Assistant.",
     "Day and night start times must differ.": "Η ημέρα και η νύχτα πρέπει να αρχίζουν σε διαφορετικές ώρες.",
     "Use a time in HH:MM format.": "Χρησιμοποιήστε τη μορφή ώρας HH:MM.",
-    "Current thermostat target": "Τρέχουσα επιθυμητή θερμοκρασία θερμοστάτη"
+    "Current thermostat target": "Τρέχουσα επιθυμητή θερμοκρασία θερμοστάτη",
+    "Manual heating": "Χειροκίνητη θέρμανση",
+    "Manual cooling": "Χειροκίνητη ψύξη",
+    "Ends at": "Λήγει στις",
+    "Stop session": "Διακοπή συνεδρίας",
+    "Update session": "Ενημέρωση συνεδρίας",
+    "Start heating": "Έναρξη θέρμανσης",
+    "Start cooling": "Έναρξη ψύξης",
+    "Automatic control resumes when the session ends.": "Ο αυτόματος έλεγχος συνεχίζεται όταν λήξει η συνεδρία.",
+    "Enable confirmed live control before starting a session.": "Ενεργοποιήστε τον επιβεβαιωμένο έλεγχο συσκευών πριν ξεκινήσετε μια συνεδρία.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Δεν ήταν δυνατή η αλλαγή της χειροκίνητης συνεδρίας. Ελέγξτε τη σύνδεση και τις ρυθμίσεις ελέγχου.",
+    "Cancel": "Ακύρωση",
+    "Close": "Κλείσιμο"
   },
   "legacy": {},
   "cardMessages": {

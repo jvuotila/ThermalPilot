@@ -38,7 +38,7 @@ async def async_setup_entry(hass, entry):
                 str(Path(__file__).parent/'brand'/'icon.png'), False),
             StaticPathConfig('/thermal_pilot/rooms-floor-plan.png',
                 str(Path(__file__).parent/'frontend'/'rooms-floor-plan.png'), False)])
-        for handler in (ws_get, ws_retention, ws_plan_chart, ws_save, ws_history, ws_reset):
+        for handler in (ws_get, ws_retention, ws_plan_chart, ws_save, ws_history, ws_reset, ws_manual):
             websocket_api.async_register_command(hass, handler)
         frontend.add_extra_js_url(hass, f'/thermal_pilot/heat-retention-card.js?v={VERSION}')
         frontend.add_extra_js_url(hass, f'/thermal_pilot/plan-chart-card.js?v={VERSION}')
@@ -143,7 +143,7 @@ def ws_get(hass, connection, msg):
             'chart_temperatures':c.chart_temperatures(),
             'temperature_history_entities':chart_history_entities(hass,c),
             'retention_history_entities':retention_history_entities(hass,c)
-        }, 'room_entities':room_entities,
+        }, 'manual_controls':c.manual_controls(), 'room_entities':room_entities,
             'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS})
 
 
@@ -283,3 +283,28 @@ async def ws_reset(hass, connection, msg):
             c.reset_learning(msg['room_id'])
         await c.async_request_refresh()
         connection.send_result(msg['id'], {'reset':True})
+
+
+@websocket_api.websocket_command({
+    vol.Required('type'): 'thermal_pilot/manual',
+    vol.Required('entry_id'): str,
+    vol.Required('room_id'): str,
+    vol.Required('mode'): vol.In(('heat', 'cool', 'stop')),
+    vol.Optional('minutes', default=120): vol.Coerce(float),
+    vol.Optional('target'): vol.Coerce(float),
+})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_manual(hass, connection, msg):
+    """Only administrators may request physical timed heating/cooling."""
+    if (coordinator := get_coordinator(hass, connection, msg)) is None:
+        return
+    try:
+        async with coordinator.backup_lock:
+            controls = await coordinator.set_manual_session(
+                msg['room_id'], msg['mode'], msg['minutes'], msg.get('target'), dt_util.utcnow()
+            )
+    except ValueError as error:
+        connection.send_error(msg['id'], 'invalid_manual_session', str(error))
+        return
+    connection.send_result(msg['id'], {'manual_controls': controls})

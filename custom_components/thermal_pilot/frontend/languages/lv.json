@@ -512,7 +512,19 @@
     "Repeats daily in Home Assistant’s time zone.": "Atkārtojas katru dienu Home Assistant laika joslā.",
     "Day and night start times must differ.": "Dienas un nakts sākuma laikiem jāatšķiras.",
     "Use a time in HH:MM format.": "Izmantojiet laika formātu HH:MM.",
-    "Current thermostat target": "Termostata pašreizējā iestatītā temperatūra"
+    "Current thermostat target": "Termostata pašreizējā iestatītā temperatūra",
+    "Manual heating": "Manuāla apkure",
+    "Manual cooling": "Manuāla dzesēšana",
+    "Ends at": "Beidzas",
+    "Stop session": "Apturēt sesiju",
+    "Update session": "Atjaunināt sesiju",
+    "Start heating": "Sākt apkuri",
+    "Start cooling": "Sākt dzesēšanu",
+    "Automatic control resumes when the session ends.": "Automātiskā vadība atsākas pēc sesijas beigām.",
+    "Enable confirmed live control before starting a session.": "Pirms sesijas sākšanas ieslēdziet apstiprinātu ierīču vadību.",
+    "Unable to change the manual session. Check the connection and current control settings.": "Neizdevās mainīt manuālo sesiju. Pārbaudiet savienojumu un vadības iestatījumus.",
+    "Cancel": "Atcelt",
+    "Close": "Aizvērt"
   },
   "legacy": {},
   "cardMessages": {

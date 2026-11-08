@@ -1657,3 +1657,31 @@ delete targetBadgePanel._hass.states['climate.kitchen'];
 targetBadgePanel.info={data:{chart_temperatures:{targets:{rooms:{kitchen:19}}}}};
 assert.match(targetBadgePanel.roomHeatingBadge({},'kitchen'),/nykyinen asetuslämpötila: 19 °C/);
 console.log('Room heading tooltips show actual device targets independently of relay state and simulated plans.');
+
+// Manual controls share the existing flame and reserve both icon columns.
+const manualPanel=new Component();
+manualPanel.settings={language:'en',rooms:[{id:'floor',name:'Floor room'},{id:'garage',name:'Garage',is_garage:true}],heating_zones:[]};
+manualPanel.info={manual_controls:{
+ floor:{name:'Floor room',modes:['heat'],enabled:true},
+ garage:{name:'Garage',modes:['heat','cool'],enabled:true,session:{mode:'heat',target:18,ends:Date.now()/1000+3600}},
+},data:{price_chart:[],rooms:{}}};
+const floorManual=manualPanel.manualChartName('Floor <room>','floor',false,'#213547');
+assert.match(floorManual,/data-manual-mode="heat"/);
+assert.doesNotMatch(floorManual,/data-manual-mode="cool"/);
+assert.match(floorManual,/class="manual-slot" aria-hidden="true"/);
+assert.match(floorManual,/Floor &lt;room&gt;/);
+assert(floorManual.indexOf('data-manual-id')<floorManual.indexOf('class="manual-label"'));
+assert.match(floorManual,/M13 2c1 5-3 6-3 10/);
+const garageManual=manualPanel.manualChartName('Garage','garage',false,'#213547');
+assert.match(garageManual,/data-manual-mode="cool"/);
+assert.match(garageManual,/class="manual-icon active"/);
+assert.match(garageManual,/Manual heating · 18 °C · Ends at/);
+assert.match(garageManual,/aria-pressed="true"/);
+assert.doesNotMatch(manualPanel.manualChartName('Garage','garage',true,'#213547'),/data-manual-id/);
+manualPanel.info.manual_controls.floor.enabled=false;
+assert.match(manualPanel.manualChartName('Floor room','floor',false,'#213547'),/disabled/);
+const manualChart=manualPanel.priceChart();
+assert.match(manualChart,/<text x="76"[^>]+>Rooms<\/text>/);
+assert.match(manualChart,/<text x="76"[^>]+>Garages<\/text>/);
+assert.match(manualChart,/role="group" aria-label="Electricity prices/);
+console.log('Manual controls passed: fixed icon/name columns, shared flame, heating-only rooms, cooling capability, active sessions, disabled live controls and read-only History.');

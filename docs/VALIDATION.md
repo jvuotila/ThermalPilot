@@ -221,3 +221,18 @@ against a feasible flat-price schedule evaluated at the same actual prices.
 Another case deliberately accepts more total heating hours because their earlier,
 cheaper timing costs less while respecting the same temperature limits. These
 comparisons use normalized heating input, not measured kWh or currency savings.
+
+
+### Timed manual sessions
+
+Service-double tests cover timed floor-room targets, early stop, garage heating
+above maintenance limits and in warm weather, expiry without hysteresis latching,
+original expiry across restarts, the shared zone controller, manual cooling in
+winter, door-open protection and the existing heat/cool reversal interlock.
+They also cover cancellation on pause/simulation, input validation, unsupported
+modes, expiry without a price plan, storage failure before activation, the
+administrator-only websocket handler and backup exclusion of manual commands.
+Frontend VM/DOM-double checks cover aligned icon/name columns, capability-based
+cooling, the shared flame icon, active session indicators, localized dialogs,
+start/update/stop requests, failure feedback, input validation and focus return.
+These checks do not establish browser layout or physical device performance.

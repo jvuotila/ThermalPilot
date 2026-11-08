@@ -38,6 +38,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.config_fingerprint = {}
         self.suggested_runs = {}
         self.session_plans = {}
+        self.manual_sessions = {}
         self.season = {}
         self.applied_season_targets = {}
         self.sensor_health = {'rooms': {}, 'last_notification_day': None}
@@ -142,6 +143,9 @@ class PilotCoordinator(DataUpdateCoordinator):
             rows = (room.get('plan') or {}).get('slots', [])
             if rows and stamp(rows[-1]['end']) > now:
                 future.append(stamp(rows[-1]['end']))
+        for session in self.manual_sessions.values():
+            if session['ends'] > now.timestamp():
+                future.append(datetime.fromtimestamp(session['ends'], now.tzinfo))
         for deadline in self.air_control.deadlines:
             if deadline > now.timestamp():
                 future.append(datetime.fromtimestamp(deadline, now.tzinfo))
@@ -174,6 +178,7 @@ class PilotCoordinator(DataUpdateCoordinator):
     async def load(self):
         saved = await self.store.async_load() or {}
         self.models = saved.get('models', {})
+        self.manual_sessions = saved.get('manual_sessions', {})
         for model in self.models.values():
             model['response'] = 0.0  # Thermal response cannot be trusted across downtime.
             bank = model.get('air_lag_learning', {})
@@ -294,7 +299,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         return 1.0 if value == 'on' else 0.0 if value == 'off' else None
 
     def storage_data(self):
-        return {'models':self.models,'season':self.season,'zone_seasons':self.air_control.zone_seasons,'pump_thermal_modes':self.air_control.thermal_modes,'pump_reversals':self.air_control.reversals,
+        return {'manual_sessions':self.manual_sessions,'models':self.models,'season':self.season,'zone_seasons':self.air_control.zone_seasons,'pump_thermal_modes':self.air_control.thermal_modes,'pump_reversals':self.air_control.reversals,
                 'applied_season_targets':self.applied_season_targets,
                 'fingerprints':self.config_fingerprint,'sensor_health':self.sensor_health,'managed_rooms':self.managed_rooms,'fallback_state':self.fallback_state,
                 'heating_sessions':self.session_plans}
@@ -1000,6 +1005,82 @@ class PilotCoordinator(DataUpdateCoordinator):
     def fallback_target(self, room):
         return self.settings['summer_setpoint'] if self.fallback_state.get('summer') else room['baseline']
 
+    def manual_controls(self):
+        """Describe controllable devices without exposing commands to read-only cards."""
+        controls = {}
+        for room in resolved_rooms(self.settings) + zone_rooms(self.settings):
+            if room.get('heat_control') == 'zone_member' or not room_electric(room, self.settings):
+                continue
+            state = self.hass.states.get(room['thermostat'])
+            if state is None:
+                continue
+            air = air_room(room, self.settings)
+            modes = [mode for mode in ('heat', 'cool')
+                     if mode in state.attributes.get('hvac_modes', ['heat']) and (air or mode == 'heat')]
+            if not modes:
+                continue
+            minimum = number(state.attributes.get('min_temp'), 5)
+            maximum = number(state.attributes.get('max_temp'), 35)
+            # Garage maintenance limits intentionally do not constrain a working
+            # session. Ordinary rooms retain their configured temperature bounds.
+            if not room.get('is_garage'):
+                minimum = max(minimum, self.settings['minimum'])
+                maximum = min(maximum, self.settings['maximum'])
+            if room.get('is_garage'):
+                target = room['garage_heat_target']
+            elif air:
+                target = self.settings['air_heat_target']
+            else:
+                target = room['baseline'] + self.settings['boost']
+            controls[room['id']] = {
+                'name': room['name'], 'entity': room['thermostat'], 'modes': modes,
+                'minimum': minimum, 'maximum': maximum,
+                'step': number(state.attributes.get('target_temp_step'), .5),
+                'heat_target': min(maximum, max(minimum, target)),
+                'cool_target': min(maximum, max(minimum, room.get('zone_cooling_target', 24))),
+                'session': self.manual_sessions.get(room['id']),
+                'enabled': bool(self.live_enabled() and self.settings['heating_enabled']
+                                and room.get('zone_control_enabled', True)
+                                and self._plan_settings == self.settings
+                                and state.state not in ('unknown', 'unavailable')),
+            }
+        return controls
+
+    async def set_manual_session(self, room_id, mode, minutes, target, now):
+        """Persist an explicit timed override before reconciling device commands.
+
+        The websocket handler holds backup_lock, as do refresh and timer paths.
+        A session owns one controller, including all members of a shared zone.
+        """
+        control = self.manual_controls().get(room_id)
+        if control is None:
+            raise ValueError('Manual control is unavailable for this room.')
+        sessions = deepcopy(self.manual_sessions)
+        if mode == 'stop':
+            if room_id in sessions:
+                # Leave expiry visible to reconciliation so garage hysteresis
+                # resets to standby rather than latching the manual Heat mode.
+                sessions[room_id]['ends'] = now.timestamp()
+        else:
+            if not control['enabled']:
+                raise ValueError('Enable confirmed live control before starting a session.')
+            if mode not in control['modes']:
+                raise ValueError('This device does not support the requested mode.')
+            duration = number(minutes)
+            temperature = number(target)
+            if duration is None or not 1 <= duration <= 1440:
+                raise ValueError('Choose a duration between 1 minute and 24 hours.')
+            if temperature is None or not control['minimum'] <= temperature <= control['maximum']:
+                raise ValueError('Choose a temperature within the displayed limits.')
+            sessions[room_id] = {
+                'mode': mode, 'target': temperature, 'started': now.timestamp(),
+                'ends': now.timestamp() + duration * 60, 'entity': control['entity'],
+            }
+        await self.store.async_save({**self.storage_data(), 'manual_sessions': sessions})
+        self.manual_sessions = sessions
+        await self._update_command_state(now)
+        return self.manual_controls()
+
     def live_enabled(self):
         return electric_heating(self.settings) and (not self.settings['simulation_enabled']) and self.settings.get('live_control_confirmed', False)
 
@@ -1031,8 +1112,26 @@ class PilotCoordinator(DataUpdateCoordinator):
         self._air_was_live = live
         release_errors = await self.release_managed_rooms(now)
         air_rooms = [r for r in resolved_rooms(self.settings) + zone_rooms(self.settings) if air_room(r, self.settings)]
+        # Expiry, pause and device reassignment all relinquish the override.
+        # A later re-enable must never resurrect a manually requested session.
+        configured = {r['id']: r for r in resolved_rooms(self.settings) + zone_rooms(self.settings)
+                      if r.get('heat_control') != 'zone_member'}
+        ended = set()
+        for room_id, session in list(self.manual_sessions.items()):
+            room = configured.get(room_id)
+            if (session['ends'] <= now.timestamp() or not live
+                    or not self.settings['heating_enabled'] or room is None
+                    or room['thermostat'] != session['entity']
+                    or not room.get('zone_control_enabled', True)):
+                self.manual_sessions.pop(room_id)
+                ended.add(room_id)
+        if ended:
+            await self.store.async_save(self.storage_data())
         intents = {}
         for room in air_rooms:
+            room = {**room, 'manual_session': self.manual_sessions.get(room['id']),
+                    'manual_session_ended': room['id'] in ended}
+
             bucket = data.get('zones', {}) if room.get('secondary_zone') else data.get('rooms', {})
             key = room['heating_zone_id'] if room.get('secondary_zone') else room['id']
             planned = bucket.get(key, {}).get('plan')
@@ -1088,6 +1187,11 @@ class PilotCoordinator(DataUpdateCoordinator):
             else:
                 target = self.fallback_target(room)
                 fallback.append(room['name'])
+            manual = self.manual_sessions.get(room['id'])
+            if manual and self.value(room['temperature_entity']) is not None:
+                target = manual['target']
+                if room['name'] in fallback:
+                    fallback.remove(room['name'])
             targets[room['id']] = target
         permitted = lambda: self.settings == snapshot and self.live_enabled()
         control_rooms=[{**room,'control_minimum':snapshot['minimum'] if targets[room['id']]>=snapshot['minimum'] else None,

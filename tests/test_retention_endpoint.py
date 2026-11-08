@@ -52,7 +52,7 @@ class CardRegistrationTests(unittest.IsolatedAsyncioTestCase):
         namespace={'DOMAIN':'thermal_pilot','VERSION':'test-version','Path':Path,'__file__':str(SOURCE),
                    'StaticPathConfig':lambda *args:args,'frontend':frontend,'BackupView':lambda hass: 'backup-view',
                    'websocket_api':types.SimpleNamespace(async_register_command=lambda hass,handler:None)}
-        for name in ('ws_get','ws_retention','ws_plan_chart','ws_save','ws_history','ws_reset'):namespace[name]=object()
+        for name in ('ws_get','ws_retention','ws_plan_chart','ws_save','ws_history','ws_reset','ws_manual'):namespace[name]=object()
         exec(compile(ast.Module(body=[setup],type_ignores=[]),str(SOURCE),'exec'),namespace)
         hass=types.SimpleNamespace(data={},http=types.SimpleNamespace(async_register_static_paths=register_paths,register_view=lambda view:events.append(('view',view))))
         await namespace['async_setup_entry'](hass,None)

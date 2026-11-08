@@ -258,6 +258,8 @@ function statusNotice(text,level='info',extra=''){
   const safeLevel=['error','warning','info'].includes(level)?level:'info';
   return `<p class="notice notice-${safeLevel} ${extra}" role="${safeLevel==='error'?'alert':'status'}">${statusIcon(safeLevel)}<span class="notice-text">${escapeHTML(text)}</span></p>`;
 }
+const HEATING_FLAME='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2c1 5-3 6-3 10-2-1-3-3-3-5-3 3-5 6-5 9a10 10 0 0 0 20 0c0-6-5-9-9-14Z"/></svg>';
+const COOLING_SNOWFLAKE='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M3.34 7l17.32 10M3.34 17 20.66 7M9 4l3 3 3-3M9 20l3-3 3 3M3.5 10l4-1-1-4M20.5 14l-4 1 1 4M3.5 14l4 1-1 4M20.5 10l-4-1 1-4"/></svg>';
 const tpI18n=globalThis.__thermalPilotLocalization;
 const {languageNames,languageText,finnishText,heatingFinnishText,translateText}=tpI18n;
 function weatherIcon(condition){
@@ -351,8 +353,55 @@ class ThermalPilotPanel extends HTMLElement {
   set hass(value){this._hass=value;this.updateFireplaceReading();this.updateSourceReadings();if(this.isConnected && !this.loaded && !this.loading)this.load();}
   set panel(value){this._panel=value;if(this.isConnected && this._hass && !this.loaded)this.load();}
   connectedCallback(){if(this._hass)this.load();this.timer=setInterval(()=>{if(!['settings','rooms'].includes(this.tab))this.load();},60000);}
-  disconnectedCallback(){this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
+  disconnectedCallback(){this.manualDialog?.close();this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearTimeout(this.manualSessionTimer);clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
   get entry(){return this._panel?.config?.entry_id;}
+  manualChartName(name,id,history,color){
+    const controls=this.info?.manual_controls;
+    if(history||!controls||!Object.keys(controls).length)return `<div xmlns="http://www.w3.org/1999/xhtml" data-user-text title="${escapeHTML(name)}" style="font:600 13px system-ui;color:${color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:22px">${escapeHTML(name)}</div>`;
+    const control=controls[id],session=control?.session;
+    const buttons=['heat','cool'].map(mode=>{
+      if(!control?.modes?.includes(mode))return '<span class="manual-slot" aria-hidden="true"></span>';
+      const active=session?.mode===mode&&session.ends*1000>Date.now();
+      const label=this.t(mode==='heat'?'Manual heating':'Manual cooling');
+      const end=active?new Intl.DateTimeFormat(this.settings.language||'en',{hour:'2-digit',minute:'2-digit'}).format(session.ends*1000):'';
+      const title=active?`${label} · ${new Intl.NumberFormat(this.settings.language||'en',{maximumFractionDigits:2}).format(session.target)} °C · ${this.t('Ends at')} ${end}`:label;
+      return `<span class="manual-slot"><button type="button" class="manual-icon ${active?'active':''}" data-manual-id="${escapeHTML(id)}" data-manual-mode="${mode}" aria-pressed="${active}" aria-label="${escapeHTML(title+': '+name)}" title="${escapeHTML(title)}" ${!control.enabled&&!session?'disabled':''}>${mode==='heat'?HEATING_FLAME:COOLING_SNOWFLAKE}</button></span>`;
+    }).join('');
+    return `<div xmlns="http://www.w3.org/1999/xhtml" class="manual-name" style="color:${color}">${buttons}<span data-user-text class="manual-label" title="${escapeHTML(name)}">${escapeHTML(name)}</span></div>`;
+  }
+  openManualSession(id,mode,trigger){
+    const control=this.info?.manual_controls?.[id];if(!control)return;
+    this.manualDialog?.close();
+    const dialog=document.createElement('dialog');this.manualDialog=dialog;
+    dialog.className='thermal-pilot-manual-dialog';dialog.setAttribute('aria-labelledby','manual-title');
+    const session=control.session&&control.session.ends*1000>Date.now()?control.session:null;
+    const same=session?.mode===mode;
+    const target=same?session.target:control[mode+'_target'];
+    const label=this.t(mode==='heat'?'Manual heating':'Manual cooling');
+    const end=session?new Intl.DateTimeFormat(this.settings.language||'en',{dateStyle:'short',timeStyle:'short'}).format(session.ends*1000):'';
+    const status=session?`${this.t(session.mode==='heat'?'Manual heating':'Manual cooling')} · ${new Intl.NumberFormat(this.settings.language||'en',{maximumFractionDigits:2}).format(session.target)} °C · ${this.t('Ends at')} ${end}`:'';
+    dialog.innerHTML=`<style>
+      .thermal-pilot-manual-dialog{color:var(--primary-text-color,#213547);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d5dce0);border-radius:16px;padding:24px;width:min(440px,calc(100vw - 32px));box-sizing:border-box;box-shadow:0 16px 64px #162a3b40;font:14px system-ui}.thermal-pilot-manual-dialog::backdrop{background:#182b3c65}.thermal-pilot-manual-dialog header{display:flex;align-items:center;justify-content:space-between;gap:10px}.thermal-pilot-manual-dialog h2{font-size:21px;margin:0}.thermal-pilot-manual-dialog button,.thermal-pilot-manual-dialog input,.thermal-pilot-manual-dialog select{font:inherit}.thermal-pilot-manual-dialog .close{background:none;border:0;font-size:26px;color:inherit;cursor:pointer}.thermal-pilot-manual-dialog .room{margin:8px 0 24px;color:var(--secondary-text-color,#526b75)}.thermal-pilot-manual-dialog .fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}.thermal-pilot-manual-dialog label{display:flex;flex-direction:column;gap:8px;line-height:1.5}.thermal-pilot-manual-dialog select,.thermal-pilot-manual-dialog input{width:100%;box-sizing:border-box;min-height:42px;border:1px solid #a9beca;border-radius:6px;padding:8px;color:inherit;background:var(--card-background-color,#fff)}.thermal-pilot-manual-dialog .note{color:var(--secondary-text-color,#526b75);line-height:1.6;margin:20px 0}.thermal-pilot-manual-dialog .status{padding:12px;border-radius:8px;line-height:1.5;background:#1689cc18}.thermal-pilot-manual-dialog footer{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.thermal-pilot-manual-dialog footer button{min-height:40px;padding:8px 12px;border:0;border-radius:20px;background:transparent;color:var(--primary-color,#007f8b);cursor:pointer}.thermal-pilot-manual-dialog .start{background:var(--primary-color,#007f8b);color:var(--text-primary-color,#fff)}.thermal-pilot-manual-dialog .stop{color:#b23b34;margin-right:auto;border:1px solid #e6b7b3}.thermal-pilot-manual-dialog [hidden]{display:none!important}.thermal-pilot-manual-dialog button:disabled{opacity:.45;cursor:default}.thermal-pilot-manual-dialog [role=alert]{color:var(--error-color,#b23b34)}@media(max-width:450px){.thermal-pilot-manual-dialog .fields{grid-template-columns:1fr}}
+    </style><form method="dialog"><header><h2 id="manual-title">${escapeHTML(label)}</h2><button class="close" value="cancel" formnovalidate aria-label="${escapeHTML(this.t('Close'))}">×</button></header><p class="room" data-user-text>${escapeHTML(control.name)}</p>${session?`<p class="status" data-user-text>${escapeHTML(status)}</p>`:''}<div class="fields"><label>${escapeHTML(this.t('Duration'))}<select name="minutes">${[30,60,120,240,480,1440].map(minutes=>`<option value="${minutes}" ${minutes===120?'selected':''}>${escapeHTML(new Intl.NumberFormat(this.settings.language||'en',{style:'unit',unit:minutes<60?'minute':'hour',unitDisplay:'long'}).format(minutes<60?minutes:minutes/60))}</option>`).join('')}</select></label><label>${escapeHTML(this.t('Target temperature (°C)'))}<input name="target" type="number" min="${control.minimum}" max="${control.maximum}" step="${control.step}" value="${target}" required></label></div><p class="note">${escapeHTML(this.t('Automatic control resumes when the session ends.'))}</p>${!control.enabled?`<p class="note">${escapeHTML(this.t('Enable confirmed live control before starting a session.'))}</p>`:''}<p role="alert" hidden></p><footer>${session?`<button type="button" class="stop">${escapeHTML(this.t('Stop session'))}</button>`:''}<button value="cancel" formnovalidate>${escapeHTML(this.t('Cancel'))}</button><button type="button" class="start" ${!control.enabled?'disabled':''}>${escapeHTML(this.t(same?'Update session':mode==='heat'?'Start heating':'Start cooling'))}</button></footer></form>`;
+    const submit=async(stop=false)=>{
+      const input=dialog.querySelector('input');if(!stop&&!input.reportValidity())return;
+      dialog.querySelectorAll('button').forEach(button=>{button.disabled=true;});
+      try{
+        const result=await this.call('manual',{room_id:id,mode:stop?'stop':mode,...(stop?{}:{minutes:Number(dialog.querySelector('select').value),target:Number(input.value)})});
+        this.info.manual_controls=result.manual_controls;
+        dialog.close();await this.load();
+      }catch(error){
+        const alert=dialog.querySelector('[role=alert]');alert.hidden=false;alert.textContent=this.t('Unable to change the manual session. Check the connection and current control settings.');
+        dialog.querySelectorAll('button').forEach(button=>{button.disabled=false;});
+        if(!control.enabled)dialog.querySelector('.start').disabled=true;
+      }
+    };
+    dialog.querySelector('.start').addEventListener('click',()=>submit());
+    dialog.querySelector('.stop')?.addEventListener('click',()=>submit(true));
+    dialog.querySelector('form').addEventListener('submit',event=>{if(event.submitter?.classList.contains('close')||event.submitter?.value==='cancel')return;event.preventDefault();submit();});
+    dialog.addEventListener('close',()=>{dialog.remove();if(this.manualDialog===dialog)this.manualDialog=null;trigger?.focus();},{once:true});
+    document.body.append(dialog);dialog.showModal();
+  }
   async call(type,extra={}){return this._hass.callWS({type:`thermal_pilot/${type}`,entry_id:this.entry,...extra});}
   async load(){
     if(!this.entry || this.loading)return;
@@ -361,6 +410,9 @@ class ThermalPilotPanel extends HTMLElement {
     try{
       const response=await this.call('get');
       this.info=response;this.settings=structuredClone(response.settings);this.zoneRoomDrafts={};
+      clearTimeout(this.manualSessionTimer);
+      const manualEnds=Object.values(response.manual_controls||{}).map(control=>control.session?.ends*1000).filter(end=>end>Date.now());
+      if(manualEnds.length)this.manualSessionTimer=setTimeout(()=>this.load(),Math.max(1,Math.min(...manualEnds)-Date.now()+1000));
       await tpI18n.load(this.settings.language||'en');
       if(this.tab==='history')this.history=await this.call('history',{hours:this.historyHours});
       else if(this.tab==='overview'){try{this.statusHistory=await this.call('history',{hours:48});}catch(error){this.statusHistory=[];}}
@@ -659,7 +711,7 @@ class ThermalPilotPanel extends HTMLElement {
     const targetValue=validTarget?`${new Intl.NumberFormat(this.settings?.language||'en',{maximumFractionDigits:2}).format(Number(target))} ${unit}`:this.t('Unavailable');
     const targetDetail=`${this.t('Current thermostat target')}: ${targetValue}`;
     const detail=`${this.t(`${label}. Current relay or thermostat demand; On does not guarantee water flow.`)}\n${targetDetail}`;
-    const icon=status==='unknown'?'<span aria-hidden="true">?</span>':'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2c1 5-3 6-3 10-2-1-3-3-3-5-3 3-5 6-5 9a10 10 0 0 0 20 0c0-6-5-9-9-14Z"/></svg>';
+    const icon=status==='unknown'?'<span aria-hidden="true">?</span>':HEATING_FLAME;
     return `<span class="room-heating ${status}" role="img" aria-label="${escapeHTML(this.t(label)+'. '+targetDetail)}" title="${escapeHTML(detail)}" tabindex="0">${icon}</span>`;
   }
   learningBadge(room){
@@ -722,6 +774,7 @@ class ThermalPilotPanel extends HTMLElement {
   const garageRooms=[...(this.settings?.rooms||[])].filter(isGarage).sort(compareRoomNames);
   const rooms=[...ordinaryRooms,...garageRooms];
   const zones=[...(this.settings?.heating_zones||[])].sort(compareRoomNames);
+  const manualNames=!history&&Object.keys(this.info?.manual_controls||{}).length>0;
   const chartReading=(item,zone=false)=>{
    const readings=this.info.data?.chart_temperatures?.[zone?'zones':'rooms'];
    return readings&&Object.hasOwn(readings,item.id)?readings[item.id]:this.info.data?.[zone?'zones':'rooms']?.[item.id]?.temperature;
@@ -822,7 +875,7 @@ class ThermalPilotPanel extends HTMLElement {
   const zonesEnd=zoneStart+(zones.length?14+zones.length*((compact?50:26)+roomGap):0);
   const garageStart=zones.length?zonesEnd+48:roomTop+ordinaryHeight+(ordinaryRooms.length?48:0);
   const garageGap=garageStart-roomTop-ordinaryHeight;
-  const garageHeading=garageRooms.length?`<text x="20" y="${garageStart-20}" fill="#6d5848" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Garages'))}</text>`:'';
+  const garageHeading=garageRooms.length?`<text x="${manualNames?76:20}" y="${garageStart-20}" fill="#6d5848" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Garages'))}</text>`:'';
   let chartHeight=roomTop+roomsHeight+garageGap+26;
   const lanes=rooms.map((room,roomIndex)=>{
    const rowHeight=roomHeights[roomIndex];
@@ -854,7 +907,7 @@ class ThermalPilotPanel extends HTMLElement {
      const detail=`${room.name} · ${this.t(kind)}\n${this.t('Start:')} ${timeLabel(period.start)}\n${this.t('End:')} ${timeLabel(period.end)}\n${this.t('Duration')}: ${durationLabel(period.end-period.start)}`;
      return `<rect ${detailAttributes(detail)} data-pump-period="${period.basis==='plan'?'plan':period.mode}" x="${x(a)}" y="${y+laneTop}" width="${(b-a)/span*width}" height="13" rx="2" fill="${period.basis==='plan'?'url(#suggested-heating-stripes)':period.mode==='cool'?'#3498DB':'#EC7063'}"/>`;
     }).join('');
-    return `<g class="chart-timeline-row" data-pump-timeline="${escapeHTML(room.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'#e9e1d8':'#eee8e1'):(roomIndex%2?'#f1f4f7':'#f0f5f3')}"/><foreignObject x="20" y="${compact?y-2:y-5+(rowHeight-roomGap-22)/2}" width="${roomNameWidth}" height="22"><div xmlns="http://www.w3.org/1999/xhtml" data-user-text title="${escapeHTML(room.name)}" style="font:600 13px system-ui;color:#6d5848;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:22px">${escapeHTML(room.name)}</div></foreignObject>${temperatureLabel(room,y)}<rect x="${left}" y="${y+laneTop}" width="${width}" height="13" rx="3" fill="#e5ebee"/>${activity}</g>`;
+    return `<g class="chart-timeline-row" data-pump-timeline="${escapeHTML(room.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'#e9e1d8':'#eee8e1'):(roomIndex%2?'#f1f4f7':'#f0f5f3')}"/><foreignObject x="20" y="${compact?y-2:y-5+(rowHeight-roomGap-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'#6d5848')}</foreignObject>${temperatureLabel(room,y)}<rect x="${left}" y="${y+laneTop}" width="${width}" height="13" rx="3" fill="#e5ebee"/>${activity}</g>`;
    }
    const lane=(key,offset,color)=>{
     // Adjacent On observations form one period; never join gaps or unknown states.
@@ -875,10 +928,10 @@ class ThermalPilotPanel extends HTMLElement {
      return b>a?`<rect ${detailAttributes(detail)} x="${x(a)}" y="${y+laneTop+offset}" width="${(b-a)/span*width}" height="14" fill="${!history&&v.recorded?'#EC7063':key==='suggested_heat'?'url(#suggested-heating-stripes)':color}"></rect>`:'';
     }).join('');
    };
-   return `<g class="chart-timeline-row"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'#e9e1d8':'#eee8e1'):(roomIndex%2?'#f1f4f7':'#f0f5f3')}"/><foreignObject x="20" y="${y+(compact?-1:history?7:-1)}" width="${roomNameWidth}" height="22"><div xmlns="http://www.w3.org/1999/xhtml" data-user-text title="${escapeHTML(room.name)}" style="font:600 13px system-ui;color:#253f49;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:22px">${escapeHTML(room.name)}</div></foreignObject>${temperatureLabel(room,y)}${lane('suggested_heat',0,'#EC7063')}${history?lane('activity',18,'#EC7063'):''}</g>`;
+   return `<g class="chart-timeline-row"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'#e9e1d8':'#eee8e1'):(roomIndex%2?'#f1f4f7':'#f0f5f3')}"/><foreignObject x="20" y="${y+(compact?-1:history?7:-1)}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'#253f49')}</foreignObject>${temperatureLabel(room,y)}${lane('suggested_heat',0,'#EC7063')}${history?lane('activity',18,'#EC7063'):''}</g>`;
   });
   let zoneY=zoneStart;
-  const zoneHeading=zones.length?`<text x="20" y="${zoneY-9}" fill="#76532b" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Zones'))}</text>`:'';
+  const zoneHeading=zones.length?`<text x="${manualNames?76:20}" y="${zoneY-9}" fill="#76532b" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Zones'))}</text>`:'';
   if(zones.length)zoneY+=14;
   const zoneLanes=zones.map(zone=>{
    const y=zoneY,tariff=zone.source_type!=='fireplace'&&(zone.heating_strategy||'tariff')==='tariff'&&zone.climate_mode!=='cool';
@@ -913,7 +966,7 @@ class ThermalPilotPanel extends HTMLElement {
     const detail=`${zone.name} · ${this.t(kind)}\n${this.t('Start:')} ${timeLabel(period.start)}\n${this.t('End:')} ${timeLabel(period.end)}\n${this.t('Duration')}: ${durationLabel(period.end-period.start)}`;
     return `<rect ${detailAttributes(detail)} data-zone-period="${period.basis==='plan'?'plan':period.mode==='cool'?'cool':'heat'}" x="${x(a)}" y="${y+laneTop+offset}" width="${(b-a)/span*width}" height="13" rx="2" fill="${period.basis==='plan'?'url(#suggested-heating-stripes)':period.mode==='cool'?'#3498DB':color}"/>`;
    }).join('');
-   return `<g class="chart-timeline-row" data-zone-timeline="${escapeHTML(zone.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${zoneHeight}" rx="6" fill="#f5f0e8"/><foreignObject x="20" y="${compact?y-2:y-5+(zoneHeight-22)/2}" width="${roomNameWidth}" height="22"><div xmlns="http://www.w3.org/1999/xhtml" data-user-text title="${escapeHTML(zone.name)}" style="font:600 13px system-ui;color:#76532b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:22px">${escapeHTML(zone.name)}</div></foreignObject>${temperatureLabel(zone,y,true)}${track('Activity',0,'#EC7063',[...observed('heat'),...observed('cool'),...planned].sort((a,b)=>a.start-b.start))}</g>`;
+   return `<g class="chart-timeline-row" data-zone-timeline="${escapeHTML(zone.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${zoneHeight}" rx="6" fill="#f5f0e8"/><foreignObject x="20" y="${compact?y-2:y-5+(zoneHeight-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(zone.name,'zone:'+zone.id,history,'#76532b')}</foreignObject>${temperatureLabel(zone,y,true)}${track('Activity',0,'#EC7063',[...observed('heat'),...observed('cool'),...planned].sort((a,b)=>a.start-b.start))}</g>`;
   }).join('');
   const activePrice=published.find(slot=>slot.time<=now&&now<slot.end);
   const totalPriceValue=activePrice?new Intl.NumberFormat(this.settings?.language||'en',{minimumFractionDigits:2,maximumFractionDigits:2}).format(activePrice.price):'—';
@@ -925,7 +978,8 @@ class ThermalPilotPanel extends HTMLElement {
   // Calendar-day stepping preserves local midnight across 23/25-hour DST days.
   while(nextDay.getTime()<end){dayBoundaries.push(nextDay.getTime());nextDay.setDate(nextDay.getDate()+1);}
   const dayLines=dayBoundaries.map(time=>`<line data-day-boundary="${time}" x1="${x(time)}" x2="${x(time)}" y1="${weather.height?8:top}" y2="${weather.height+chartHeight-26}" stroke="#829aa3" stroke-opacity="0.55" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none"/>`).join('');
-  return `<style>.chart-row-background{transition:filter 120ms ease}.chart-timeline-row:hover>.chart-row-background,.chart-timeline-row:focus-within>.chart-row-background{filter:drop-shadow(0 2px 6px #21354766)}@media(prefers-reduced-motion:reduce){.chart-row-background{transition:none}}</style><section class="price-card" style="background:#edf4fa;margin-bottom:24px">${heading}<div style="display:flex;flex-wrap:wrap;gap:18px;margin:16px 0;font-size:13px">${visibility.prices?`<span><b style="display:inline-block;width:24px;height:10px;border-radius:3px;background:linear-gradient(to right,#88ad91,#c3b577,#cc936c,#c9796b,#ac605c)"></b> Total electricity price (c/kWh)</span>`:''}<span data-heating-legend><b style="color:#EC7063">■</b> ${escapeHTML(this.t('Heating'))}</span>${zones.length||rooms.some(room=>isGarage(room)||room.heat_control==='air_to_air'||this.info.data?.rooms?.[room.id]?.air_control||this.settings.house_heat_source==='air_to_air')?`<span data-cooling-legend><b style="color:#3498DB">■</b> ${escapeHTML(this.t("Cooling"))}</span>`:''}<span data-suggested-heating-legend><b style="display:inline-block;width:24px;height:10px;border-radius:2px;background:repeating-linear-gradient(135deg,#F39C12 0 4px,#f6bf65 4px 6px)"></b> Suggested heating window</span>${history?this.historyPeriodSelector():''}</div>${history&&!values.length?'<p>No electricity prices are available for this period. Recorded thermostat activity is shown below.</p>':''}<div class="price-chart-viewport" style="overflow-x:auto;background:#ffffffb3;border-radius:10px;padding:12px"><svg data-range-start="${start}" data-range-end="${end}" viewBox="0 0 ${viewWidth} ${chartHeight+weather.height}" role="img" aria-label="Electricity prices with heating timelines for rooms and zones" style="width:100%;min-width:0;height:${chartHeight+weather.height}px;max-height:none;display:block"><defs><pattern id="suggested-heating-stripes" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" fill="#F39C12"/><rect width="2" height="8" fill="#f6bf65"/></pattern></defs>${weather.svg}<g transform="translate(0 ${weather.height})">${visibility.prices?`${priceCaption}${ticks}${bars}${labelRow(157+priceHeaderHeight)}`:labelRow(25)}${ordinaryRooms.length?`<text x="20" y="${roomTop-20}" fill="#253f49" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Rooms'))}</text>`:''}${lanes.slice(0,ordinaryRooms.length).join('')}${zoneHeading}${zoneLanes}${garageHeading}${lanes.slice(ordinaryRooms.length).join('')}${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="${top}" y2="${chartHeight-26}" stroke="#526b75" stroke-dasharray="4 4" stroke-width="1"/><text x="${x(now)}" y="${12+priceHeaderHeight}" text-anchor="middle" fill="#526b75" font-size="11">Now</text>`:''}${labelRow(chartHeight-8)}</g>${dayLines}</svg><div class="chart-tooltip" role="tooltip" hidden></div></div>${dashboard?'':`<details class="retention-help chart-help"><summary>${escapeHTML(this.t('About this chart'))}</summary><small data-chart-notes style="display:block;margin-top:10px;color:#526b75">${["All room timelines share the price chart’s time axis.",...(zones.length?["Zone rows show recorded heating and cooling only; off and standby periods stay empty. Plan adds suggested heating only for tariff-optimized zones."]:[]),...(history?["The selected period controls past history. Today and tomorrow are included when prices are published. Recorded activity is shown before now; future suggestions follow the current plan. Price gaps stay empty."]:[]),"Times align to 15-minute boundaries; wider views show fewer labels. Hover, focus or tap a price bar or heating period for details."].map(note=>escapeHTML(this.t(note))).join(' ')}</small></details>`}${dashboard?'':'</div></details>'}</section>`;
+  return `<style>.manual-name{display:flex;align-items:center;gap:4px;font:600 13px system-ui;line-height:22px}.manual-label{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.manual-slot{display:flex;align-items:center;justify-content:center;width:24px;min-width:24px;height:22px}.manual-icon{display:flex;align-items:center;justify-content:center;width:24px;height:22px;box-sizing:border-box;padding:3px;border:0;background:transparent;border-radius:50%;color:#8b9ba2;cursor:pointer}.manual-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}.manual-icon[data-manual-mode="heat"]:hover,.manual-icon[data-manual-mode="heat"].active{color:#d85345;background:#ffe1dc}.manual-icon[data-manual-mode="cool"]:hover,.manual-icon[data-manual-mode="cool"].active{color:#1689cc;background:#dceffc}.manual-icon[data-manual-mode="heat"].active svg{fill:currentColor}.manual-icon:focus-visible{outline:2px solid var(--primary-color,#007f8b);outline-offset:1px}.manual-icon:disabled{opacity:.4;cursor:default}
+.chart-row-background{transition:filter 120ms ease}.chart-timeline-row:hover>.chart-row-background,.chart-timeline-row:focus-within>.chart-row-background{filter:drop-shadow(0 2px 6px #21354766)}@media(prefers-reduced-motion:reduce){.chart-row-background{transition:none}}</style><section class="price-card" style="background:#edf4fa;margin-bottom:24px">${heading}<div style="display:flex;flex-wrap:wrap;gap:18px;margin:16px 0;font-size:13px">${visibility.prices?`<span><b style="display:inline-block;width:24px;height:10px;border-radius:3px;background:linear-gradient(to right,#88ad91,#c3b577,#cc936c,#c9796b,#ac605c)"></b> Total electricity price (c/kWh)</span>`:''}<span data-heating-legend><b style="color:#EC7063">■</b> ${escapeHTML(this.t('Heating'))}</span>${zones.length||rooms.some(room=>isGarage(room)||room.heat_control==='air_to_air'||this.info.data?.rooms?.[room.id]?.air_control||this.settings.house_heat_source==='air_to_air')?`<span data-cooling-legend><b style="color:#3498DB">■</b> ${escapeHTML(this.t("Cooling"))}</span>`:''}<span data-suggested-heating-legend><b style="display:inline-block;width:24px;height:10px;border-radius:2px;background:repeating-linear-gradient(135deg,#F39C12 0 4px,#f6bf65 4px 6px)"></b> Suggested heating window</span>${history?this.historyPeriodSelector():''}</div>${history&&!values.length?'<p>No electricity prices are available for this period. Recorded thermostat activity is shown below.</p>':''}<div class="price-chart-viewport" style="overflow-x:auto;background:#ffffffb3;border-radius:10px;padding:12px"><svg data-range-start="${start}" data-range-end="${end}" viewBox="0 0 ${viewWidth} ${chartHeight+weather.height}" role="${manualNames?'group':'img'}" aria-label="Electricity prices with heating timelines for rooms and zones" style="width:100%;min-width:0;height:${chartHeight+weather.height}px;max-height:none;display:block"><defs><pattern id="suggested-heating-stripes" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" fill="#F39C12"/><rect width="2" height="8" fill="#f6bf65"/></pattern></defs>${weather.svg}<g transform="translate(0 ${weather.height})">${visibility.prices?`${priceCaption}${ticks}${bars}${labelRow(157+priceHeaderHeight)}`:labelRow(25)}${ordinaryRooms.length?`<text x="${manualNames?76:20}" y="${roomTop-20}" fill="#253f49" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Rooms'))}</text>`:''}${lanes.slice(0,ordinaryRooms.length).join('')}${zoneHeading}${zoneLanes}${garageHeading}${lanes.slice(ordinaryRooms.length).join('')}${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="${top}" y2="${chartHeight-26}" stroke="#526b75" stroke-dasharray="4 4" stroke-width="1"/><text x="${x(now)}" y="${12+priceHeaderHeight}" text-anchor="middle" fill="#526b75" font-size="11">Now</text>`:''}${labelRow(chartHeight-8)}</g>${dayLines}</svg><div class="chart-tooltip" role="tooltip" hidden></div></div>${dashboard?'':`<details class="retention-help chart-help"><summary>${escapeHTML(this.t('About this chart'))}</summary><small data-chart-notes style="display:block;margin-top:10px;color:#526b75">${["All room timelines share the price chart’s time axis.",...(zones.length?["Zone rows show recorded heating and cooling only; off and standby periods stay empty. Plan adds suggested heating only for tariff-optimized zones."]:[]),...(history?["The selected period controls past history. Today and tomorrow are included when prices are published. Recorded activity is shown before now; future suggestions follow the current plan. Price gaps stay empty."]:[]),"Times align to 15-minute boundaries; wider views show fewer labels. Hover, focus or tap a price bar or heating period for details."].map(note=>escapeHTML(this.t(note))).join(' ')}</small></details>`}${dashboard?'':'</div></details>'}</section>`;
   }
   mountPriceChartSizing(){
     this.priceResizeObserver?.disconnect();
@@ -972,7 +1026,7 @@ class ThermalPilotPanel extends HTMLElement {
     viewport.addEventListener('pointerleave',hide);
     viewport.addEventListener('focusin',show);
     viewport.addEventListener('focusout',hide);
-    viewport.addEventListener('click',event=>{if(openTemperature(event))return;const box=tooltip(),mark=event.target.closest?.('[data-chart-detail]');if(box&&!box.hidden&&mark&&box.textContent===mark.dataset.chartDetail)hide();else show(event);});
+    viewport.addEventListener('click',event=>{const manual=event.target.closest?.('[data-manual-id]');if(manual?.dataset?.manualId){event.preventDefault();event.stopPropagation();if(!manual.disabled)this.openManualSession(manual.dataset.manualId,manual.dataset.manualMode,manual);return;}if(openTemperature(event))return;const box=tooltip(),mark=event.target.closest?.('[data-chart-detail]');if(box&&!box.hidden&&mark&&box.textContent===mark.dataset.chartDetail)hide();else show(event);});
     viewport.addEventListener('scroll',hide);
     viewport.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){openTemperature(event);}else if(event.key==='Escape')hide();});
   }
