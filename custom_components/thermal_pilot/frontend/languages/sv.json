@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Aktivera bekräftad enhetsstyrning innan du startar en period.",
     "Unable to change the manual session. Check the connection and current control settings.": "Det gick inte att ändra den manuella perioden. Kontrollera anslutningen och styrinställningarna.",
     "Cancel": "Avbryt",
-    "Close": "Stäng"
+    "Close": "Stäng",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Ange en temperatur mellan {minimum} och {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Använd temperatursteg på {step} °C."
   },
   "legacy": {},
   "cardMessages": {

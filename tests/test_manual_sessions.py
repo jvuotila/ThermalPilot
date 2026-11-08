@@ -52,12 +52,14 @@ class ManualSessionTests(unittest.IsolatedAsyncioTestCase):
             return await self.coordinator.set_manual_session(room, mode, minutes, target, now)
 
     async def test_floor_room_heat_and_early_stop_restore_automatic_target(self):
-        controls = await self.start('floor', target=22)
+        controls = await self.start('floor', target=99)
+        expected = min(self.coordinator.settings['maximum'], self.floor['baseline'] + self.coordinator.settings['boost'])
         self.assertEqual(controls['floor']['modes'], ['heat'])
-        self.assertEqual(self.coordinator.control.results['floor'], 22)
-        writes = self.hass.services.async_call.call_args_list
-        self.assertTrue(any(call.args[1] == 'set_temperature' and
-                            call.args[2].get('temperature') == 22 for call in writes))
+        self.assertFalse(controls['floor']['target_required'])
+        self.assertEqual(self.coordinator.control.results['floor'], expected)
+        # Automatic planning may already have requested this same boost.
+        # A manual session holds it without inventing another setpoint.
+        self.assertEqual(self.coordinator.control.pending['climate.room']['target'], expected)
         await self.start('floor', mode='stop')
         self.assertNotIn('floor', self.coordinator.manual_sessions)
         self.assertEqual(self.coordinator.control.results['floor'],
@@ -121,7 +123,7 @@ class ManualSessionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_invalid_requests_and_unsupported_cooling_never_create_sessions(self):
         for minutes, target in [(0, 18), (-1, 18), (1441, 18), (float('nan'), 18),
-                                (120, 15), (120, 31), (120, float('inf'))]:
+                                (120, 4), (120, 36), (120, float('inf'))]:
             with self.subTest(minutes=minutes, target=target), self.assertRaises(ValueError):
                 await self.start(minutes=minutes, target=target)
         with self.assertRaises(ValueError):
@@ -170,3 +172,40 @@ class ManualSessionTests(unittest.IsolatedAsyncioTestCase):
             await self.start()
         self.assertFalse(self.coordinator.manual_sessions)
         self.assertFalse(self.hass.services.async_call.called)
+
+
+    async def test_fan_only_zero_to_one_bounds_do_not_block_eighteen_degree_heat(self):
+        pump = self.hass.states['climate.garage']
+        pump.attributes.update(min_temp=0, max_temp=1, target_temp_step=1)
+        control = self.coordinator.manual_controls()['garage']
+        self.assertEqual(control['heat_target'], self.garage['garage_heat_target'])
+        self.assertGreaterEqual(control['limits']['heat']['maximum'], 18)
+        await self.start(target=18)
+        self.assertTrue(any(call.args[1] == 'set_hvac_mode' and
+                            call.args[2].get('hvac_mode') == 'heat'
+                            for call in self.hass.services.async_call.call_args_list))
+        pump.state = 'heat'
+        pump.attributes.update(min_temp=16, max_temp=30, temperature=16)
+        await self.coordinator.update_command_state(now + timedelta(seconds=10))
+        self.assertTrue(any(call.args[1] == 'set_temperature' and
+                            call.args[2].get('temperature') == 18
+                            for call in self.hass.services.async_call.call_args_list))
+
+    async def test_heat_and_cool_bounds_are_mode_specific_and_settling_is_respected(self):
+        pump = self.hass.states['climate.garage']
+        pump.state = 'heat'
+        pump.attributes.update(min_temp=16, max_temp=30, target_temp_step=1)
+        controls = self.coordinator.manual_controls()['garage']
+        self.assertEqual(controls['limits']['heat'], {'minimum':16, 'maximum':30, 'step':1})
+        self.assertEqual(controls['limits']['cool'], {'minimum':5, 'maximum':35, 'step':.5})
+        with self.assertRaises(ValueError):
+            await self.start(target=31)
+        self.coordinator.air_control.ready['climate.garage'] = now.timestamp() + 10
+        pump.attributes.update(min_temp=0, max_temp=1)
+        self.assertEqual(self.coordinator.manual_controls()['garage']['limits']['heat']['maximum'], 35)
+
+    async def test_water_session_follows_changed_configured_boost(self):
+        await self.start('floor', target=99)
+        self.coordinator.settings['boost'] = 2
+        self.coordinator.data = await self.coordinator._async_update_data()
+        self.assertEqual(self.coordinator.control.results['floor'], self.floor['baseline'] + 2)

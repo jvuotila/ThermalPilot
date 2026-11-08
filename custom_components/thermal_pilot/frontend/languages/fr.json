@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Activez le contrôle confirmé des appareils avant de démarrer une session.",
     "Unable to change the manual session. Check the connection and current control settings.": "Impossible de modifier la session manuelle. Vérifiez la connexion et les paramètres de contrôle.",
     "Cancel": "Annuler",
-    "Close": "Fermer"
+    "Close": "Fermer",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Saisissez une température entre {minimum} et {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Utilisez des pas de température de {step} °C."
   },
   "legacy": {},
   "cardMessages": {

@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Aktivér bekræftet enhedsstyring, før du starter en periode.",
     "Unable to change the manual session. Check the connection and current control settings.": "Den manuelle periode kunne ikke ændres. Kontrollér forbindelsen og styringsindstillingerne.",
     "Cancel": "Annuller",
-    "Close": "Luk"
+    "Close": "Luk",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Angiv en temperatur mellem {minimum} og {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Brug temperaturtrin på {step} °C."
   },
   "legacy": {},
   "cardMessages": {

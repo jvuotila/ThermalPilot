@@ -236,3 +236,10 @@ Frontend VM/DOM-double checks cover aligned icon/name columns, capability-based
 cooling, the shared flame icon, active session indicators, localized dialogs,
 start/update/stop requests, failure feedback, input validation and focus return.
 These checks do not establish browser layout or physical device performance.
+
+
+Manual-session regressions also cover fan-only devices reporting 0–1 bounds,
+selecting Heat before validating/sending an 18°C target, distinct Heat/Cool
+ranges and mode settling. Hydronic sessions take duration only and follow the
+current configured boost. Frontend checks require localized inline range/step
+errors (including Finnish), with native browser validation disabled.

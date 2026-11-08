@@ -378,7 +378,9 @@
     "Enable confirmed live control before starting a session.": "Ota vahvistettu laiteohjaus käyttöön ennen jakson aloittamista.",
     "Unable to change the manual session. Check the connection and current control settings.": "Manuaalista jaksoa ei voitu muuttaa. Tarkista yhteys ja nykyiset ohjausasetukset.",
     "Cancel": "Peruuta",
-    "Close": "Sulje"
+    "Close": "Sulje",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Anna lämpötila väliltä {minimum}–{maximum} °C.",
+    "Use temperature steps of {step} °C.": "Käytä {step} °C:n lämpötila-askelia."
   },
   "legacy": {
     "Plan": "Suunnitelma",

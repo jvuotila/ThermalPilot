@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Activează controlul confirmat al dispozitivelor înainte de a începe o sesiune.",
     "Unable to change the manual session. Check the connection and current control settings.": "Sesiunea manuală nu a putut fi modificată. Verifică conexiunea și setările de control.",
     "Cancel": "Anulează",
-    "Close": "Închide"
+    "Close": "Închide",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Introdu o temperatură între {minimum} și {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Folosește pași de temperatură de {step} °C."
   },
   "legacy": {},
   "cardMessages": {

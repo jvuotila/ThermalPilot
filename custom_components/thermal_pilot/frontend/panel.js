@@ -373,21 +373,42 @@ class ThermalPilotPanel extends HTMLElement {
     const control=this.info?.manual_controls?.[id];if(!control)return;
     this.manualDialog?.close();
     const dialog=document.createElement('dialog');this.manualDialog=dialog;
-    dialog.className='thermal-pilot-manual-dialog';dialog.setAttribute('aria-labelledby','manual-title');
+    dialog.className='thermal-pilot-manual-dialog';dialog.setAttribute('aria-labelledby','manual-title');dialog.setAttribute('lang',this.settings.language||'en');
     const session=control.session&&control.session.ends*1000>Date.now()?control.session:null;
     const same=session?.mode===mode;
+    const limits=control.limits?.[mode]||control;
+    const needsTarget=control.target_required!==false;
     const target=same?session.target:control[mode+'_target'];
     const label=this.t(mode==='heat'?'Manual heating':'Manual cooling');
     const end=session?new Intl.DateTimeFormat(this.settings.language||'en',{dateStyle:'short',timeStyle:'short'}).format(session.ends*1000):'';
     const status=session?`${this.t(session.mode==='heat'?'Manual heating':'Manual cooling')} · ${new Intl.NumberFormat(this.settings.language||'en',{maximumFractionDigits:2}).format(session.target)} °C · ${this.t('Ends at')} ${end}`:'';
     dialog.innerHTML=`<style>
       .thermal-pilot-manual-dialog{color:var(--primary-text-color,#213547);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d5dce0);border-radius:16px;padding:24px;width:min(440px,calc(100vw - 32px));box-sizing:border-box;box-shadow:0 16px 64px #162a3b40;font:14px system-ui}.thermal-pilot-manual-dialog::backdrop{background:#182b3c65}.thermal-pilot-manual-dialog header{display:flex;align-items:center;justify-content:space-between;gap:10px}.thermal-pilot-manual-dialog h2{font-size:21px;margin:0}.thermal-pilot-manual-dialog button,.thermal-pilot-manual-dialog input,.thermal-pilot-manual-dialog select{font:inherit}.thermal-pilot-manual-dialog .close{background:none;border:0;font-size:26px;color:inherit;cursor:pointer}.thermal-pilot-manual-dialog .room{margin:8px 0 24px;color:var(--secondary-text-color,#526b75)}.thermal-pilot-manual-dialog .fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}.thermal-pilot-manual-dialog label{display:flex;flex-direction:column;gap:8px;line-height:1.5}.thermal-pilot-manual-dialog select,.thermal-pilot-manual-dialog input{width:100%;box-sizing:border-box;min-height:42px;border:1px solid #a9beca;border-radius:6px;padding:8px;color:inherit;background:var(--card-background-color,#fff)}.thermal-pilot-manual-dialog .note{color:var(--secondary-text-color,#526b75);line-height:1.6;margin:20px 0}.thermal-pilot-manual-dialog .status{padding:12px;border-radius:8px;line-height:1.5;background:#1689cc18}.thermal-pilot-manual-dialog footer{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}.thermal-pilot-manual-dialog footer button{min-height:40px;padding:8px 12px;border:0;border-radius:20px;background:transparent;color:var(--primary-color,#007f8b);cursor:pointer}.thermal-pilot-manual-dialog .start{background:var(--primary-color,#007f8b);color:var(--text-primary-color,#fff)}.thermal-pilot-manual-dialog .stop{color:#b23b34;margin-right:auto;border:1px solid #e6b7b3}.thermal-pilot-manual-dialog [hidden]{display:none!important}.thermal-pilot-manual-dialog button:disabled{opacity:.45;cursor:default}.thermal-pilot-manual-dialog [role=alert]{color:var(--error-color,#b23b34)}@media(max-width:450px){.thermal-pilot-manual-dialog .fields{grid-template-columns:1fr}}
-    </style><form method="dialog"><header><h2 id="manual-title">${escapeHTML(label)}</h2><button class="close" value="cancel" formnovalidate aria-label="${escapeHTML(this.t('Close'))}">×</button></header><p class="room" data-user-text>${escapeHTML(control.name)}</p>${session?`<p class="status" data-user-text>${escapeHTML(status)}</p>`:''}<div class="fields"><label>${escapeHTML(this.t('Duration'))}<select name="minutes">${[30,60,120,240,480,1440].map(minutes=>`<option value="${minutes}" ${minutes===120?'selected':''}>${escapeHTML(new Intl.NumberFormat(this.settings.language||'en',{style:'unit',unit:minutes<60?'minute':'hour',unitDisplay:'long'}).format(minutes<60?minutes:minutes/60))}</option>`).join('')}</select></label><label>${escapeHTML(this.t('Target temperature (°C)'))}<input name="target" type="number" min="${control.minimum}" max="${control.maximum}" step="${control.step}" value="${target}" required></label></div><p class="note">${escapeHTML(this.t('Automatic control resumes when the session ends.'))}</p>${!control.enabled?`<p class="note">${escapeHTML(this.t('Enable confirmed live control before starting a session.'))}</p>`:''}<p role="alert" hidden></p><footer>${session?`<button type="button" class="stop">${escapeHTML(this.t('Stop session'))}</button>`:''}<button value="cancel" formnovalidate>${escapeHTML(this.t('Cancel'))}</button><button type="button" class="start" ${!control.enabled?'disabled':''}>${escapeHTML(this.t(same?'Update session':mode==='heat'?'Start heating':'Start cooling'))}</button></footer></form>`;
+    </style><form method="dialog" novalidate><header><h2 id="manual-title">${escapeHTML(label)}</h2><button class="close" value="cancel" formnovalidate aria-label="${escapeHTML(this.t('Close'))}">×</button></header><p class="room" data-user-text>${escapeHTML(control.name)}</p>${session?`<p class="status" data-user-text>${escapeHTML(status)}</p>`:''}<div class="fields" style="${needsTarget?'':'grid-template-columns:1fr'}"><label>${escapeHTML(this.t('Duration'))}<select name="minutes">${[30,60,120,240,480,1440].map(minutes=>`<option value="${minutes}" ${minutes===120?'selected':''}>${escapeHTML(new Intl.NumberFormat(this.settings.language||'en',{style:'unit',unit:minutes<60?'minute':'hour',unitDisplay:'long'}).format(minutes<60?minutes:minutes/60))}</option>`).join('')}</select></label>${needsTarget?`<label>${escapeHTML(this.t('Target temperature (°C)'))}<input name="target" type="number" min="${limits.minimum}" max="${limits.maximum}" step="${limits.step}" value="${target}" required></label>`:''}</div><p class="note">${escapeHTML(this.t('Automatic control resumes when the session ends.'))}</p>${!control.enabled?`<p class="note">${escapeHTML(this.t('Enable confirmed live control before starting a session.'))}</p>`:''}<p role="alert" hidden></p><footer>${session?`<button type="button" class="stop">${escapeHTML(this.t('Stop session'))}</button>`:''}<button value="cancel" formnovalidate>${escapeHTML(this.t('Cancel'))}</button><button type="button" class="start" ${!control.enabled?'disabled':''}>${escapeHTML(this.t(same?'Update session':mode==='heat'?'Start heating':'Start cooling'))}</button></footer></form>`;
     const submit=async(stop=false)=>{
-      const input=dialog.querySelector('input');if(!stop&&!input.reportValidity())return;
+      const input=dialog.querySelector('input');
+      const alert=dialog.querySelector('[role=alert]');
+      if(!stop&&needsTarget){
+        const temperature=Number(input.value);
+        const format=new Intl.NumberFormat(this.settings.language||'en',{maximumFractionDigits:2});
+        let validation='';
+        if(input.value.trim()===''||!Number.isFinite(temperature)||temperature<limits.minimum||temperature>limits.maximum){
+          validation=this.t('Enter a temperature between {minimum} and {maximum} °C.')
+            .replaceAll('{minimum}',format.format(limits.minimum)).replaceAll('{maximum}',format.format(limits.maximum));
+        }else{
+          const steps=(temperature-limits.minimum)/limits.step;
+          if(Math.abs(steps-Math.round(steps))>1e-6){
+            validation=this.t('Use temperature steps of {step} °C.').replaceAll('{step}',format.format(limits.step));
+          }
+        }
+        if(validation){
+          alert.hidden=false;alert.textContent=validation;input.setAttribute('aria-invalid','true');input.focus();return;
+        }
+        input.removeAttribute('aria-invalid');alert.hidden=true;
+      }
       dialog.querySelectorAll('button').forEach(button=>{button.disabled=true;});
       try{
-        const result=await this.call('manual',{room_id:id,mode:stop?'stop':mode,...(stop?{}:{minutes:Number(dialog.querySelector('select').value),target:Number(input.value)})});
+        const result=await this.call('manual',{room_id:id,mode:stop?'stop':mode,...(stop?{}:{minutes:Number(dialog.querySelector('select').value),...(needsTarget?{target:Number(input.value)}:{})})});
         this.info.manual_controls=result.manual_controls;
         dialog.close();await this.load();
       }catch(error){

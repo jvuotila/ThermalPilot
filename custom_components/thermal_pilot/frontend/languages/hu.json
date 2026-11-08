@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Munkamenet indítása előtt engedélyezze a jóváhagyott eszközvezérlést.",
     "Unable to change the manual session. Check the connection and current control settings.": "Nem sikerült módosítani a kézi munkamenetet. Ellenőrizze a kapcsolatot és a vezérlési beállításokat.",
     "Cancel": "Mégse",
-    "Close": "Bezárás"
+    "Close": "Bezárás",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Adjon meg {minimum} és {maximum} °C közötti hőmérsékletet.",
+    "Use temperature steps of {step} °C.": "Használjon {step} °C-os hőmérsékleti lépéseket."
   },
   "legacy": {},
   "cardMessages": {

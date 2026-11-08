@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Пре покретања сесије омогућите потврђено управљање уређајима.",
     "Unable to change the manual session. Check the connection and current control settings.": "Ручна сесија није могла да се промени. Проверите везу и подешавања управљања.",
     "Cancel": "Откажи",
-    "Close": "Затвори"
+    "Close": "Затвори",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Унесите температуру између {minimum} и {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Користите температурне кораке од {step} °C."
   },
   "legacy": {},
   "cardMessages": {

@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Před spuštěním relace zapněte potvrzené ovládání zařízení.",
     "Unable to change the manual session. Check the connection and current control settings.": "Ruční relaci se nepodařilo změnit. Zkontrolujte připojení a nastavení řízení.",
     "Cancel": "Zrušit",
-    "Close": "Zavřít"
+    "Close": "Zavřít",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Zadejte teplotu od {minimum} do {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Použijte teplotní kroky po {step} °C."
   },
   "legacy": {},
   "cardMessages": {

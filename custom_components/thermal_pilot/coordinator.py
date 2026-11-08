@@ -1019,26 +1019,48 @@ class PilotCoordinator(DataUpdateCoordinator):
                      if mode in state.attributes.get('hvac_modes', ['heat']) and (air or mode == 'heat')]
             if not modes:
                 continue
-            minimum = number(state.attributes.get('min_temp'), 5)
-            maximum = number(state.attributes.get('max_temp'), 35)
-            # Garage maintenance limits intentionally do not constrain a working
-            # session. Ordinary rooms retain their configured temperature bounds.
-            if not room.get('is_garage'):
-                minimum = max(minimum, self.settings['minimum'])
-                maximum = min(maximum, self.settings['maximum'])
+            limits = {}
+            for mode in modes:
+                minimum, maximum, step = 5, 35, .5
+                # Fan-only/off can report 0–1, and Heat bounds need not be Cool
+                # bounds. Only use device limits for the selected, settled mode.
+                # The pump controller validates again after mode acknowledgement,
+                # before issuing any temperature command.
+                settled_mode = (state.state == mode and dt_util.utcnow().timestamp()
+                                >= self.air_control.ready.get(room['thermostat'], 0))
+                if not air or settled_mode:
+                    minimum = number(state.attributes.get('min_temp'), 5)
+                    maximum = number(state.attributes.get('max_temp'), 35)
+                    step = number(state.attributes.get('target_temp_step'), .5)
+                # Maintenance bounds are deliberately overridden for garages;
+                # ordinary rooms still respect their configured temperature range.
+                if not room.get('is_garage'):
+                    minimum = max(minimum, self.settings['minimum'])
+                    maximum = min(maximum, self.settings['maximum'])
+                limits[mode] = {'minimum': minimum, 'maximum': maximum, 'step': step}
             if room.get('is_garage'):
                 target = room['garage_heat_target']
             elif air:
                 target = self.settings['air_heat_target']
             else:
                 target = room['baseline'] + self.settings['boost']
+            heat_limits = limits.get('heat', limits[modes[0]])
+            cool_limits = limits.get('cool', heat_limits)
+            target_required = air or not water_distribution(self.settings)
+            session = self.manual_sessions.get(room['id'])
+            if session and not target_required:
+                session = {**session, 'target': min(self.settings['maximum'], room['baseline'] + self.settings['boost'])}
+            # Flat bounds remain a compatibility envelope for an older frontend;
+            # current clients choose the requested mode's individual bounds.
             controls[room['id']] = {
                 'name': room['name'], 'entity': room['thermostat'], 'modes': modes,
-                'minimum': minimum, 'maximum': maximum,
-                'step': number(state.attributes.get('target_temp_step'), .5),
-                'heat_target': min(maximum, max(minimum, target)),
-                'cool_target': min(maximum, max(minimum, room.get('zone_cooling_target', 24))),
-                'session': self.manual_sessions.get(room['id']),
+                'target_required': target_required,
+                'minimum': min(bound['minimum'] for bound in limits.values()),
+                'maximum': max(bound['maximum'] for bound in limits.values()),
+                'step': min(bound['step'] for bound in limits.values()), 'limits': limits,
+                'heat_target': min(heat_limits['maximum'], max(heat_limits['minimum'], target)),
+                'cool_target': min(cool_limits['maximum'], max(cool_limits['minimum'], room.get('zone_cooling_target', 24))),
+                'session': session,
                 'enabled': bool(self.live_enabled() and self.settings['heating_enabled']
                                 and room.get('zone_control_enabled', True)
                                 and self._plan_settings == self.settings
@@ -1067,10 +1089,11 @@ class PilotCoordinator(DataUpdateCoordinator):
             if mode not in control['modes']:
                 raise ValueError('This device does not support the requested mode.')
             duration = number(minutes)
-            temperature = number(target)
+            temperature = (number(target) if control['target_required'] else control['heat_target'])
             if duration is None or not 1 <= duration <= 1440:
                 raise ValueError('Choose a duration between 1 minute and 24 hours.')
-            if temperature is None or not control['minimum'] <= temperature <= control['maximum']:
+            limits = control['limits'][mode]
+            if temperature is None or not limits['minimum'] <= temperature <= limits['maximum']:
                 raise ValueError('Choose a temperature within the displayed limits.')
             sessions[room_id] = {
                 'mode': mode, 'target': temperature, 'started': now.timestamp(),
@@ -1189,7 +1212,12 @@ class PilotCoordinator(DataUpdateCoordinator):
                 fallback.append(room['name'])
             manual = self.manual_sessions.get(room['id'])
             if manual and self.value(room['temperature_entity']) is not None:
-                target = manual['target']
+                if uses_water:
+                    # A manual hydronic session is the usual configured boost,
+                    # held for the requested duration, not a separate setpoint.
+                    target = min(snapshot['maximum'], room['baseline'] + snapshot['boost'])
+                else:
+                    target = manual['target']
                 if room['name'] in fallback:
                     fallback.remove(room['name'])
             targets[room['id']] = target

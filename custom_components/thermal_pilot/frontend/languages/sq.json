@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Aktivizoni kontrollin e konfirmuar të pajisjeve përpara se të nisni një seancë.",
     "Unable to change the manual session. Check the connection and current control settings.": "Seanca manuale nuk mund të ndryshohej. Kontrolloni lidhjen dhe cilësimet e kontrollit.",
     "Cancel": "Anulo",
-    "Close": "Mbyll"
+    "Close": "Mbyll",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Vendosni një temperaturë midis {minimum} dhe {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Përdorni hapa temperature prej {step} °C."
   },
   "legacy": {},
   "cardMessages": {

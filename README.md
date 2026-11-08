@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.68 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.69 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -288,7 +288,9 @@ are not guaranteed.
 On the **Plan** chart, use the flame before a room or heat-pump zone name to
 start a manual heating session. A snowflake is available when the managed heat
 pump supports cooling. Heating-only rooms have the flame control as well.
-Choose a duration and a thermostat target; click either icon again to update
+Choose a duration; heat pumps and other direct thermostat controls also offer a
+target temperature. Water-circulating systems use the room’s normal configured
+heating boost and ask only for the duration. Click either icon again to update
 or stop the current session. The active icon shows the target and end time.
 
 Manual sessions require confirmed live control, an active integration, and an

@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Enne seansi alustamist luba kinnitatud seadmejuhtimine.",
     "Unable to change the manual session. Check the connection and current control settings.": "Käsitsi seanssi ei saanud muuta. Kontrolli ühendust ja juhtimisseadeid.",
     "Cancel": "Tühista",
-    "Close": "Sulge"
+    "Close": "Sulge",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Sisesta temperatuur vahemikus {minimum}–{maximum} °C.",
+    "Use temperature steps of {step} °C.": "Kasuta {step} °C temperatuurisamme."
   },
   "legacy": {},
   "cardMessages": {

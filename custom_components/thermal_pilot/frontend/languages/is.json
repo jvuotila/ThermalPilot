@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Virkjaðu staðfesta tækjastýringu áður en þú byrjar lotu.",
     "Unable to change the manual session. Check the connection and current control settings.": "Ekki tókst að breyta handvirku lotunni. Athugaðu tenginguna og stýristillingarnar.",
     "Cancel": "Hætta við",
-    "Close": "Loka"
+    "Close": "Loka",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Sláðu inn hitastig á bilinu {minimum}–{maximum} °C.",
+    "Use temperature steps of {step} °C.": "Notaðu hitastigsskref upp á {step} °C."
   },
   "legacy": {},
   "cardMessages": {

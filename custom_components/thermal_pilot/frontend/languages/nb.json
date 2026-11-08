@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Aktiver bekreftet enhetsstyring før du starter en økt.",
     "Unable to change the manual session. Check the connection and current control settings.": "Kunne ikke endre den manuelle økten. Kontroller tilkoblingen og styringsinnstillingene.",
     "Cancel": "Avbryt",
-    "Close": "Lukk"
+    "Close": "Lukk",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Angi en temperatur mellom {minimum} og {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Bruk temperaturtrinn på {step} °C."
   },
   "legacy": {},
   "cardMessages": {

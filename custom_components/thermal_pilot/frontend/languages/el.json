@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Ενεργοποιήστε τον επιβεβαιωμένο έλεγχο συσκευών πριν ξεκινήσετε μια συνεδρία.",
     "Unable to change the manual session. Check the connection and current control settings.": "Δεν ήταν δυνατή η αλλαγή της χειροκίνητης συνεδρίας. Ελέγξτε τη σύνδεση και τις ρυθμίσεις ελέγχου.",
     "Cancel": "Ακύρωση",
-    "Close": "Κλείσιμο"
+    "Close": "Κλείσιμο",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Εισαγάγετε θερμοκρασία μεταξύ {minimum} και {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Χρησιμοποιήστε βήματα θερμοκρασίας {step} °C."
   },
   "legacy": {},
   "cardMessages": {

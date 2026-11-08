@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Schakel bevestigde apparaatbesturing in voordat je een sessie start.",
     "Unable to change the manual session. Check the connection and current control settings.": "De handmatige sessie kon niet worden gewijzigd. Controleer de verbinding en de regelinstellingen.",
     "Cancel": "Annuleren",
-    "Close": "Sluiten"
+    "Close": "Sluiten",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Voer een temperatuur tussen {minimum} en {maximum} °C in.",
+    "Use temperature steps of {step} °C.": "Gebruik temperatuurstappen van {step} °C."
   },
   "legacy": {},
   "cardMessages": {

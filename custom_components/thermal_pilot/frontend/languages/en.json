@@ -751,7 +751,9 @@
     "Enable confirmed live control before starting a session.": "Enable confirmed live control before starting a session.",
     "Unable to change the manual session. Check the connection and current control settings.": "Unable to change the manual session. Check the connection and current control settings.",
     "Cancel": "Cancel",
-    "Close": "Close"
+    "Close": "Close",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Enter a temperature between {minimum} and {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Use temperature steps of {step} °C."
   },
   "legacy": {},
   "cardMessages": {

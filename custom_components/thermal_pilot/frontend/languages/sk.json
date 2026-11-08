@@ -524,7 +524,9 @@
     "Enable confirmed live control before starting a session.": "Pred spustením relácie zapnite potvrdené ovládanie zariadení.",
     "Unable to change the manual session. Check the connection and current control settings.": "Ručnú reláciu sa nepodarilo zmeniť. Skontrolujte pripojenie a nastavenia riadenia.",
     "Cancel": "Zrušiť",
-    "Close": "Zavrieť"
+    "Close": "Zavrieť",
+    "Enter a temperature between {minimum} and {maximum} °C.": "Zadajte teplotu od {minimum} do {maximum} °C.",
+    "Use temperature steps of {step} °C.": "Použite teplotné kroky po {step} °C."
   },
   "legacy": {},
   "cardMessages": {
