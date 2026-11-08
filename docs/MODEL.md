@@ -54,8 +54,20 @@ sums retain a forgetting factor and ridge regularization toward initial estimate
 After at least 12 hours of observed heating and 12 hours of idle evidence, physically
 bounded gain/loss estimates are blended slowly into the current coefficients.
 
-Abrupt changes exceeding 2 C/hour are excluded. Missing activity, large sampling
-gaps and fireplace periods do not update coefficients. Short-term MAE is tracked
+Abrupt changes exceeding 2 C/hour are excluded for slow heating systems.
+Air-to-air controllers (including garages, ordinary air-heated rooms and zones)
+allow up to 12 C/hour, so normal fast air warmups are not discarded under the
+slow-system guard. This remains a rough outlier threshold, not proof that a
+sensor is correctly placed. Existing door, cooling and secondary-heat exclusions
+still apply.
+
+The learner requires at least three minutes between its anchor and the next
+sample. Frequent source-driven refreshes retain that anchor until enough time
+has accumulated, rather than repeatedly discarding every short interval.
+Activity, exclusion and input-availability changes start a fresh window to avoid
+mixing different observation conditions. Command timers do not add heating time;
+manual and automatic heat count through the same observed-input path. Missing
+activity, large sampling gaps and fireplace periods do not update coefficients. Short-term MAE is tracked
 separately from parameter updates. Initial samples do not establish a calibrated
 confidence interval; there is no claim of statistically validated predictive accuracy.
 

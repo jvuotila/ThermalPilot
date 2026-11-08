@@ -526,7 +526,14 @@
     "Cancel": "Zrušit",
     "Close": "Zavřít",
     "Enter a temperature between {minimum} and {maximum} °C.": "Zadejte teplotu od {minimum} do {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Použijte teplotní kroky po {step} °C."
+    "Use temperature steps of {step} °C.": "Použijte teplotní kroky po {step} °C.",
+    "Notifications": "Oznámení",
+    "Push notification device (optional)": "Zařízení pro push oznámení (volitelné)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Vyberte zařízení Companion, které dostane oznámení, když otevřená garážová vrata blokují ruční relaci. Žádné zařízení se nevybírá automaticky.",
+    "Manual heating paused": "Ruční vytápění pozastaveno",
+    "Manual cooling paused": "Ruční chlazení pozastaveno",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: ruční relace nemůže začít, protože garážová vrata jsou otevřená: {doors}. Zavřete všechna nastavená vrata, aby mohla aktivní relace začít.",
+    "Push notification could not be sent. Check the selected notification device.": "Push oznámení se nepodařilo odeslat. Zkontrolujte vybrané zařízení pro oznámení."
   },
   "legacy": {},
   "cardMessages": {

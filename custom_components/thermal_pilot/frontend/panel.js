@@ -66,6 +66,7 @@ const settingHelp = {
   minimum: 'Emergency lower temperature limit shared by all rooms. Each room’s own target is the normal comfort goal. ThermalPilot prioritizes avoiding this limit even when electricity is expensive; this value is not the idle thermostat target.',
   maximum: 'Upper temperature limit shared by all rooms. Extra heating and heat storage must stay within this limit.',
   price_forecast_entity: 'Optional sensor with forecast timestamp/value entries, such as Nordpool Predict FI. Only relative expensive/cheap patterns after confirmed prices are used, so no forecast price unit or additional costs are required. The Source price unit setting applies only to the confirmed total-price sensor. An expensive upcoming period can increase the heat reserve at the end of the known-price plan. Forecast prices are not compared directly with your total prices, used as confirmed prices or used to execute future heating commands. Missing forecasts keep normal planning. Confirmed prices always determine the executable schedule.',
+  manual_notification_target: 'Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.',
   sensor_warning_hours: 'Notify in Home Assistant when a room temperature sensor stays unchanged or unavailable for this many hours. A stable room can also have an unchanged reading, so the warning asks you to check the sensor. ThermalPilot sends at most one sensor notification per calendar day. Monitoring runs while ThermalPilot is active; long monitoring gaps restart the timer.',
   summer_minimum_temperature: 'Summer fallback follows the daily minimum temperature. With incomplete forecasts, Home Assistant location provides a warm-weather estimate: June–August north or December–February south, outside the tropics. Colder readings override the estimate; insufficient evidence selects winter. Summer uses the shared summer setpoint; winter uses normal room targets.',
   fireplace_reduction: 'Negative values reduce estimated heat loss while the fireplace is active; −20% means a 20% reduction.',
@@ -89,6 +90,7 @@ const sourceSettingGroups = [
   ['Electricity price settings',['price_entity','static_price','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode']],
   ['Weather and forecast settings',['weather_entity','outdoor_entity','wind_entity','summer_minimum_temperature']],
   ['Heating settings',['minimum_run_minutes','fireplace_entity','fireplace_active_state']],
+  ['Notifications',['manual_notification_target']],
   ['Miscellaneous',['sensor_warning_hours']],
 ];
 const sharedSettingGroups = [
@@ -445,6 +447,11 @@ class ThermalPilotPanel extends HTMLElement {
     const [key,label,type,min,max,step='any']=field;const value=obj[key];const name=`${prefix}.${key}`;
     let input;
     if(type==='bool')input=`<input type="checkbox" class="setting-toggle" role="switch" data-field="${name}" ${value?'checked':''}>`;
+    else if(type==='notification'){
+      const targets=this.info.notification_targets||[];
+      const options=[...targets];if(value&&!options.includes(value))options.push(value);
+      input=`<select data-field="${name}"><option value="">${escapeHTML(this.t('— Select / not used —'))}</option>${options.map(target=>`<option data-user-text value="${escapeHTML(target)}" ${target===value?'selected':''}>${escapeHTML(target.replace(/^notify\.mobile_app_/, '').replace(/^notify\./, '').replaceAll('_',' '))}${targets.includes(target)?'':` (${escapeHTML(this.t('Unavailable'))})`}</option>`).join('')}</select>`;
+    }
     else if(key==='fireplace_active_state'){
       const sensor=this._hass?.states?.[obj.fireplace_entity];
       const options=fireplaceStateOptions(sensor,value);
@@ -1052,7 +1059,7 @@ class ThermalPilotPanel extends HTMLElement {
     viewport.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){openTemperature(event);}else if(event.key==='Escape')hide();});
   }
   positionSettingTooltip(help){
-    const box=help.querySelector('.setting-tooltip'),anchor=help.querySelector('.setting-info');
+    const box=help.querySelector('.setting-tooltip'),anchor=help.querySelector('.setting-info,[data-tooltip-trigger]');
     if(!box||!anchor)return;
     const viewport=window.visualViewport;
     const left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0;
@@ -1069,25 +1076,72 @@ class ThermalPilotPanel extends HTMLElement {
   }
   bindSettingTooltips(){
     this.settingTooltipCleanup?.();
+    // Native title tooltips are inaccessible to touch users. Give badges the
+    // same explicit popup as info buttons, preserving their full text safely.
+    const badges=this.shadowRoot.querySelectorAll('.room-heating[title],.room-forecast-badge[title],.room-learning[title],.retention-rating[title]');
+    for(const anchor of badges){
+      const help=document.createElement('span'),box=document.createElement('span');
+      help.className='setting-help native-tooltip-help';box.className='setting-tooltip';
+      box.textContent=anchor.getAttribute('title');box.setAttribute('role','tooltip');
+      this.tooltipCounter=(this.tooltipCounter||0)+1;
+      box.id=`thermal-pilot-tooltip-${this.tooltipCounter}`;
+      anchor.removeAttribute('title');anchor.setAttribute('data-tooltip-trigger','');
+      anchor.setAttribute('role','button');anchor.setAttribute('aria-describedby',box.id);
+      anchor.replaceWith(help);help.append(anchor,box);
+    }
     const helps=[...this.shadowRoot.querySelectorAll('.setting-help')];
     if(!helps.length)return;
+    let active=null,pinned=null;
+    const removers=[];
+    const listen=(target,type,handler,options)=>{
+      target.addEventListener(type,handler,options);
+      removers.push(()=>target.removeEventListener(type,handler,options));
+    };
+    const anchorFor=help=>help.querySelector('.setting-info,[data-tooltip-trigger]');
+    const hide=()=>{
+      if(active){active.classList.remove('tooltip-open');anchorFor(active).setAttribute('aria-expanded','false');}
+      active=null;pinned=null;
+    };
+    const show=help=>{
+      if(active!==help){hide();active=help;}
+      help.classList.add('tooltip-open');anchorFor(help).setAttribute('aria-expanded','true');
+      this.positionSettingTooltip(help);
+    };
+    const toggle=help=>{
+      const wasPinned=pinned===help;hide();
+      if(!wasPinned){show(help);pinned=help;}
+    };
     for(const help of helps){
-      const position=()=>this.positionSettingTooltip(help);
-      help.addEventListener('pointerenter',position);
-      help.addEventListener('focusin',position);
-      help.addEventListener('click',position);
+      const anchor=anchorFor(help);anchor.setAttribute('aria-expanded','false');
+      listen(help,'pointerenter',event=>{if(event.pointerType!=='touch'&&!pinned)show(help);});
+      listen(help,'pointerleave',()=>{if(active===help&&pinned!==help&&!help.contains(this.shadowRoot.activeElement))hide();});
+      listen(help,'focusin',()=>show(help));
+      listen(help,'focusout',event=>{if(active===help&&pinned!==help&&!help.contains(event.relatedTarget))hide();});
+      listen(help,'click',event=>{
+        // Prevent the summary's native details action on iOS as well as our
+        // accordion scrolling. Clicking the popup itself keeps it readable.
+        event.preventDefault();event.stopPropagation();
+        if(anchor.contains(event.target))toggle(help);
+      });
+      listen(help,'keydown',event=>{
+        if((event.key==='Enter'||event.key===' ')&&event.target===anchor){
+          event.preventDefault();event.stopPropagation();toggle(help);
+        }
+      });
     }
-    const reposition=()=>helps.forEach(help=>this.positionSettingTooltip(help));
-    window.addEventListener?.('resize',reposition);
-    window.addEventListener?.('scroll',reposition,true);
-    window.visualViewport?.addEventListener('resize',reposition);
-    window.visualViewport?.addEventListener('scroll',reposition);
+    const outside=event=>{
+      if(active&&!event.composedPath().includes(active))hide();
+    };
+    const escape=event=>{if(event.key==='Escape'&&active){hide();event.stopPropagation();}};
+    const reposition=()=>{if(active)this.positionSettingTooltip(active);};
+    listen(document,'pointerdown',outside,true);listen(document,'focusin',outside,true);
+    listen(document,'keydown',escape);
+    listen(window,'resize',reposition);listen(window,'scroll',reposition,true);
+    if(window.visualViewport){
+      listen(window.visualViewport,'resize',reposition);listen(window.visualViewport,'scroll',reposition);
+    }
     this.settingTooltipCleanup=()=>{
-      window.removeEventListener?.('resize',reposition);
-      window.removeEventListener?.('scroll',reposition,true);
-      window.visualViewport?.removeEventListener('resize',reposition);
-      window.visualViewport?.removeEventListener('scroll',reposition);
-      this.settingTooltipCleanup=null;
+      hide();removers.forEach(remove=>remove());this.settingTooltipCleanup=null;
     };
   }
   openTemperatureHistory(event){
@@ -1221,7 +1275,7 @@ class ThermalPilotPanel extends HTMLElement {
       const valid=value=>Number.isFinite(value)&&!(sort.key==='speed'&&value<0);
       return Number(!valid(av))-Number(!valid(bv))||(valid(av)&&valid(bv)?sort.direction*(av-bv):0)||nameOrder;
     });
-    const sortHeader=(key,label)=>`<th class="${key==='drop'||key==='hours'?'retention-numeric':''}" aria-sort="${sort.key===key?(sort.direction===1?'ascending':'descending'):'none'}"><button type="button" class="retention-sort" data-retention-sort="${key}"><span>${escapeHTML(this.t(label))}</span> <span aria-hidden="true">${sort.key===key?(sort.direction===1?'↑':'↓'):'↕'}</span></button></th>`;
+    const sortHeader=(key,label)=>`<th class="${key==='drop'||key==='hours'?'retention-numeric':''}" aria-sort="${sort.key===key?(sort.direction===1?'ascending':'descending'):'none'}"><button type="button" class="retention-sort" data-retention-sort="${key}"><span>${escapeHTML(this.t(label))}</span> <span aria-hidden="true">${sort.key===key?(sort.direction===1?'↑':'↓'):'↕\uFE0E'}</span></button></th>`;
     const retentionHistory=(id,metric,value,label)=>{
       const entity=this.info?.data?.retention_history_entities?.[id]?.[metric];
       return entity?`<span${this.statusTemperatureAction(value,entity,label)}>${value}</span>`:`${value}`;
@@ -1397,7 +1451,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     const observations=value=>escapeHTML(new Intl.NumberFormat('en',{maximumFractionDigits:0}).format(Number(value)||0).replaceAll(',', '\u00a0'));
     const title=this.t('Last heating season');
     const number=(value,digits)=>value!==null&&value!==undefined&&Number.isFinite(Number(value))?escapeHTML(new Intl.NumberFormat(language,{minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(value))):'—';
-    return `<section class="season-archives"><details class="observation-accordion" data-history-section="season" ${this.historySectionOpen('season')?'open':''}><summary><h2>${escapeHTML(title)}</h2></summary><div class="observation-content"><p>${escapeHTML(this.t('Modelled cooling: 20°C indoors · −10°C outdoors · heating off'))}</p>${rows.length?`<div class="scroll"><table><thead><tr>${[['room','Room',''],['observations','Observations',''],['drop_6h','6-hour loss',''],['hours_per_degree','1°C drop',''],['speed','Cooling speed','']].map(([key,label,unit],index)=>`<th scope="col"${index>0&&index<4?' class="archive-numeric"':''} aria-sort="${sort.key===key?(sort.direction===1?'ascending':'descending'):'none'}"><button type="button" class="retention-sort" data-archive-sort="${key}"><span>${escapeHTML(this.t(label))}${unit}</span> <span aria-hidden="true">${sort.key===key?(sort.direction===1?'↑':'↓'):'↕'}</span></button></th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr${room(row)?.is_garage?' class="garage-archive-row"':''}><td data-user-text>${escapeHTML(room(row)?.name||row.room_id)}</td><td class="archive-numeric">${observations(row.statistics?.samples)}</td><td class="archive-numeric">${retention.get(row).drop_6h!=null?`<span class="retention-bar" aria-hidden="true"><i style="width:${100*retention.get(row).drop_6h/max}%"></i></span>`:''}${number(retention.get(row).drop_6h,2)}${retention.get(row).drop_6h!=null?' °C':''}</td><td class="archive-numeric">${number(retention.get(row).hours_per_degree,1)}${retention.get(row).hours_per_degree!=null?' '+escapeHTML(this.t('hours')):''}</td><td>${badge(row)}</td></tr>`).join('')}</tbody></table></div>`:`<p>${escapeHTML(this.t('No completed heating season yet.'))}</p>`}</div></details></section>`;
+    return `<section class="season-archives"><details class="observation-accordion" data-history-section="season" ${this.historySectionOpen('season')?'open':''}><summary><h2>${escapeHTML(title)}</h2></summary><div class="observation-content"><p>${escapeHTML(this.t('Modelled cooling: 20°C indoors · −10°C outdoors · heating off'))}</p>${rows.length?`<div class="scroll"><table><thead><tr>${[['room','Room',''],['observations','Observations',''],['drop_6h','6-hour loss',''],['hours_per_degree','1°C drop',''],['speed','Cooling speed','']].map(([key,label,unit],index)=>`<th scope="col"${index>0&&index<4?' class="archive-numeric"':''} aria-sort="${sort.key===key?(sort.direction===1?'ascending':'descending'):'none'}"><button type="button" class="retention-sort" data-archive-sort="${key}"><span>${escapeHTML(this.t(label))}${unit}</span> <span aria-hidden="true">${sort.key===key?(sort.direction===1?'↑':'↓'):'↕\uFE0E'}</span></button></th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr${room(row)?.is_garage?' class="garage-archive-row"':''}><td data-user-text>${escapeHTML(room(row)?.name||row.room_id)}</td><td class="archive-numeric">${observations(row.statistics?.samples)}</td><td class="archive-numeric">${retention.get(row).drop_6h!=null?`<span class="retention-bar" aria-hidden="true"><i style="width:${100*retention.get(row).drop_6h/max}%"></i></span>`:''}${number(retention.get(row).drop_6h,2)}${retention.get(row).drop_6h!=null?' °C':''}</td><td class="archive-numeric">${number(retention.get(row).hours_per_degree,1)}${retention.get(row).hours_per_degree!=null?' '+escapeHTML(this.t('hours')):''}</td><td>${badge(row)}</td></tr>`).join('')}</tbody></table></div>`:`<p>${escapeHTML(this.t('No completed heating season yet.'))}</p>`}</div></details></section>`;
   }
   restoreHistoryPeriod(){
     const key=`thermal_pilot:${this.entry||'preview'}:history-period`;
@@ -1668,7 +1722,9 @@ details{scroll-margin-block:16px}
 .setting-info .info-dot{fill:currentColor;stroke:none}
 .setting-info:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:2px}
 .setting-tooltip{display:none;position:fixed;box-sizing:border-box;left:12px;top:12px;z-index:10000;width:304px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;overflow-wrap:anywhere;padding:12px;border-radius:8px;background:var(--primary-text-color,#213547);color:var(--card-background-color,white);font-size:13px;line-height:1.45;font-weight:normal;box-shadow:0 3px 12px #0003}
-.setting-help:hover .setting-tooltip,.setting-help:focus-within .setting-tooltip{display:block}
+.setting-help.tooltip-open .setting-tooltip{display:block}
+.native-tooltip-help{max-width:100%;min-width:0}.native-tooltip-help>[data-tooltip-trigger]{cursor:help}
+.native-tooltip-help>.room-heating{margin:0;flex:0 0 30px}.native-tooltip-help>.room-learning,.native-tooltip-help>.room-forecast-badge{margin:0;max-width:100%;white-space:normal}
 
 /* Alternating room-row colors follow the responsive one/two-column layout. */
 .observation-layout .observation-cards>.observation-card{--room-tint:#00857712;--room-heading-tint:#00857724;background:linear-gradient(var(--room-tint),var(--room-tint)),var(--card-background-color,white)}
@@ -1765,21 +1821,21 @@ details{scroll-margin-block:16px}
 .retention-numeric .retention-sort,.archive-numeric .retention-sort{justify-content:flex-end;text-align:right;width:100%}
 .retention-card .retention-value{min-width:0;text-align:right}
 @media(max-width:600px){
- .retention-card th:nth-child(2),.retention-card td:nth-child(2),
- .retention-card th:nth-child(3),.retention-card td:nth-child(3),
+ .retention-card .retention-numeric{display:none}
  .retention-card table{table-layout:fixed}
  .retention-card th:first-child,.retention-card td:first-child{width:43%;white-space:normal;overflow-wrap:anywhere}
- .retention-card th:nth-child(4),.retention-card td:nth-child(4){white-space:normal;overflow-wrap:anywhere}
- .retention-card .retention-rating{max-width:100%;white-space:normal}
- .season-archives th:nth-child(3),.season-archives td:nth-child(3),
- .season-archives th:nth-child(4),.season-archives td:nth-child(4){display:none}
+ .retention-card th:nth-child(4),.retention-card td:nth-child(4){white-space:normal;overflow-wrap:normal;word-break:normal}
+ .retention-card .retention-sort{max-width:100%;white-space:normal;gap:4px}
+ .retention-card .retention-sort span:first-child{min-width:0;overflow-wrap:anywhere}
+ .retention-sort span[aria-hidden]{flex-shrink:0}
+ .retention-card .retention-rating{box-sizing:border-box;max-width:100%;white-space:normal;overflow-wrap:normal;word-break:normal}
+ .season-archives .archive-numeric{display:none}
  .season-archives table{table-layout:fixed}
  .season-archives th,.season-archives td{padding:8px 5px;white-space:normal;overflow-wrap:anywhere}
- .season-archives th:first-child,.season-archives td:first-child{width:34%}
- .season-archives th:nth-child(2),.season-archives td:nth-child(2){width:26%}
+ .season-archives th:first-child,.season-archives td:first-child{width:43%}
  .season-archives .retention-sort{max-width:100%;white-space:normal}
  .season-archives .retention-sort span{min-width:0}
- .season-archives .retention-rating{max-width:100%;white-space:normal}
+ .season-archives .retention-rating{box-sizing:border-box;max-width:100%;white-space:normal;overflow-wrap:normal;word-break:normal}
 }
 
 .retention-card .retention-bar{margin-left:0;margin-right:10px;vertical-align:middle}

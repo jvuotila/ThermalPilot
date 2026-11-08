@@ -526,7 +526,14 @@
     "Cancel": "Tühista",
     "Close": "Sulge",
     "Enter a temperature between {minimum} and {maximum} °C.": "Sisesta temperatuur vahemikus {minimum}–{maximum} °C.",
-    "Use temperature steps of {step} °C.": "Kasuta {step} °C temperatuurisamme."
+    "Use temperature steps of {step} °C.": "Kasuta {step} °C temperatuurisamme.",
+    "Notifications": "Teavitused",
+    "Push notification device (optional)": "Tõuketeavituste seade (valikuline)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Vali Companion-seade, mida teavitatakse, kui avatud garaažiuks takistab käsitsi seanssi. Ühtegi seadet ei valita automaatselt.",
+    "Manual heating paused": "Käsitsi kütmine peatatud",
+    "Manual cooling paused": "Käsitsi jahutamine peatatud",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: käsitsi seanss ei saa alata, sest garaažiuks on avatud: {doors}. Aktiivse seansi alustamiseks sulge kõik seadistatud uksed.",
+    "Push notification could not be sent. Check the selected notification device.": "Tõuketeavitust ei saanud saata. Kontrolli valitud teavitusseadet."
   },
   "legacy": {},
   "cardMessages": {

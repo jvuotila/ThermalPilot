@@ -526,7 +526,14 @@
     "Cancel": "Ακύρωση",
     "Close": "Κλείσιμο",
     "Enter a temperature between {minimum} and {maximum} °C.": "Εισαγάγετε θερμοκρασία μεταξύ {minimum} και {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Χρησιμοποιήστε βήματα θερμοκρασίας {step} °C."
+    "Use temperature steps of {step} °C.": "Χρησιμοποιήστε βήματα θερμοκρασίας {step} °C.",
+    "Notifications": "Ειδοποιήσεις",
+    "Push notification device (optional)": "Συσκευή ειδοποιήσεων push (προαιρετικό)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Επιλέξτε τη συσκευή Companion που θα ειδοποιείται όταν μια ανοιχτή γκαραζόπορτα εμποδίζει μια χειροκίνητη συνεδρία. Δεν επιλέγεται αυτόματα καμία συσκευή.",
+    "Manual heating paused": "Η χειροκίνητη θέρμανση είναι σε παύση",
+    "Manual cooling paused": "Η χειροκίνητη ψύξη είναι σε παύση",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: η χειροκίνητη συνεδρία δεν μπορεί να ξεκινήσει επειδή μια γκαραζόπορτα είναι ανοιχτή: {doors}. Κλείστε όλες τις ρυθμισμένες πόρτες για να ξεκινήσει η ενεργή συνεδρία.",
+    "Push notification could not be sent. Check the selected notification device.": "Δεν ήταν δυνατή η αποστολή της ειδοποίησης push. Ελέγξτε την επιλεγμένη συσκευή ειδοποιήσεων."
   },
   "legacy": {},
   "cardMessages": {

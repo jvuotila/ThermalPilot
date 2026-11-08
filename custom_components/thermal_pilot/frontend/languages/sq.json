@@ -526,7 +526,14 @@
     "Cancel": "Anulo",
     "Close": "Mbyll",
     "Enter a temperature between {minimum} and {maximum} °C.": "Vendosni një temperaturë midis {minimum} dhe {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Përdorni hapa temperature prej {step} °C."
+    "Use temperature steps of {step} °C.": "Përdorni hapa temperature prej {step} °C.",
+    "Notifications": "Njoftimet",
+    "Push notification device (optional)": "Pajisja për njoftime push (opsionale)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Zgjidhni pajisjen Companion që njoftohet kur një derë garazhi e hapur bllokon një seancë manuale. Asnjë pajisje nuk zgjidhet automatikisht.",
+    "Manual heating paused": "Ngrohja manuale është pezulluar",
+    "Manual cooling paused": "Ftohja manuale është pezulluar",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: seanca manuale nuk mund të fillojë sepse një derë garazhi është e hapur: {doors}. Mbyllni të gjitha dyert e konfiguruara që seanca aktive të mund të fillojë.",
+    "Push notification could not be sent. Check the selected notification device.": "Njoftimi push nuk mund të dërgohej. Kontrolloni pajisjen e zgjedhur të njoftimeve."
   },
   "legacy": {},
   "cardMessages": {

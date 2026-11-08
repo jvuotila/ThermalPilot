@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.69 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.70 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -214,6 +214,14 @@ and weather; the tariff does not make thermal predictions inherently more accura
   accepted heating hours and 12 idle hours have accumulated. Learning continues,
   and reaching 100% never enables control automatically. Mild weather may provide
   little heating evidence, so there is no fixed number of days until accuracy.
+- **Manual heating contributes to learning.** Collection uses accepted observed
+  heating intervals, rather than the requested timer duration. Open or unknown
+  garage doors exclude those intervals. Fast air-to-air warmups use an appropriate
+  air-temperature guard, while frequent sensor updates accumulate a usable learning
+  window. Previously skipped intervals are not automatically backfilled.
+- **Phone tooltips are tappable.** Tap an info icon or room-status badge to keep
+  its explanation open; tap again or outside to close it without toggling the
+  room accordion. Mobile heat-retention tables show room names and cooling badges.
 - **Heat retention uses reference conditions.** Rooms still learning show only
   the Learning badge; numeric values appear after their model has adapted.
   The table models cooling from
@@ -309,3 +317,19 @@ Pausing ThermalPilot, enabling simulation, disabling a zone or changing its devi
 cancels the session. Importing a backup does not reactivate manual sessions.
 Controls are available in the integration's Plan tab; dashboard cards remain
 read-only.
+
+
+### Garage door push alerts
+
+In **Settings → Notifications**, select your Companion app phone under
+**Push notification device**. When an open configured door blocks a manual garage
+heating/cooling session, ThermalPilot sends a localized push naming the garage
+and the open door sensor(s). It makes one notification attempt per explicit
+session, rather than notifying on every refresh; updating a session is a new
+request. Door protection remains active and the session can start once all
+configured doors close, while its original expiry remains unchanged.
+
+No phone is selected automatically. Phone-specific `notify.mobile_app_*` actions
+and mobile-app notify entities are supported. The phone must be registered with
+Home Assistant and have notification permission in the Companion app; see the
+[Companion notification setup](https://companion.home-assistant.io/docs/notifications/notifications-basic/).

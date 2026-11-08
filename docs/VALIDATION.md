@@ -243,3 +243,29 @@ selecting Heat before validating/sending an 18°C target, distinct Heat/Cool
 ranges and mode settling. Hydronic sessions take duration only and follow the
 current configured boost. Frontend checks require localized inline range/step
 errors (including Finnish), with native browser validation disabled.
+
+
+Manual garage notification tests verify explicit Companion recipient selection,
+Finnish heating/cooling text, open-door friendly names, phone-specific actions
+and notify entities. They cover one attempt per session across polling/restarts,
+new explicit requests, no automatic-control broadcasts, no push without a
+configured recipient, closed doors and delivery failure without bypassing door
+protection. Registry discovery excludes non-Companion and disabled targets.
+All notification services are test doubles; actual phone delivery was not tested.
+
+
+Air-learning regressions accept an 8.4°C/hour warmup for garage, dedicated
+room and house air-to-air controllers while retaining the slow-system guard and
+rejecting obvious air-sensor jumps. Coordinator checks cover twelve one-minute
+refreshes accumulating twelve minutes of manual heating, and clean windows across
+door and heating/idle transitions. Existing optional-source checks cover missing
+solar inputs. A private diagnostic replay of retained five-minute history buckets
+supports the warmup diagnosis; those buckets cannot reproduce every original
+source-triggered refresh. Existing counters/models are preserved, and skipped
+historical intervals are not automatically backfilled.
+
+Mobile help checks cover tap pinning, preventing native accordion toggles,
+outside-tap and Escape dismissal, keyboard access, conversion of title-only
+badges to explicit tooltips, and listener cleanup. Numeric retention columns are
+hidden as a group on small screens in Plan and completed-season tables. These
+are CSS/DOM-double checks rather than a physical iPhone rendering test.

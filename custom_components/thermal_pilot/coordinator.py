@@ -10,10 +10,11 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.event import async_track_point_in_utc_time, async_track_state_change_event
 from homeassistant.util import dt as dt_util
-from .const import DOMAIN, DEFAULTS, RESERVE_HOURS, ARCHIVE_KEEP_DAYS, WATER_REFERENCE, HISTORY_DAYS
+from .const import DOMAIN, DEFAULTS, RESERVE_HOURS, ARCHIVE_KEEP_DAYS, WATER_REFERENCE, HISTORY_DAYS, MIN_LEARNING_INTERVAL_SECONDS
 from .history import HistoryDatabase
 from .control import ThermostatControl
 from .air_control import AirHeatPumpControl, zone_temperature, binary
+from .notifications import notify_manual_door_pause
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
 
@@ -845,10 +846,26 @@ class PilotCoordinator(DataUpdateCoordinator):
                     secondary = self.hass.states.get(room.get('secondary_pump_entity', ''))
                     current['excluded'] = current['excluded'] or bool(secondary and (secondary.state == 'cool' or secondary.attributes.get('hvac_action') in ('heating', 'cooling') or (secondary.attributes.get('hvac_action') is None and secondary.state in ('heat', 'cool'))))
                 prediction = None
-                if self.season['collecting'] and room_id in self.previous:
-                    prediction = learn(model, room, self.previous[room_id], current)
                 if self.season['collecting']:
-                    self.previous[room_id] = current
+                    previous = self.previous.get(room_id)
+                    if previous is not None:
+                        prediction = learn(model, room, previous, current)
+                        elapsed = current['time'] - previous['time']
+                        availability_changed = any(
+                            (previous.get(key) is None) != (current.get(key) is None)
+                            for key in ('solar', 'water', 'wind')
+                        )
+                        state_changed = (previous['activity'] != current['activity']
+                                         or previous['excluded'] != current['excluded']
+                                         or availability_changed)
+                        # Frequent sensor refreshes must not keep replacing the
+                        # anchor before the learner's three-minute window forms.
+                        # Restart immediately on activity/exclusion changes so a
+                        # window never attributes idle/open-door time to heating.
+                        if elapsed >= MIN_LEARNING_INTERVAL_SECONDS or elapsed < 0 or state_changed:
+                            self.previous[room_id] = current
+                    else:
+                        self.previous[room_id] = current
                 else:
                     self.previous.pop(room_id,None)
                 can_plan = room_electric(room, self.settings) and room.get('heat_control') != 'zone_member'
@@ -1170,6 +1187,29 @@ class PilotCoordinator(DataUpdateCoordinator):
             intents[room['id']] = intent
             if key in bucket:
                 bucket[key]['pump_suggestion'] = intent
+            session = self.manual_sessions.get(room['id'])
+            notification_target = self.settings['manual_notification_target']
+            if (session and notification_target and not session.get('door_notification_attempted')
+                    and intent['reason'] == 'Garage door open: heating paused'):
+                # One attempt per explicit session, persisted with that session.
+                # Timer/acknowledgement refreshes must not spam the same phone.
+                session['door_notification_attempted'] = True
+                doors = []
+                for entity in room.get('garage_door_entities', []):
+                    if binary(self.hass, entity) is True:
+                        door = self.hass.states.get(entity)
+                        doors.append(door.attributes.get('friendly_name') or entity)
+                try:
+                    await notify_manual_door_pause(
+                        self.hass, notification_target, self.settings['language'],
+                        room['name'], doors, session['mode'],
+                        f'{DOMAIN}_{self.entry.entry_id}_{room["id"]}_manual_door',
+                    )
+                except Exception:
+                    # A failed notification must never interrupt door protection
+                    # or leave other rooms' physical control unreconciled.
+                    _LOGGER.warning('Manual-session push notification failed', exc_info=True)
+                    release_errors.append('Push notification could not be sent. Check the selected notification device.')
         if not self.live_enabled():
             for room in air_rooms:
                 status = self.air_control.results.get(room['id'])

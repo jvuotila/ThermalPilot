@@ -526,7 +526,14 @@
     "Cancel": "Hætta við",
     "Close": "Loka",
     "Enter a temperature between {minimum} and {maximum} °C.": "Sláðu inn hitastig á bilinu {minimum}–{maximum} °C.",
-    "Use temperature steps of {step} °C.": "Notaðu hitastigsskref upp á {step} °C."
+    "Use temperature steps of {step} °C.": "Notaðu hitastigsskref upp á {step} °C.",
+    "Notifications": "Tilkynningar",
+    "Push notification device (optional)": "Tæki fyrir ýtitilkynningar (valfrjálst)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Veldu Companion-tækið sem fær tilkynningu þegar opin bílskúrshurð hindrar handvirka lotu. Ekkert tæki er valið sjálfkrafa.",
+    "Manual heating paused": "Handvirk hitun í bið",
+    "Manual cooling paused": "Handvirk kæling í bið",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: handvirka lotan getur ekki hafist því bílskúrshurð er opin: {doors}. Lokaðu öllum stilltum hurðum svo virka lotan geti hafist.",
+    "Push notification could not be sent. Check the selected notification device.": "Ekki tókst að senda ýtitilkynninguna. Athugaðu valið tilkynningatæki."
   },
   "legacy": {},
   "cardMessages": {

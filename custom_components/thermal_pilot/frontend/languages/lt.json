@@ -526,7 +526,14 @@
     "Cancel": "Atšaukti",
     "Close": "Uždaryti",
     "Enter a temperature between {minimum} and {maximum} °C.": "Įveskite temperatūrą nuo {minimum} iki {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Naudokite {step} °C temperatūros žingsnius."
+    "Use temperature steps of {step} °C.": "Naudokite {step} °C temperatūros žingsnius.",
+    "Notifications": "Pranešimai",
+    "Push notification device (optional)": "Tiesioginių pranešimų įrenginys (neprivaloma)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Pasirinkite Companion įrenginį, kuriam bus pranešta, kai atviros garažo durys blokuos rankinį seansą. Įrenginys automatiškai nepasirenkamas.",
+    "Manual heating paused": "Rankinis šildymas pristabdytas",
+    "Manual cooling paused": "Rankinis vėsinimas pristabdytas",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: rankinis seansas negali prasidėti, nes garažo durys atviros: {doors}. Uždarykite visas sukonfigūruotas duris, kad aktyvus seansas galėtų prasidėti.",
+    "Push notification could not be sent. Check the selected notification device.": "Nepavyko išsiųsti tiesioginio pranešimo. Patikrinkite pasirinktą pranešimų įrenginį."
   },
   "legacy": {},
   "cardMessages": {

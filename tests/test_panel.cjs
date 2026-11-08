@@ -1259,8 +1259,8 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  const tooltipPanel=new Component(),style={};
  let trigger={left:460,top:190,bottom:210,width:20};
  const box={style,getBoundingClientRect:()=>({width:Math.min(304,parseFloat(style.maxWidth)),height:Math.min(120,parseFloat(style.maxHeight))})};
- const anchor={getBoundingClientRect:()=>trigger};
- const help={querySelector:selector=>selector==='.setting-tooltip'?box:anchor};
+ const anchor={getBoundingClientRect:()=>trigger,setAttribute(){}};
+ const help={querySelector:selector=>selector==='.setting-tooltip'?box:anchor,classList:{add(){},remove(){}},contains:()=>false};
  context.window={innerWidth:487,innerHeight:300};
  tooltipPanel.positionSettingTooltip(help);
  assert.ok(parseFloat(style.left)>=12);assert.ok(parseFloat(style.left)+304<=475);
@@ -1272,13 +1272,14 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  tooltipPanel.positionSettingTooltip(help);
  assert.equal(style.left,'42px');assert.equal(style.top,'52px');assert.equal(style.maxHeight,'76px');assert.equal(style.width,'196px');
  const handlers={},listeners=[],removed=[];
- help.addEventListener=(name,fn)=>handlers[name]=fn;
+ help.addEventListener=(name,fn)=>handlers[name]=fn;help.removeEventListener=()=>{};
+ const oldDocument=context.document;context.document={addEventListener(){},removeEventListener(){}};
  context.window={innerWidth:487,innerHeight:300,addEventListener:(...args)=>listeners.push(args),removeEventListener:(...args)=>removed.push(args)};
- tooltipPanel.shadowRoot.querySelectorAll=()=>[help];tooltipPanel.bindSettingTooltips();
+ tooltipPanel.shadowRoot.querySelectorAll=selector=>selector==='.setting-help'?[help]:[];tooltipPanel.bindSettingTooltips();
  assert.ok(handlers.pointerenter&&handlers.focusin&&handlers.click);
  assert.equal(listeners.length,2);
  tooltipPanel.bindSettingTooltips();assert.equal(removed.length,2);
- tooltipPanel.disconnectedCallback();assert.equal(removed.length,4);
+ tooltipPanel.disconnectedCallback();assert.equal(removed.length,4);context.document=oldDocument;
  console.log('Settings tooltips stay within viewport edges, flip below near the top, constrain long text and clean up resize/scroll listeners.');
 }
 
@@ -1685,3 +1686,17 @@ assert.match(manualChart,/<text x="76"[^>]+>Rooms<\/text>/);
 assert.match(manualChart,/<text x="76"[^>]+>Garages<\/text>/);
 assert.match(manualChart,/role="group" aria-label="Electricity prices/);
 console.log('Manual controls passed: fixed icon/name columns, shared flame, heating-only rooms, cooling capability, active sessions, disabled live controls and read-only History.');
+
+const notifyPanel=new Component();
+notifyPanel.settings={language:'fi',manual_notification_target:''};
+notifyPanel.info={notification_targets:['notify.mobile_app_my_phone','notify.phone_entity']};
+const notificationField=['manual_notification_target','Push notification device (optional)','notification'];
+let notificationInput=notifyPanel.field(notificationField,notifyPanel.settings,'source');
+assert.match(notificationInput,/value="notify.mobile_app_my_phone"/);
+assert.match(notificationInput,/value="notify.phone_entity"/);
+assert.doesNotMatch(notificationInput,/value="notify.mobile_app_my_phone" selected/);
+notifyPanel.settings.manual_notification_target='notify.mobile_app_missing_phone';
+notificationInput=notifyPanel.field(notificationField,notifyPanel.settings,'source');
+assert.match(notificationInput,/value="notify.mobile_app_missing_phone" selected/);
+assert.match(notificationInput,/missing phone/);
+console.log('Companion recipient selector passed: explicit selection, legacy actions, notify entities and retained unavailable devices.');

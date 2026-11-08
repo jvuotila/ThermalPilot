@@ -526,7 +526,14 @@
     "Cancel": "Mégse",
     "Close": "Bezárás",
     "Enter a temperature between {minimum} and {maximum} °C.": "Adjon meg {minimum} és {maximum} °C közötti hőmérsékletet.",
-    "Use temperature steps of {step} °C.": "Használjon {step} °C-os hőmérsékleti lépéseket."
+    "Use temperature steps of {step} °C.": "Használjon {step} °C-os hőmérsékleti lépéseket.",
+    "Notifications": "Értesítések",
+    "Push notification device (optional)": "Leküldéses értesítési eszköz (opcionális)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Válassza ki a Companion eszközt, amely értesítést kap, ha egy nyitott garázsajtó blokkolja a kézi munkamenetet. Nincs automatikusan kiválasztott eszköz.",
+    "Manual heating paused": "Kézi fűtés szüneteltetve",
+    "Manual cooling paused": "Kézi hűtés szüneteltetve",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: a kézi munkamenet nem indítható el, mert egy garázsajtó nyitva van: {doors}. Az aktív munkamenet indításához zárja be az összes beállított ajtót.",
+    "Push notification could not be sent. Check the selected notification device.": "Nem sikerült elküldeni a leküldéses értesítést. Ellenőrizze a kiválasztott értesítési eszközt."
   },
   "legacy": {},
   "cardMessages": {

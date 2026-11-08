@@ -81,7 +81,7 @@ vm.runInContext(readFrontendSource(path.join(__dirname,'../custom_components/the
 // duration only, rather than displaying an undefined/NaN session temperature.
 const previewSource=require('node:fs').readFileSync(path.join(__dirname,'../PREVIEW.html'),'utf8');
 const demonstration=previewSource.split('// BEGIN manual session demonstration')[1].split('// END manual session demonstration')[0];
-const previewContext={demo:{settings:{minimum:19,maximum:23,boost:1.5,rooms:[{id:'floor',name:'Floor',baseline:20},{id:'garage',name:'Garage',is_garage:true}],heating_zones:[]}},waterDistribution:()=>true,Date,structuredClone};
+const previewContext={demo:{source_fields:[],settings:{minimum:19,maximum:23,boost:1.5,rooms:[{id:'floor',name:'Floor',baseline:20},{id:'garage',name:'Garage',is_garage:true}],heating_zones:[]}},waterDistribution:()=>true,Date,structuredClone};
 vm.runInNewContext(demonstration,previewContext);
 const previewFloor=previewContext.previewManualRequest({room_id:'floor',mode:'heat',minutes:120}).manual_controls.floor;
 assert.equal(previewFloor.target_required,false);assert.equal(previewFloor.session.target,21.5);

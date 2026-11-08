@@ -526,7 +526,14 @@
     "Cancel": "Zrušiť",
     "Close": "Zavrieť",
     "Enter a temperature between {minimum} and {maximum} °C.": "Zadajte teplotu od {minimum} do {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Použite teplotné kroky po {step} °C."
+    "Use temperature steps of {step} °C.": "Použite teplotné kroky po {step} °C.",
+    "Notifications": "Oznámenia",
+    "Push notification device (optional)": "Zariadenie pre push oznámenia (voliteľné)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Vyberte zariadenie Companion, ktoré dostane oznámenie, keď otvorená garážová brána blokuje ručnú reláciu. Žiadne zariadenie sa nevyberá automaticky.",
+    "Manual heating paused": "Ručné vykurovanie pozastavené",
+    "Manual cooling paused": "Ručné chladenie pozastavené",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: ručná relácia nemôže začať, pretože garážová brána je otvorená: {doors}. Zatvorte všetky nastavené brány, aby sa aktívna relácia mohla začať.",
+    "Push notification could not be sent. Check the selected notification device.": "Push oznámenie sa nepodarilo odoslať. Skontrolujte vybrané zariadenie pre oznámenia."
   },
   "legacy": {},
   "cardMessages": {

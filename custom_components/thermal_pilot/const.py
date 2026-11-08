@@ -1,12 +1,14 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.69'
+VERSION = '0.9.70'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
 HISTORY_DAYS = 30
 WATER_REFERENCE = 32.0
 AIR_INITIAL_LAG_HOURS = 10 / 60
+MIN_LEARNING_INTERVAL_SECONDS = 180
+AIR_MAX_TEMPERATURE_RATE_PER_HOUR = 12.0  # °C/hour; allow normal rapid air warmups.
 DEFAULTS = {
     'price_entity': '', 'price_forecast_entity': '', 'price_unit': 'c/kWh',
     'static_price': 10.0,
@@ -20,6 +22,7 @@ DEFAULTS = {
     'heating_enabled': True, 'simulation_enabled': True, 'language': 'en',
     'live_control_confirmed': False,
     'sensor_warning_hours': 8,
+    'manual_notification_target': '',
     'summer_minimum_temperature': 6.0, 'summer_setpoint': 10.0, 'apply_season_setpoints': False,
     'boost': 1.5, 'setback': -1.0, 'minimum': 19.0, 'maximum': 23.0,
     'start_offset_minutes': 5, 'stop_offset_minutes': 10,

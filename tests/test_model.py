@@ -260,6 +260,13 @@ class SettingsTests(unittest.TestCase):
             tree=ast.parse(path.read_text())
             for n in ast.walk(tree):
                 if isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr=='async_call':
+                    if path.name=='notifications.py':
+                        self.assertEqual(n.args[0].value,'notify')
+                        if isinstance(n.args[1],ast.Name):
+                            self.assertEqual(n.args[1].id,'service')
+                        else:
+                            self.assertEqual(n.args[1].value,'send_message')
+                        continue
                     if path.name=='air_control.py':
                         self.assertEqual(n.args[0].value,'climate')
                         self.assertIsInstance(n.args[1],ast.Name)

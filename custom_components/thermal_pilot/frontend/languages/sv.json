@@ -526,7 +526,14 @@
     "Cancel": "Avbryt",
     "Close": "Stäng",
     "Enter a temperature between {minimum} and {maximum} °C.": "Ange en temperatur mellan {minimum} och {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Använd temperatursteg på {step} °C."
+    "Use temperature steps of {step} °C.": "Använd temperatursteg på {step} °C.",
+    "Notifications": "Aviseringar",
+    "Push notification device (optional)": "Enhet för pushaviseringar (valfri)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Välj den enhet med Companion-appen som ska meddelas när en öppen garageport blockerar en manuell period. Ingen enhet väljs automatiskt.",
+    "Manual heating paused": "Manuell uppvärmning pausad",
+    "Manual cooling paused": "Manuell kylning pausad",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: den manuella perioden kan inte starta eftersom en garageport är öppen: {doors}. Stäng alla konfigurerade portar så att den aktiva perioden kan starta.",
+    "Push notification could not be sent. Check the selected notification device.": "Pushaviseringen kunde inte skickas. Kontrollera den valda aviseringsenheten."
   },
   "legacy": {},
   "cardMessages": {

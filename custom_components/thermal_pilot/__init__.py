@@ -90,6 +90,17 @@ def get_coordinator(hass, connection, msg):
     return coordinator
 
 
+def companion_notification_targets(hass):
+    """List Companion actions/entities without selecting a recipient implicitly."""
+    targets = {f'notify.{name}' for name in hass.services.async_services().get('notify', {})
+               if name.startswith('mobile_app_')}
+    registry = er.async_get(hass)
+    targets.update(entity.entity_id for entity in registry.entities.values()
+                   if entity.platform == 'mobile_app' and entity.entity_id.startswith('notify.')
+                   and not entity.disabled_by)
+    return sorted(targets)
+
+
 def chart_history_entities(hass, coordinator):
     """Only entity references needed for the native history action."""
     registry = er.async_get(hass)
@@ -143,7 +154,8 @@ def ws_get(hass, connection, msg):
             'chart_temperatures':c.chart_temperatures(),
             'temperature_history_entities':chart_history_entities(hass,c),
             'retention_history_entities':retention_history_entities(hass,c)
-        }, 'manual_controls':c.manual_controls(), 'room_entities':room_entities,
+        }, 'manual_controls':c.manual_controls(), 'notification_targets':companion_notification_targets(hass),
+            'room_entities':room_entities,
             'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS})
 
 

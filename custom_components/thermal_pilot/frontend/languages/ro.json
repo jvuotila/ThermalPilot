@@ -526,7 +526,14 @@
     "Cancel": "Anulează",
     "Close": "Închide",
     "Enter a temperature between {minimum} and {maximum} °C.": "Introdu o temperatură între {minimum} și {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Folosește pași de temperatură de {step} °C."
+    "Use temperature steps of {step} °C.": "Folosește pași de temperatură de {step} °C.",
+    "Notifications": "Notificări",
+    "Push notification device (optional)": "Dispozitiv pentru notificări push (opțional)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Alege dispozitivul Companion care primește notificări când o ușă de garaj deschisă blochează o sesiune manuală. Niciun dispozitiv nu este selectat automat.",
+    "Manual heating paused": "Încălzire manuală întreruptă",
+    "Manual cooling paused": "Răcire manuală întreruptă",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: sesiunea manuală nu poate începe deoarece o ușă de garaj este deschisă: {doors}. Închide toate ușile configurate pentru a permite începerea sesiunii active.",
+    "Push notification could not be sent. Check the selected notification device.": "Notificarea push nu a putut fi trimisă. Verifică dispozitivul de notificare selectat."
   },
   "legacy": {},
   "cardMessages": {

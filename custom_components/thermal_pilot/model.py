@@ -7,7 +7,11 @@ from typing import Any
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, timedelta, timezone
 import math
-from .const import DEFAULTS, AIR_INITIAL_LAG_HOURS, GARAGE_INITIAL_COOLING_HOURS, HOUSE_COOLING_REFERENCES
+from .const import (
+    DEFAULTS, AIR_INITIAL_LAG_HOURS, GARAGE_INITIAL_COOLING_HOURS,
+    HOUSE_COOLING_REFERENCES, MIN_LEARNING_INTERVAL_SECONDS,
+    AIR_MAX_TEMPERATURE_RATE_PER_HOUR,
+)
 
 
 def number(value, default=None):
@@ -678,7 +682,7 @@ def learn(
     """
     room = {**DEFAULTS, **room}
     elapsed_hours = (current['time'] - previous['time']) / 3600
-    if not 0.05 <= elapsed_hours <= 0.5 or previous.get('activity') is None:
+    if not MIN_LEARNING_INTERVAL_SECONDS / 3600 <= elapsed_hours <= 0.5 or previous.get('activity') is None:
         return None
     response, average_response = response_step(
         model['response'], previous['activity'], elapsed_hours, response_lag(room, model)
@@ -703,7 +707,11 @@ def learn(
         (current['temperature'] - previous['temperature']) / elapsed_hours
         - model.get('base_gain', 0)
     )
-    if abs(temperature_rate) > 2:
+    # Room air can warm much faster with an air-to-air pump than with slow
+    # floor heating. Keep an outlier guard (1°C per five minutes for air), but
+    # do not discard normal air-heating warmups as if they were sensor faults.
+    maximum_rate = AIR_MAX_TEMPERATURE_RATE_PER_HOUR if room.get('air_control') else 2
+    if abs(temperature_rate) > maximum_rate:
         return prediction
     observed_temperature_rate = temperature_rate
     temperature_rate -= (

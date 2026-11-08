@@ -526,7 +526,14 @@
     "Cancel": "Отказ",
     "Close": "Затваряне",
     "Enter a temperature between {minimum} and {maximum} °C.": "Въведете температура между {minimum} и {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Използвайте температурни стъпки от {step} °C."
+    "Use temperature steps of {step} °C.": "Използвайте температурни стъпки от {step} °C.",
+    "Notifications": "Известия",
+    "Push notification device (optional)": "Устройство за push известия (по избор)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Изберете Companion устройството, което да бъде уведомено, когато отворена гаражна врата блокира ръчна сесия. Не се избира устройство автоматично.",
+    "Manual heating paused": "Ръчното отопление е на пауза",
+    "Manual cooling paused": "Ръчното охлаждане е на пауза",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: ръчната сесия не може да започне, защото гаражна врата е отворена: {doors}. Затворете всички конфигурирани врати, за да може активната сесия да започне.",
+    "Push notification could not be sent. Check the selected notification device.": "Push известието не можа да бъде изпратено. Проверете избраното устройство за известия."
   },
   "legacy": {},
   "cardMessages": {

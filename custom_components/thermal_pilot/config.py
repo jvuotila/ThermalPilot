@@ -77,6 +77,7 @@ SOURCE_FIELDS = [
  ('apply_season_setpoints','Apply season setpoints','bool'),
  ('heating_enabled','ThermalPilot active','bool'),
  ('sensor_warning_hours','Sensor warning delay (hours)','number',1,72,1),
+ ('manual_notification_target','Push notification device (optional)','notification'),
 ]
 ROOM_FIELDS = [
  ('name', 'Room name', 'text'),
@@ -379,6 +380,14 @@ def validate(payload, hass=None):
             elif kind == 'bool':
                 if not isinstance(value, bool):
                     raise ValueError(f'{label}: expected a boolean value.')
+            elif kind == 'notification':
+                if not isinstance(value, str) or len(value) > 200:
+                    raise ValueError(f'{label}: invalid notification target.')
+                value = value.strip()
+                if value and (not value.startswith('notify.') or not value[7:]
+                              or not value[7:].replace('_', '').isalnum()):
+                    raise ValueError(f'{label}: choose a notification device.')
+                obj[key] = value
             elif kind.startswith('select:'):
                 if value not in kind[7:].split(','):
                     raise ValueError(f'{label}: unknown option.')

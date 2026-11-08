@@ -526,7 +526,14 @@
     "Cancel": "Atcelt",
     "Close": "Aizvērt",
     "Enter a temperature between {minimum} and {maximum} °C.": "Ievadiet temperatūru no {minimum} līdz {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Izmantojiet {step} °C temperatūras soļus."
+    "Use temperature steps of {step} °C.": "Izmantojiet {step} °C temperatūras soļus.",
+    "Notifications": "Paziņojumi",
+    "Push notification device (optional)": "Push paziņojumu ierīce (neobligāti)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Izvēlieties Companion ierīci, kas saņems paziņojumu, ja atvērtas garāžas durvis bloķē manuālo sesiju. Ierīce netiek izvēlēta automātiski.",
+    "Manual heating paused": "Manuālā apkure apturēta",
+    "Manual cooling paused": "Manuālā dzesēšana apturēta",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: manuālo sesiju nevar sākt, jo garāžas durvis ir atvērtas: {doors}. Aizveriet visas konfigurētās durvis, lai aktīvā sesija varētu sākties.",
+    "Push notification could not be sent. Check the selected notification device.": "Push paziņojumu neizdevās nosūtīt. Pārbaudiet izvēlēto paziņojumu ierīci."
   },
   "legacy": {},
   "cardMessages": {

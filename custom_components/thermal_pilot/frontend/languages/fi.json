@@ -380,7 +380,14 @@
     "Cancel": "Peruuta",
     "Close": "Sulje",
     "Enter a temperature between {minimum} and {maximum} °C.": "Anna lämpötila väliltä {minimum}–{maximum} °C.",
-    "Use temperature steps of {step} °C.": "Käytä {step} °C:n lämpötila-askelia."
+    "Use temperature steps of {step} °C.": "Käytä {step} °C:n lämpötila-askelia.",
+    "Notifications": "Ilmoitukset",
+    "Push notification device (optional)": "Push-ilmoitusten laite (valinnainen)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Valitse Companion-sovelluksen laite, jolle ilmoitetaan, kun avoin autotallin ovi estää manuaalisen jakson. Laitetta ei valita automaattisesti.",
+    "Manual heating paused": "Manuaalinen lämmitys keskeytetty",
+    "Manual cooling paused": "Manuaalinen jäähdytys keskeytetty",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: manuaalinen jakso ei voi alkaa, koska autotallin ovi on auki: {doors}. Sulje kaikki määritetyt ovet, jotta aktiivinen jakso voi alkaa.",
+    "Push notification could not be sent. Check the selected notification device.": "Push-ilmoitusta ei voitu lähettää. Tarkista valittu ilmoituslaite."
   },
   "legacy": {
     "Plan": "Suunnitelma",

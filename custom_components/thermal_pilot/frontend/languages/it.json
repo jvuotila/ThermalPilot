@@ -526,7 +526,14 @@
     "Cancel": "Annulla",
     "Close": "Chiudi",
     "Enter a temperature between {minimum} and {maximum} °C.": "Inserisci una temperatura tra {minimum} e {maximum} °C.",
-    "Use temperature steps of {step} °C.": "Usa incrementi di temperatura di {step} °C."
+    "Use temperature steps of {step} °C.": "Usa incrementi di temperatura di {step} °C.",
+    "Notifications": "Notifiche",
+    "Push notification device (optional)": "Dispositivo per notifiche push (facoltativo)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Scegli il dispositivo Companion da avvisare quando una porta del garage aperta blocca una sessione manuale. Nessun dispositivo viene selezionato automaticamente.",
+    "Manual heating paused": "Riscaldamento manuale in pausa",
+    "Manual cooling paused": "Raffrescamento manuale in pausa",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: la sessione manuale non può iniziare perché una porta del garage è aperta: {doors}. Chiudi tutte le porte configurate per consentire l’avvio della sessione attiva.",
+    "Push notification could not be sent. Check the selected notification device.": "Impossibile inviare la notifica push. Controlla il dispositivo di notifica selezionato."
   },
   "legacy": {},
   "cardMessages": {

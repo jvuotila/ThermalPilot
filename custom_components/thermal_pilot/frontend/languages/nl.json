@@ -526,7 +526,14 @@
     "Cancel": "Annuleren",
     "Close": "Sluiten",
     "Enter a temperature between {minimum} and {maximum} °C.": "Voer een temperatuur tussen {minimum} en {maximum} °C in.",
-    "Use temperature steps of {step} °C.": "Gebruik temperatuurstappen van {step} °C."
+    "Use temperature steps of {step} °C.": "Gebruik temperatuurstappen van {step} °C.",
+    "Notifications": "Meldingen",
+    "Push notification device (optional)": "Apparaat voor pushmeldingen (optioneel)",
+    "Choose the Companion app device to notify when an open garage door blocks a manual session. No device is selected automatically.": "Kies het Companion-apparaat dat een melding krijgt wanneer een open garagedeur een handmatige sessie blokkeert. Er wordt geen apparaat automatisch geselecteerd.",
+    "Manual heating paused": "Handmatig verwarmen gepauzeerd",
+    "Manual cooling paused": "Handmatig koelen gepauzeerd",
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: de handmatige sessie kan niet starten omdat een garagedeur open is: {doors}. Sluit alle ingestelde deuren zodat de actieve sessie kan starten.",
+    "Push notification could not be sent. Check the selected notification device.": "De pushmelding kon niet worden verstuurd. Controleer het geselecteerde meldingsapparaat."
   },
   "legacy": {},
   "cardMessages": {
