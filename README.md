@@ -46,24 +46,31 @@ observation and learning; their fuel costs and equipment control are not modeled
 
 ## Install
 
-### Install with HACS (recommended)
+### Install with Home Assistant Marketplace (recommended)
 
-1. [Install HACS](https://hacs.xyz/docs/use/download/download/) in your Home Assistant
-   instance if you do not already have it.
-2. Click the button below to open ThermalPilot in HACS. Confirm adding the custom
-   repository if prompted, then download the integration.
+[Home Assistant Marketplace](https://www.home-assistant.io/integrations/marketplace/)
+comes with Home Assistant 2026.11 and later and replaces HACS. Existing HACS
+installations migrate automatically.
 
-   [![Open ThermalPilot in HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jvuotila&repository=https%3A%2F%2Fgithub.com%2Fjvuotila%2FThermalPilot&category=integration)
+1. Open **Settings → Marketplace**. Accept the first-use notice if prompted.
+2. Click the button below to open ThermalPilot. Connect GitHub and confirm adding
+   the repository if prompted, then select **Install**.
+
+   [![Open ThermalPilot in Home Assistant Marketplace](https://img.shields.io/badge/Open%20in-Home%20Assistant%20Marketplace-18BCF2?logo=homeassistant&logoColor=white)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jvuotila&repository=https%3A%2F%2Fgithub.com%2Fjvuotila%2FThermalPilot&category=integration)
 
 3. Restart Home Assistant.
 4. Open **Settings → Devices & services → Add integration**, search for
    **ThermalPilot**, and follow the setup steps.
 5. Open **ThermalPilot** in the sidebar and follow [Get started](#get-started).
 
-If the button does not work, open **HACS → Custom repositories**, add
-`https://github.com/jvuotila/ThermalPilot` with category **Integration**, then
-find and download **ThermalPilot** in HACS. Restart Home Assistant and continue
-from step 4 above.
+If the button does not work, open **Settings → Marketplace → Add from link**,
+enter `https://github.com/jvuotila/ThermalPilot`, and select **Add**. If asked for
+**Type**, choose **Integration**. Open ThermalPilot's repository page and select
+**Install**, then continue from step 3 above. Adding a custom repository requires
+a GitHub connection; Marketplace guides you through it.
+
+To update ThermalPilot, open **Settings → Updates**, install the available update,
+and restart Home Assistant.
 
 ### Manual installation
 
