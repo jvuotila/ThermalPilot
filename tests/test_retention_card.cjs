@@ -87,6 +87,18 @@ const sample={language:'fi',entries:[{entry_id:'one',title:'Home'}],rooms:[room(
   if(updated&&type){assert.match(title(cardHtml),/2.1 h · 2.17×/);}
   if(type==='<unknown>')assert.doesNotMatch(cardHtml,/<unknown>/);
  }
+ // Renaming the middle relative band must not change any cut-offs or garage labels.
+ tooltipCard._config.language='fi';
+ for(const [ratio,expected] of [[.799,'Nopea jäähtyminen'],[.8,'Lähellä vertailuarvoa'],[1,'Lähellä vertailuarvoa'],[1.249,'Lähellä vertailuarvoa'],[1.25,'Hidas jäähtyminen']]){
+  const value={updated:true,hours_per_degree:ratio*2,reference_hours:2,reference_type:'wooden_detached'};
+  const html=tooltipCard.cell('cooling_speed',{heat_retention:value},2);
+  assert.match(html,new RegExp('>'+expected+'<'));
+  const panelRating=vm.runInContext('retentionRating('+JSON.stringify(value)+')',panelContext);
+  assert.match(html,new RegExp('>'+tooltipCard.t(panelRating.label)+'<'));
+ }
+ const garageValue={updated:true,hours_per_degree:3,reference_hours:null};
+ assert.match(tooltipCard.cell('cooling_speed',{is_garage:true,heat_retention:garageValue},2),/>Kohtalainen jäähtyminen</);
+ assert.doesNotMatch(tooltipCard.cell('cooling_speed',{heat_retention:{...garageValue,updated:false,reference_hours:2}},2),/>Lähellä vertailuarvoa</);
  const linked=room('Kitchen',4);linked.history_entities={drop_6h:'sensor.loss',hours_per_degree:'sensor.hours'};
  assert.match(card.cell('loss_6h',linked,2),/data-retention-history="sensor.loss"[^>]*style="cursor:pointer;color:inherit"/);
  assert.match(card.cell('drop_1c',linked,2),/data-retention-history="sensor.hours"/);

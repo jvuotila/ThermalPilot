@@ -13,7 +13,11 @@ function rating(value){
  const relative=Number.isFinite(value.reference_hours)&&value.reference_hours>0;
  const amount=relative?value.hours_per_degree/value.reference_hours:value.hours_per_degree;
  const rank=(relative?[.5,.8,1.25,2,Infinity]:[1,2,4,8,Infinity]).findIndex(limit=>amount<limit);
- return {level:['very-fast','fast','moderate','slow','very-slow'][rank],label:['Very fast cooling','Fast cooling','Moderate cooling','Slow cooling','Very slow cooling'][rank],rank};
+ const labels=['Very fast cooling','Fast cooling','Moderate cooling','Slow cooling','Very slow cooling'];
+ // Only the relative scale describes proximity to a building-type reference.
+ // Garages and rooms without that reference retain the absolute cooling label.
+ if(relative)labels[2]='Close to reference';
+ return {level:['very-fast','fast','moderate','slow','very-slow'][rank],label:labels[rank],rank};
 }
 function config(value){
  if(value.language!==undefined&&value.language!=='auto'&&!Object.hasOwn(cardLanguages,value.language))throw Error('Invalid card language.');
