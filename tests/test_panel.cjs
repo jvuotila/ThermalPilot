@@ -1647,8 +1647,17 @@ const initialRoomRow=learningTableHTML.match(/<tr[^>]*><td><span data-user-text>
 assert.match(initialRoomRow,/<td class="retention-numeric"><\/td><td class="retention-numeric"><\/td>/);
 assert.doesNotMatch(initialRoomRow,/class="retention-bar"|class="retention-value"/);
 assert.match(initialRoomRow,/data-retention-rating="learning"/);
-assert.equal((learningTableHTML.match(/<th(?: |>|\n)/g)||[]).length,4);
+assert.equal((learningTableHTML.split('</table>')[0].match(/<th(?: |>|\n)/g)||[]).length,4);
 console.log('Learning rooms have blank retention metrics and no Model column.');
+const coolingScale=learningTableHTML.match(/<table class="retention-scale"[\s\S]*?<\/table>/)[0];
+assert.equal((coolingScale.match(/<th scope="row">/g)||[]).length,6);
+for(const level of ['very-fast','fast','moderate','slow','very-slow','learning'])assert.match(coolingScale,new RegExp('retention-rating-'+level));
+assert.match(coolingScale,/0.5–&lt; 0.8×/);
+assert.match(coolingScale,/4–&lt; 8 h/);
+assert.match(coolingScale,/colspan="2"/);
+assert.ok(learningTableHTML.indexOf(coolingScale)>learningTableHTML.indexOf('id="retention-help"'));
+assert.doesNotMatch(coolingScale,/data-retention-sort|data-retention-history/);
+console.log('The estimates accordion explains all six cooling labels and both rating scales.');
 
 const targetBadgePanel=new Component();
 targetBadgePanel.settings={language:'fi',rooms:[{id:'kitchen',thermostat:'climate.kitchen',activity_entity:'switch.kitchen'}]};
