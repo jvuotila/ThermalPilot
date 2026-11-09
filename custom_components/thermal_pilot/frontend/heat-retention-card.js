@@ -4,6 +4,7 @@ await import(new URL(`./localization.js${new URL(import.meta.url).search}`, impo
 const tooltipInfoIcon='<svg class="status-info" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle class="status-info-dot" cx="10" cy="6" r="1"/></svg>';
 const optionalColumns=['loss_6h','drop_1c','cooling_speed'];
 const labels={room:'Room',loss_6h:'6-hour loss',drop_1c:'1°C drop',cooling_speed:'Cooling speed'};
+const constructionLabels={wooden_detached:'Wooden detached house',masonry_detached:'Masonry detached house',concrete_apartment:'Concrete-element apartment building',heavy_masonry_apartment:'Heavy masonry apartment building'};
 const tpI18n=globalThis.__thermalPilotLocalization;
 const cardLanguages=tpI18n.languageNames;
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -79,7 +80,19 @@ class RetentionCard extends HTMLElement{
   if((key==='loss_6h'||key==='drop_1c')&&badge.level==='learning')return '';
   if(key==='loss_6h')return `<span class="bar" aria-hidden="true"><i style="width:${Number.isFinite(v.drop_6h)?Math.max(0,Math.min(100,100*v.drop_6h/max)):0}%"></i></span><span class="loss">${this.historyValue(room,'drop_6h',number(v.drop_6h))}${Number.isFinite(v.drop_6h)?' °C':''}</span>`;
   if(key==='drop_1c')return `${this.historyValue(room,'hours_per_degree',number(v.hours_per_degree))}${Number.isFinite(v.hours_per_degree)?' '+esc(this.t('hours')):''}`;
-  if(key==='cooling_speed')return `<span class="rating ${badge.level}" tabindex="0" title="${esc(this.t(badge.level==='learning'?'Waiting for learned heat-loss parameters.':'Not an energy-efficiency or insulation class.'))}">${esc(this.t(badge.label))}${tooltipInfoIcon}</span>`;
+  if(key==='cooling_speed'){
+   let detail;
+   if(badge.level==='learning'){
+    detail=this.t('Waiting for learned heat-loss parameters.');
+   }else if(Number.isFinite(v.reference_hours)&&v.reference_hours>0){
+    const construction=this.t(constructionLabels[v.reference_type]||v.reference_type);
+    const ratio=v.hours_per_degree/v.reference_hours;
+    detail=this.t('Relative to construction reference:')+' '+construction+' · '+v.reference_hours.toFixed(1)+' h · '+ratio.toFixed(2)+'× '+this.t('reference cooling time')+'. '+this.t('Not an energy-efficiency or insulation class.');
+   }else{
+    detail=this.t('Provisional cooling-speed band for the reference test; not an energy-efficiency or insulation class.');
+   }
+   return `<span class="rating ${badge.level}" tabindex="0" title="${esc(detail)}">${esc(this.t(badge.label))}${tooltipInfoIcon}</span>`;
+  }
   return '';
  }
  render(){

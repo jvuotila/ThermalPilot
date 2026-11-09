@@ -73,6 +73,20 @@ const sample={language:'fi',entries:[{entry_id:'one',title:'Home'}],rooms:[room(
   const value={hours_per_degree:hours,reference_hours:reference,updated};const expected=vm.runInContext('retentionRating('+JSON.stringify(value)+').level',panelContext);
   const html=card.cell('cooling_speed',{heat_retention:value},1);assert.match(html,/<svg class="status-info"/);assert.match(html,/tabindex="0"/);assert.match(html,new RegExp('rating '+expected+'"'));
  }
+ // The compact card must retain the panel's explanation, even when numeric columns are hidden.
+ const tooltipCard=new Card();tooltipCard.setConfig({columns:['cooling_speed']});
+ const panelView=vm.runInContext('ThermalPilotPanel.prototype.heatRetentionView',panelContext);
+ const title=html=>html.match(/class="(?:rating |retention-rating retention-rating-)[^" ]*"[^>]*title="([^"]*)"/)[1];
+ for(const language of ['en','fi','de'])for(const type of ['wooden_detached','masonry_detached','concrete_apartment','heavy_masonry_apartment',null,'<unknown>'])for(const updated of [true,false]){
+  tooltipCard._config.language=language;
+  const value={drop_6h:1.3,hours_per_degree:4.6,updated,reference_type:type,reference_hours:type?2.12:null};
+  const data={name:'Room',heat_retention:value};
+  const panelHtml=panelView.call({settings:{language,rooms:[]},info:{data:{rooms:{example:data}}},t:text=>tooltipCard.t(text)});
+  const cardHtml=tooltipCard.cell('cooling_speed',data,2);
+  assert.equal(title(cardHtml),title(panelHtml),`${language}: ${type}, learned=${updated}`);
+  if(updated&&type){assert.match(title(cardHtml),/2.1 h · 2.17×/);}
+  if(type==='<unknown>')assert.doesNotMatch(cardHtml,/<unknown>/);
+ }
  const linked=room('Kitchen',4);linked.history_entities={drop_6h:'sensor.loss',hours_per_degree:'sensor.hours'};
  assert.match(card.cell('loss_6h',linked,2),/data-retention-history="sensor.loss"[^>]*style="cursor:pointer;color:inherit"/);
  assert.match(card.cell('drop_1c',linked,2),/data-retention-history="sensor.hours"/);
