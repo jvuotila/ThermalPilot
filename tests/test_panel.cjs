@@ -1691,7 +1691,8 @@ assert(floorManual.indexOf('data-manual-id')<floorManual.indexOf('class="manual-
 assert.match(floorManual,/M13 2c1 5-3 6-3 10/);
 const garageManual=manualPanel.manualChartName('Garage','garage',false,'#213547');
 assert.match(garageManual,/data-manual-mode="cool"/);
-assert.match(garageManual,/class="manual-icon active"/);
+assert.match(garageManual,/class="manual-icon manual-session"/);
+assert.doesNotMatch(garageManual,/class="manual-icon active/);
 assert.match(garageManual,/Manual heating · 18 °C · Ends at/);
 assert.match(garageManual,/aria-pressed="true"/);
 assert.doesNotMatch(manualPanel.manualChartName('Garage','garage',true,'#213547'),/data-manual-id/);
@@ -1702,6 +1703,42 @@ assert.match(manualChart,/<text x="76"[^>]+>Rooms<\/text>/);
 assert.match(manualChart,/<text x="76"[^>]+>Garages<\/text>/);
 assert.match(manualChart,/role="group" aria-label="Electricity prices/);
 console.log('Manual controls passed: fixed icon/name columns, shared flame, heating-only rooms, cooling capability, active sessions, disabled live controls and read-only History.');
+// Real demand colours the icon independently of automatic/manual ownership.
+manualPanel.info.manual_controls.floor.enabled=true;
+manualPanel.settings.rooms[0].activity_entity='switch.floor';
+manualPanel.settings.rooms[0].thermostat='climate.floor';
+manualPanel.info.manual_controls.floor.entity='climate.floor';
+manualPanel.info.data.rooms.floor={actual_activity:1,plan:{heat:true}};
+manualPanel._hass={states:{'switch.floor':{state:'on'},'climate.floor':{state:'heat',attributes:{hvac_action:'idle'}}}};
+let actualIcon=manualPanel.manualChartName('Floor room','floor',false,'#213547');
+assert.match(actualIcon,/class="manual-icon active"/);assert.match(actualIcon,/Heating · Automatic control/);
+assert.match(actualIcon,/aria-pressed="false"/);assert.doesNotMatch(actualIcon,/disabled|manual-session/);
+manualPanel._hass.states['switch.floor'].state='off';
+assert.equal(manualPanel.manualControlStatus('floor').mode,null);
+manualPanel._hass.states['switch.floor'].state='unavailable';
+assert.match(manualPanel.manualControlStatus('floor').text,/Unavailable/);
+assert.equal(manualPanel.manualControlStatus('floor').mode,null); // Stale actual_activity=1 must not win.
+manualPanel.info.manual_controls.garage.entity='climate.garage';
+manualPanel._hass.states['climate.garage']={state:'heat',attributes:{hvac_action:'idle'}};
+manualPanel.info.data.rooms.garage={air_control:true,pump_suggestion:{reason:'Garage door open: heating paused'}};
+actualIcon=manualPanel.manualChartName('Garage','garage',false,'#213547');
+assert.match(actualIcon,/class="manual-icon manual-session"/);assert.match(actualIcon,/Garage door open: heating paused/);
+assert.doesNotMatch(actualIcon,/class="manual-icon active/);
+manualPanel._hass.states['climate.garage'].attributes.hvac_action='heating';
+assert.match(manualPanel.manualChartName('Garage','garage',false,'#213547'),/class="manual-icon active manual-session"/);
+manualPanel.info.manual_controls['zone:pump']={entity:'climate.zone',modes:['heat','cool'],enabled:true};
+manualPanel._hass.states['climate.zone']={state:'cool',attributes:{hvac_action:'cooling'}};
+actualIcon=manualPanel.manualChartName('Zone','zone:pump',false,'#213547');
+assert.match(actualIcon,/class="manual-icon active" data-manual-id="zone:pump" data-manual-mode="cool"/);
+assert.match(actualIcon,/Cooling · Automatic control/);assert.doesNotMatch(actualIcon,/manual-session/);
+manualPanel._hass.states['climate.zone'].attributes.hvac_action='idle';
+assert.equal(manualPanel.manualControlStatus('zone:pump').mode,null);
+delete manualPanel._hass.states['climate.zone'].attributes.hvac_action;
+assert.match(manualPanel.manualControlStatus('zone:pump').text,/Operating mode: Cooling/);
+manualPanel.info.manual_controls.garage.session.ends=Date.now()/1000-1;
+assert.doesNotMatch(manualPanel.manualChartName('Garage','garage',false,'#213547'),/manual-session/);
+console.log('Timeline icons distinguish live demand, selected pump modes, manual ownership, door pauses and unavailable devices.');
+
 
 const notifyPanel=new Component();
 notifyPanel.settings={language:'fi',manual_notification_target:''};

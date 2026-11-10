@@ -31,8 +31,13 @@ vm.runInContext(readFrontendSource(path.join(__dirname,'../custom_components/the
  panel._hass={callWS:async message=>{requests.push(message);return {manual_controls:{garage:control}};}};
  panel.load=async()=>{refreshes++;};
  const trigger={focus:()=>focused++};
+ control.entity='climate.garage';
+ panel._hass.states={'climate.garage':{state:'heat',attributes:{hvac_action:'heating'}}};
  panel.openManualSession('garage','heat',trigger);
  let dialog=panel.manualDialog;
+ assert.match(dialog.innerHTML,/data-current-activity>Heating · Automatic control/);
+ assert.equal(dialog.fields['.start'].disabled,false); // A timed override remains available during automatic heat.
+
  assert.equal(dialog.open,true);assert.match(dialog.innerHTML,/Manual heating/);assert.match(dialog.innerHTML,/Automatic control resumes/);
  await dialog.fields['.start'].handlers.click();
  assert.equal(requests[0].type,'thermal_pilot/manual');assert.equal(requests[0].entry_id,'one');
