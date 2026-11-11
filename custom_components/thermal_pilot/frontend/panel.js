@@ -228,18 +228,25 @@ const priceThresholds=[[0,'#88ad91'],[15,'#a8b782'],[20,'#c3b577'],[25,'#c7a46e'
  const priceColor=price=>priceThresholds.findLast(([value])=>price>=value)?.[1]||priceThresholds[0][1];
 
 const outdoorThresholds=[[-30,'#154360'],[-25,'#1B4F72'],[-20,'#2874A6'],[-10,'#3498DB'],[-5,'#85C1E9'],[0,'#82E0AA'],[5,'#2ECC71'],[10,'#239B56'],[20,'#186A3B'],[25,'#B7950B'],[30,'#CB4335'],[35,'#E74C3C']];
-const outdoorColor=value=>{
-  if(value<=outdoorThresholds[0][0])return outdoorThresholds[0][1];
-  for(let i=1;i<outdoorThresholds.length;i++){
-    const [upper,b]=outdoorThresholds[i],[lower,a]=outdoorThresholds[i-1];
+const outdoorColor=(value,thresholds=outdoorThresholds)=>{
+  if(value<=thresholds[0][0])return thresholds[0][1];
+  for(let i=1;i<thresholds.length;i++){
+    const [upper,b]=thresholds[i],[lower,a]=thresholds[i-1];
     if(value<=upper){
       const fraction=(value-lower)/(upper-lower);
       const channel=offset=>Math.round(parseInt(a.slice(offset,offset+2),16)*(1-fraction)+parseInt(b.slice(offset,offset+2),16)*fraction).toString(16).padStart(2,'0');
       return '#'+channel(1)+channel(3)+channel(5);
     }
   }
-  return outdoorThresholds.at(-1)[1];
+  return thresholds.at(-1)[1];
 };
+// Keep freezing readings blue, then use the price chart's muted transition
+// from green through warm neutral shades into red for warmer temperatures.
+const outdoorBarPalettes={
+ cold:[[-30,'#315572'],[-20,'#527fa0'],[-10,'#8eb3ca'],[0,'#c4dce9']],
+ mild:[[0,'#b2cfb7'],[10,'#91b79b'],[20,'#88ad91'],[22,'#a8b782'],[23,'#c3b577'],[24,'#c7a46e'],[25,'#cc936c'],[30,'#c9796b'],[35,'#ac605c']],
+};
+const outdoorBarColor=value=>outdoorColor(value,value<0?outdoorBarPalettes.cold:outdoorBarPalettes.mild);
 function durationLabel(milliseconds){
   const minutes=Math.max(0,Math.round(milliseconds/60000));
   if(!minutes&&milliseconds>0)return 'Less than 1 min';
@@ -833,6 +840,38 @@ class ThermalPilotPanel extends HTMLElement {
     const caption=compact?'°C':this.t('Hourly')+' · °C';
     return {height:102+rowOffset,svg:`<g data-weather-timeline="true"><text x="${labelX}" y="${compact?12:22}" fill="#253f49" style="font-size:${compact?11:13}px;font-weight:600">${escapeHTML(label)}</text><text x="${labelX}" y="${compact?26:43}" fill="#526b75" style="font-size:11px">${escapeHTML(caption)}</text>${items}<line x1="${left}" x2="${left+width}" y1="${87+rowOffset}" y2="${87+rowOffset}" stroke="#829aa330"/>${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="4" y2="${87+rowOffset}" stroke="#526b75" stroke-dasharray="4 4"/>`:''}</g>`};
   }
+  outdoorHistoryTimeline({rows,start,end,left,width,now,detailAttributes}){
+    // Outdoor readings are repeated in room observations. Keep the latest real
+    // sample per quarter-hour so long histories remain readable and lightweight.
+    const samples=new Map();
+    for(const row of rows){
+      const time=row.time*1000;
+      if(time<start||time>end||time>now||!Number.isFinite(time)||row.outdoor==null||row.outdoor===''||!Number.isFinite(Number(row.outdoor)))continue;
+      const bucket=Math.floor(time/900000),previous=samples.get(bucket);
+      if(!previous||time>=previous.time)samples.set(bucket,{time,value:Number(row.outdoor)});
+    }
+    const points=[...samples.values()].sort((a,b)=>a.time-b.time);
+    if(!points.length)return {height:0,svg:''};
+    const compact=left<100,top=compact?34:12,plotHeight=96;
+    const low=Math.min(0,Math.floor(Math.min(...points.map(point=>point.value)))-1);
+    const high=Math.max(0,Math.ceil(Math.max(...points.map(point=>point.value)))+1);
+    const x=time=>left+(time-start)/(end-start)*width;
+    const y=value=>top+plotHeight-(value-low)/(high-low)*plotHeight;
+    const format=new Intl.NumberFormat(this.settings?.language||'en',{maximumFractionDigits:1});
+    const label=this.t('Outdoor temperature');
+    const ticks=[...new Set([low,0,high])].map(value=>`<line x1="${left}" x2="${left+width}" y1="${y(value)}" y2="${y(value)}" stroke="#829aa32c"/><text x="${left-8}" y="${y(value)+4}" text-anchor="end" fill="#526b75" font-size="11">${escapeHTML(format.format(value))} °C</text>`).join('');
+    const bars=points.map((point,index)=>{
+      // Each bar covers at most one observation interval. Outages and future
+      // periods stay empty instead of carrying the last temperature forward.
+      const until=Math.min(point.time+900000,points[index+1]?.time??Infinity,now,end);
+      if(until<=point.time)return '';
+      const detail=`${label}: ${format.format(point.value)} °C\n${timeLabel(point.time)}`;
+      return `<rect data-outdoor-time="${point.time}" data-outdoor-value="${point.value}" ${detailAttributes(detail)} x="${x(point.time)}" y="${Math.min(y(point.value),y(0))}" width="${Math.max(.3,x(until)-x(point.time)-.5)}" height="${Math.max(1,Math.abs(y(point.value)-y(0)))}" rx=".5" fill="${outdoorBarColor(point.value)}"/>`;
+    }).join('');
+    const background=`<defs><linearGradient id="outdoor-history-background" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#829aa3" stop-opacity=".01"/><stop offset="100%" stop-color="#829aa3" stop-opacity=".11"/></linearGradient></defs><rect data-outdoor-background x="8" y="0" width="${left+width-8}" height="${top+plotHeight+12}" rx="8" fill="url(#outdoor-history-background)" pointer-events="none"/>`;
+    const height=top+plotHeight+48;
+    return {height,svg:`<g data-outdoor-history="true">${background}<text x="${compact?8:20}" y="${compact?16:26}" fill="#253f49" style="font-size:13px;font-weight:600">${escapeHTML(label)} (°C)</text>${ticks}${bars}<line data-outdoor-zero x1="${left}" x2="${left+width}" y1="${y(0)}" y2="${y(0)}" stroke="#526b75" stroke-width="1" pointer-events="none"/>${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="${top}" y2="${top+plotHeight}" stroke="#526b75" stroke-dasharray="4 4"/>`:''}</g>`};
+  }
   chartVisibility(){return {weather:true,prices:true};}
   priceChart(history=false,dashboard=false){
   const visibility=this.chartVisibility();
@@ -885,8 +924,8 @@ class ThermalPilotPanel extends HTMLElement {
   const longestName=Math.max(0,...[...rooms,...zones].map(item=>String(item.name||'')).map(label=>nameContext?nameContext.measureText(label).width:Array.from(label).length*8));
   const roomNameWidth=compact?viewWidth-(history?40:125):Math.max(history?190:180,Math.min(viewWidth*.4,Math.ceil(longestName)+12));
   const priceHeaderHeight=visibility.prices&&compact?64:0;
-  const left=compact?(history?88:48):roomNameWidth+(history?120:100),width=viewWidth-left-20,top=15+priceHeaderHeight,height=120,max=Math.max(25,Math.ceil(Math.max(0,...values.map(v=>v.price))/5)*5),min=Math.min(0,Math.floor(Math.min(0,...values.map(v=>v.price))/5)*5);
-  const ticks=Array.from({length:6},(_,i)=>min+(max-min)*i/5).map(v=>{const y=top+height-(v-min)/(max-min)*height;return `<line x1="${left}" x2="${left+width}" y1="${y}" y2="${y}" stroke="#829aa32c"/><text x="${left-10}" y="${y+4}" text-anchor="end" fill="#526b75" font-size="12">${v.toFixed(0)}</text>`;}).join('');
+  const left=compact?88:roomNameWidth+(history?120:100),width=viewWidth-left-20,top=15+priceHeaderHeight,height=120,max=Math.max(25,Math.ceil(Math.max(0,...values.map(v=>v.price))/5)*5),min=Math.min(0,Math.floor(Math.min(0,...values.map(v=>v.price))/5)*5);
+  const ticks=Array.from({length:6},(_,i)=>min+(max-min)*i/5).map(v=>{const y=top+height-(v-min)/(max-min)*height;return `<line x1="${left}" x2="${left+width}" y1="${y}" y2="${y}" stroke="#829aa32c"/><text x="${left-10}" y="${y+4}" text-anchor="end" fill="#526b75" font-size="12">${v.toFixed(0)} c/kWh</text>`;}).join('');
   const x=time=>left+(time-start)/span*width;
   const y=price=>top+height-(price-min)/(max-min)*height;
   const temperatureLabel=(item,y,zone=false)=>{
@@ -1038,7 +1077,9 @@ class ThermalPilotPanel extends HTMLElement {
   const activePrice=published.find(slot=>slot.time<=now&&now<slot.end);
   const totalPriceValue=activePrice?new Intl.NumberFormat(this.settings?.language||'en',{minimumFractionDigits:2,maximumFractionDigits:2}).format(activePrice.price):'—';
   const priceCaption=`<g data-current-total-price="${activePrice?.price??''}" role="img" aria-label="${escapeHTML(this.t('Total price')+' '+this.t('Now').toLocaleLowerCase(this.settings?.language||'en')+': '+totalPriceValue+' c/kWh')}"><text x="20" y="${compact?18:30}" style="font-size:13px;font-weight:600">${escapeHTML(this.t('Total price')+' '+this.t('Now').toLocaleLowerCase(this.settings?.language||'en'))}</text><text data-user-text x="20" y="${compact?47:62}" style="font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">${escapeHTML(totalPriceValue)}<tspan style="font-size:13px;font-weight:400"> c/kWh</tspan></text></g>`;
-  const weather=this.weatherTimeline({rows:weatherRows,start,end,left,width,now,detailAttributes});
+  const weather=history
+    ?this.outdoorHistoryTimeline({rows:this.history||[],start,end,left,width,now,detailAttributes})
+    :this.weatherTimeline({rows:weatherRows,start,end,left,width,now,detailAttributes});
   chartHeight=garageRooms.length?garageStart+roomHeights.slice(ordinaryRooms.length).reduce((sum,height)=>sum+height,0)+26:zones.length?zoneY+18:roomTop+ordinaryHeight+26;
   const dayBoundaries=[];
   const nextDay=new Date(start);nextDay.setHours(0,0,0,0);nextDay.setDate(nextDay.getDate()+1);

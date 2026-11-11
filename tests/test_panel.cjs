@@ -1753,3 +1753,40 @@ notificationInput=notifyPanel.field(notificationField,notifyPanel.settings,'sour
 assert.match(notificationInput,/value="notify.mobile_app_missing_phone" selected/);
 assert.match(notificationInput,/missing phone/);
 console.log('Companion recipient selector passed: explicit selection, legacy actions, notify entities and retained unavailable devices.');
+
+{
+ const outdoorPanel=new Component();outdoorPanel.settings={language:'fi',rooms:[],heating_zones:[]};
+ const start=Date.now()-7200000,end=start+14400000,now=start+7200000;
+ const row=(minutes,outdoor)=>({time:(start+minutes*60000)/1000,outdoor});
+ const rows=[row(0,-5),row(15,0),row(15,0),row(75,3),row(90,null),row(135,9),row(-15,4),row(30,'bad')];
+ const render=left=>outdoorPanel.outdoorHistoryTimeline({rows,start,end,left,width:600,now,detailAttributes:text=>`data-chart-detail="${text}"`});
+ const outdoor=render(300);
+ assert.match(outdoor.svg,/Ulkolämpötila/);assert.match(outdoor.svg,/−5 °C/);assert.match(outdoor.svg,/0 °C/);
+ assert.equal((outdoor.svg.match(/data-outdoor-time=/g)||[]).length,3); // Duplicates, null, invalid, future and out-of-range data omitted.
+ assert.doesNotMatch(outdoor.svg,/data-outdoor-line/);
+ assert.match(outdoor.svg,/data-outdoor-value="-5"[^>]*x="300"/);
+ assert.match(outdoor.svg,/data-outdoor-value="0"[^>]*x="337.5"/);
+ assert.match(outdoor.svg,/data-outdoor-value="3"[^>]*x="487.5"/);
+ assert.match(outdoor.svg,/data-outdoor-zero/);
+ assert.equal(outdoor.height,156);assert.equal(render(88).height,178);
+ for(const values of [[-30,-10],[5,20],[-5,10],[0,0]]){
+  const plot=outdoorPanel.outdoorHistoryTimeline({rows:values.map((value,index)=>row(index*15,value)),start,end,left:300,width:600,now,detailAttributes:()=>''});
+  assert.match(plot.svg,/>0 °C<\/text>/);assert.match(plot.svg,/data-outdoor-zero/);
+ }
+ for(const [value,color] of [[-30,'#315572'],[-20,'#527fa0'],[-10,'#8eb3ca'],[0,'#b2cfb7'],[10,'#91b79b'],[20,'#88ad91'],[22,'#a8b782'],[23,'#c3b577'],[24,'#c7a46e'],[25,'#cc936c'],[30,'#c9796b'],[35,'#ac605c']]){
+  assert.equal(vm.runInContext(`outdoorBarColor(${value})`,context),color);
+ }
+ assert.notEqual(vm.runInContext('outdoorBarColor(-.1)',context),vm.runInContext('outdoorBarColor(.1)',context));
+ assert.equal(vm.runInContext('outdoorBarColor(22.5)',context),'#b6b67d');
+ assert.notEqual(vm.runInContext('outdoorBarColor(25)',context),vm.runInContext('outdoorBarColor(25.1)',context));
+ const empty=outdoorPanel.outdoorHistoryTimeline({rows:[row(0,null)],start,end,left:300,width:600,now,detailAttributes:()=>''});
+ assert.equal(empty.height,0);assert.equal(empty.svg,'');
+ const constant=outdoorPanel.outdoorHistoryTimeline({rows:[row(0,0),row(15,0)],start,end,left:300,width:600,now,detailAttributes:()=>''});
+ assert.doesNotMatch(constant.svg,/NaN|Infinity/);
+ outdoorPanel.info={data:{price_chart:[]}};outdoorPanel.history=[row(0,-5),row(15,0)];outdoorPanel.priceChartWidth=1100;
+ assert.match(outdoorPanel.priceChart(true),/data-outdoor-history="true"/);
+ assert.match(outdoorPanel.priceChart(true),/>0 c\/kWh<\/text>/);
+ assert.doesNotMatch(outdoorPanel.priceChart(false),/data-outdoor-history/);
+ outdoorPanel.history=[];assert.doesNotMatch(outdoorPanel.priceChart(true),/data-outdoor-history/);
+ console.log('History outdoor temperature shares the price timeline, localizes readings, keeps zero/negative values, deduplicates and preserves gaps without future data.');
+}
