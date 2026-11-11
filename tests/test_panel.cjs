@@ -1790,3 +1790,25 @@ console.log('Companion recipient selector passed: explicit selection, legacy act
  outdoorPanel.history=[];assert.doesNotMatch(outdoorPanel.priceChart(true),/data-outdoor-history/);
  console.log('History outdoor temperature shares the price timeline, localizes readings, keeps zero/negative values, deduplicates and preserves gaps without future data.');
 }
+
+{
+ const panel=new Component();panel.settings={language:'fi'};
+ const now=Date.now(),start=now-3600000,end=now+6*3600000;
+ const predicted=(minutes,temperature)=>({datetime:new Date(now+minutes*60000).toISOString(),temperature});
+ const render=(forecast,rows=[])=>panel.outdoorHistoryTimeline({rows,forecast,start,end,left:300,width:700,now,detailAttributes:text=>`data-chart-detail="${text}"`});
+ const forecast=[predicted(240,30),predicted(-30,2),predicted(30,4),predicted(60,5),predicted(60,5),predicted(90,null),predicted(600,99)];
+ const result=render(forecast,[{time:(now-1800000)/1000,outdoor:-5}]);
+ assert.match(result.svg,/data-outdoor-forecast/);assert.match(result.svg,/stroke="#88939b"[^>]*stroke-dasharray="5 4"/);
+ assert.match(result.svg,/Sääennuste/);assert.match(result.svg,/31 °C/);assert.match(result.svg,/−6 °C/);assert.match(result.svg,/>0 °C<\/text>/);
+ const future=Array.from(result.svg.matchAll(/data-outdoor-forecast-time="([^"]+)"/g),match=>Number(match[1]));
+ assert.equal(future.length,4);assert.equal(future[0],now);assert.ok(future.every(time=>time>=now&&time<=end));
+ assert.equal((result.svg.match(/data-outdoor-time=/g)||[]).length,1);
+ const forecastPath=result.svg.match(/data-outdoor-forecast><path d="([^"]+)"/)[1];
+ assert.equal((forecastPath.match(/M/g)||[]).length,2); // Missing hours are not bridged.
+ assert.match(result.svg,/Ulkolämpötila: 3 °C/); // Forecast-only interpolation at Now.
+ assert.doesNotMatch(render([predicted(-240,8)]).svg,/data-outdoor-history/);
+ assert.match(render([predicted(30,4)]).svg,/data-outdoor-forecast/); // Forecast-only chart is useful before history exists.
+ assert.doesNotMatch(render([],[{time:(now-1800000)/1000,outdoor:0}]).svg,/data-outdoor-forecast/);
+ assert.doesNotMatch(render([predicted(-240,8),predicted(30,4)]).svg,new RegExp('data-outdoor-forecast-time="'+now+'"')); // No interpolation across stale forecast gaps.
+ console.log('Outdoor forecasts stay separate from measured bars, share the scale, interpolate only near Now, localize details and preserve gaps.');
+}

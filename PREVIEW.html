@@ -937,7 +937,7 @@ class ThermalPilotPanel extends HTMLElement {
     const caption=compact?'°C':this.t('Hourly')+' · °C';
     return {height:102+rowOffset,svg:`<g data-weather-timeline="true"><text x="${labelX}" y="${compact?12:22}" fill="#253f49" style="font-size:${compact?11:13}px;font-weight:600">${escapeHTML(label)}</text><text x="${labelX}" y="${compact?26:43}" fill="#526b75" style="font-size:11px">${escapeHTML(caption)}</text>${items}<line x1="${left}" x2="${left+width}" y1="${87+rowOffset}" y2="${87+rowOffset}" stroke="#829aa330"/>${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="4" y2="${87+rowOffset}" stroke="#526b75" stroke-dasharray="4 4"/>`:''}</g>`};
   }
-  outdoorHistoryTimeline({rows,start,end,left,width,now,detailAttributes}){
+  outdoorHistoryTimeline({rows,forecast=[],start,end,left,width,now,detailAttributes}){
     // Outdoor readings are repeated in room observations. Keep the latest real
     // sample per quarter-hour so long histories remain readable and lightweight.
     const samples=new Map();
@@ -948,10 +948,27 @@ class ThermalPilotPanel extends HTMLElement {
       if(!previous||time>=previous.time)samples.set(bucket,{time,value:Number(row.outdoor)});
     }
     const points=[...samples.values()].sort((a,b)=>a.time-b.time);
-    if(!points.length)return {height:0,svg:''};
-    const compact=left<100,top=compact?34:12,plotHeight=96;
-    const low=Math.min(0,Math.floor(Math.min(...points.map(point=>point.value)))-1);
-    const high=Math.max(0,Math.ceil(Math.max(...points.map(point=>point.value)))+1);
+    const forecastByTime=new Map();
+    for(const row of forecast){
+      const time=new Date(row.datetime).getTime();
+      if(!Number.isFinite(time)||row.temperature==null||row.temperature===''||!Number.isFinite(Number(row.temperature)))continue;
+      forecastByTime.set(time,{time,value:Number(row.temperature)});
+    }
+    const forecastSamples=[...forecastByTime.values()].sort((a,b)=>a.time-b.time);
+    const future=forecastSamples.filter(point=>point.time>=Math.max(now,start)&&point.time<=end);
+    // Interpolate only across a nearby forecast interval at Now. Do not connect
+    // observations to forecasts as though they were one measured temperature series.
+    const before=forecastSamples.findLast(point=>point.time<now);
+    const after=forecastSamples.find(point=>point.time>now);
+    if(now>=start&&now<=end&&before&&after&&after.time-before.time<=7200000&&!future.some(point=>point.time===now)){
+      const fraction=(now-before.time)/(after.time-before.time);
+      future.unshift({time:now,value:before.value+fraction*(after.value-before.value)});
+    }
+    if(!points.length&&!future.length)return {height:0,svg:''};
+    const compact=left<100,top=compact?(future.length?52:34):12,plotHeight=96;
+    const temperatures=[...points,...future].map(point=>point.value);
+    const low=Math.min(0,Math.floor(Math.min(...temperatures))-1);
+    const high=Math.max(0,Math.ceil(Math.max(...temperatures))+1);
     const x=time=>left+(time-start)/(end-start)*width;
     const y=value=>top+plotHeight-(value-low)/(high-low)*plotHeight;
     const format=new Intl.NumberFormat(this.settings?.language||'en',{maximumFractionDigits:1});
@@ -965,9 +982,20 @@ class ThermalPilotPanel extends HTMLElement {
       const detail=`${label}: ${format.format(point.value)} °C\n${timeLabel(point.time)}`;
       return `<rect data-outdoor-time="${point.time}" data-outdoor-value="${point.value}" ${detailAttributes(detail)} x="${x(point.time)}" y="${Math.min(y(point.value),y(0))}" width="${Math.max(.3,x(until)-x(point.time)-.5)}" height="${Math.max(1,Math.abs(y(point.value)-y(0)))}" rx=".5" fill="${outdoorBarColor(point.value)}"/>`;
     }).join('');
+    let forecastPath='',previousForecast;
+    const forecastLabel=this.t('Weather forecast');
+    const forecastDetails=future.map(point=>{
+      const command=!previousForecast||point.time-previousForecast.time>7200000?'M':'L';
+      forecastPath+=`${command}${x(point.time)} ${y(point.value)} `;
+      previousForecast=point;
+      const detail=`${forecastLabel} · ${label}: ${format.format(point.value)} °C\n${timeLabel(point.time)}`;
+      return `<circle data-outdoor-forecast-time="${point.time}" ${detailAttributes(detail)} cx="${x(point.time)}" cy="${y(point.value)}" r="5" fill="transparent" stroke="transparent"/>`;
+    }).join('');
+    const forecastLine=future.length?`<g data-outdoor-forecast><path d="${forecastPath.trim()}" fill="none" stroke="#88939b" stroke-width="2" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>${future.length===1?`<circle cx="${x(future[0].time)}" cy="${y(future[0].value)}" r="2" fill="#88939b"/>`:''}${forecastDetails}</g>`:'';
+    const legend=future.length?`<line x1="${compact?8:20}" x2="${compact?30:42}" y1="${compact?33:48}" y2="${compact?33:48}" stroke="#88939b" stroke-width="2" stroke-dasharray="5 4"/><text x="${compact?36:48}" y="${compact?37:52}" fill="#526b75" font-size="11">${escapeHTML(forecastLabel)}</text>`:'';
     const background=`<defs><linearGradient id="outdoor-history-background" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#829aa3" stop-opacity=".01"/><stop offset="100%" stop-color="#829aa3" stop-opacity=".11"/></linearGradient></defs><rect data-outdoor-background x="8" y="0" width="${left+width-8}" height="${top+plotHeight+12}" rx="8" fill="url(#outdoor-history-background)" pointer-events="none"/>`;
     const height=top+plotHeight+48;
-    return {height,svg:`<g data-outdoor-history="true">${background}<text x="${compact?8:20}" y="${compact?16:26}" fill="#253f49" style="font-size:13px;font-weight:600">${escapeHTML(label)} (°C)</text>${ticks}${bars}<line data-outdoor-zero x1="${left}" x2="${left+width}" y1="${y(0)}" y2="${y(0)}" stroke="#526b75" stroke-width="1" pointer-events="none"/>${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="${top}" y2="${top+plotHeight}" stroke="#526b75" stroke-dasharray="4 4"/>`:''}</g>`};
+    return {height,svg:`<g data-outdoor-history="true">${background}<text x="${compact?8:20}" y="${compact?16:26}" fill="#253f49" style="font-size:13px;font-weight:600">${escapeHTML(label)} (°C)</text>${legend}${ticks}${bars}${forecastLine}<line data-outdoor-zero x1="${left}" x2="${left+width}" y1="${y(0)}" y2="${y(0)}" stroke="#526b75" stroke-width="1" pointer-events="none"/>${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="${top}" y2="${top+plotHeight}" stroke="#526b75" stroke-dasharray="4 4"/>`:''}</g>`};
   }
   chartVisibility(){return {weather:true,prices:true};}
   priceChart(history=false,dashboard=false){
@@ -1175,7 +1203,7 @@ class ThermalPilotPanel extends HTMLElement {
   const totalPriceValue=activePrice?new Intl.NumberFormat(this.settings?.language||'en',{minimumFractionDigits:2,maximumFractionDigits:2}).format(activePrice.price):'—';
   const priceCaption=`<g data-current-total-price="${activePrice?.price??''}" role="img" aria-label="${escapeHTML(this.t('Total price')+' '+this.t('Now').toLocaleLowerCase(this.settings?.language||'en')+': '+totalPriceValue+' c/kWh')}"><text x="20" y="${compact?18:30}" style="font-size:13px;font-weight:600">${escapeHTML(this.t('Total price')+' '+this.t('Now').toLocaleLowerCase(this.settings?.language||'en'))}</text><text data-user-text x="20" y="${compact?47:62}" style="font-size:22px;font-weight:600;font-variant-numeric:tabular-nums">${escapeHTML(totalPriceValue)}<tspan style="font-size:13px;font-weight:400"> c/kWh</tspan></text></g>`;
   const weather=history
-    ?this.outdoorHistoryTimeline({rows:this.history||[],start,end,left,width,now,detailAttributes})
+    ?this.outdoorHistoryTimeline({rows:this.history||[],forecast:this.info.data?.weather_forecast||[],start,end,left,width,now,detailAttributes})
     :this.weatherTimeline({rows:weatherRows,start,end,left,width,now,detailAttributes});
   chartHeight=garageRooms.length?garageStart+roomHeights.slice(ordinaryRooms.length).reduce((sum,height)=>sum+height,0)+26:zones.length?zoneY+18:roomTop+ordinaryHeight+26;
   const dayBoundaries=[];
@@ -2440,6 +2468,7 @@ demo.data.season_summaries=demo.settings.rooms.map((room,index)=>({
 
 
 
+
 // END zone chart demonstration
 globalThis.loadCardHelpers=async()=>({createCardElement:config=>{
  const card=document.createElement('div');
@@ -2481,6 +2510,7 @@ function previewManualRequest(message){
  return {manual_controls:structuredClone(demo.manual_controls)};
 }
 // END manual session demonstration
+
 
 
 

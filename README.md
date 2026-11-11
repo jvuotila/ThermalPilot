@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.76 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.77 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -35,7 +35,8 @@ heating system, without ever letting it control anything.
 
 - Plans heating using electricity prices, room temperatures and weather.
 - Shows room plans, recorded heating and saved temperature forecasts.
-- Aligns recorded outdoor temperatures with prices and heating timelines in History.
+- Aligns recorded outdoor temperatures with prices and heating timelines in History,
+  with future weather forecasts shown separately as a grey dashed line.
 - Supports primary room thermostats, secondary air-to-air heat-pump zones and
   independent garage control.
 - Includes sortable heat-retention estimates and two dashboard cards.
