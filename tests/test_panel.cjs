@@ -1773,12 +1773,12 @@ console.log('Companion recipient selector passed: explicit selection, legacy act
   const plot=outdoorPanel.outdoorHistoryTimeline({rows:values.map((value,index)=>row(index*15,value)),start,end,left:300,width:600,now,detailAttributes:()=>''});
   assert.match(plot.svg,/>0 °C<\/text>/);assert.match(plot.svg,/data-outdoor-zero/);
  }
- for(const [value,color] of [[-30,'#315572'],[-20,'#527fa0'],[-10,'#8eb3ca'],[0,'#b2cfb7'],[10,'#91b79b'],[20,'#88ad91'],[22,'#a8b782'],[23,'#c3b577'],[24,'#c7a46e'],[25,'#cc936c'],[30,'#c9796b'],[35,'#ac605c']]){
+ for(const [value,color] of [[-30,'#315572'],[-20,'#527fa0'],[-10,'#8eb3ca'],[0,'#d7ead2'],[5,'#bddbb8'],[10,'#94be91'],[15,'#6d9f73'],[20,'#4c7e5e'],[21,'#a58e70'],[22,'#c69570'],[23,'#cd9169'],[24,'#cf8c66'],[25,'#cc8568'],[30,'#c9796b'],[35,'#ac605c']]){
   assert.equal(vm.runInContext(`outdoorBarColor(${value})`,context),color);
  }
  assert.notEqual(vm.runInContext('outdoorBarColor(-.1)',context),vm.runInContext('outdoorBarColor(.1)',context));
- assert.equal(vm.runInContext('outdoorBarColor(22.5)',context),'#b6b67d');
- assert.notEqual(vm.runInContext('outdoorBarColor(25)',context),vm.runInContext('outdoorBarColor(25.1)',context));
+ assert.equal(vm.runInContext('outdoorBarColor(22.5)',context),'#ca936d');
+ assert.notEqual(vm.runInContext('outdoorBarColor(25)',context),vm.runInContext('outdoorBarColor(26)',context));
  const empty=outdoorPanel.outdoorHistoryTimeline({rows:[row(0,null)],start,end,left:300,width:600,now,detailAttributes:()=>''});
  assert.equal(empty.height,0);assert.equal(empty.svg,'');
  const constant=outdoorPanel.outdoorHistoryTimeline({rows:[row(0,0),row(15,0)],start,end,left:300,width:600,now,detailAttributes:()=>''});

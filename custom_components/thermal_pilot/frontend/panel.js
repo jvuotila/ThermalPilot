@@ -240,11 +240,11 @@ const outdoorColor=(value,thresholds=outdoorThresholds)=>{
   }
   return thresholds.at(-1)[1];
 };
-// Keep freezing readings blue, then use the price chart's muted transition
-// from green through warm neutral shades into red for warmer temperatures.
+// Keep freezing readings blue, then use a price-chart-inspired muted transition
+// from green through orange into red for warmer temperatures.
 const outdoorBarPalettes={
  cold:[[-30,'#315572'],[-20,'#527fa0'],[-10,'#8eb3ca'],[0,'#c4dce9']],
- mild:[[0,'#b2cfb7'],[10,'#91b79b'],[20,'#88ad91'],[22,'#a8b782'],[23,'#c3b577'],[24,'#c7a46e'],[25,'#cc936c'],[30,'#c9796b'],[35,'#ac605c']],
+ mild:[[0,'#d7ead2'],[5,'#bddbb8'],[10,'#94be91'],[15,'#6d9f73'],[20,'#4c7e5e'],[21,'#a58e70'],[22,'#c69570'],[23,'#cd9169'],[24,'#cf8c66'],[25,'#cc8568'],[30,'#c9796b'],[35,'#ac605c']],
 };
 const outdoorBarColor=value=>outdoorColor(value,value<0?outdoorBarPalettes.cold:outdoorBarPalettes.mild);
 function durationLabel(milliseconds){
