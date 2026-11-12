@@ -238,6 +238,7 @@ async def ws_plan_chart(hass, connection, msg):
             'chart_temperatures':coordinator.chart_temperatures(),
             'temperature_history_entities':chart_history_entities(hass,coordinator),
             'weather_forecast':[subset(row,('datetime','temperature','condition')) for row in data.get('weather_forecast',[])],
+            'weather_forecast_history':[subset(row,('datetime','temperature','condition','issued')) for row in data.get('weather_forecast_history',[])],
             'price_chart':[subset(slot,('start','end','price')) for slot in data.get('price_chart',[])]
         },
         'history':[subset(row,('room_id','time','activity','suggested_heat','pump_mode','pump_basis','pump_entity',

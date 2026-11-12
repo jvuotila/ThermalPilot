@@ -832,8 +832,8 @@ class ThermalPilotPanel extends HTMLElement {
       const label=this.t(labels[row.condition]||'Weather condition unavailable');
       const temperature=row.temperature.toLocaleString(this.settings?.language==='fi'?'fi-FI':this.settings?.language||'en',{minimumFractionDigits:1,maximumFractionDigits:1});
       const time=new Date(row.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false});
-      const detail=`${timeLabel(row.time)} · ${label} · ${temperature} °C`;
-      items+=`<g data-weather-hour="${row.time}" ${detailAttributes(detail)}><rect x="${position-23}" y="${4+rowOffset}" width="46" height="76" rx="8" fill="transparent"/><text x="${position}" y="${20+rowOffset}" text-anchor="middle" fill="#526b75" style="font-size:11px">${time}</text><g transform="translate(${position-16} ${29+rowOffset}) scale(.9)">${weatherIcon(row.condition)}</g><text x="${position}" y="${75+rowOffset}" text-anchor="middle" fill="#253f49" style="font-size:12px">${temperature}°</text></g>`;
+      const detail=`${row.saved?this.t('Saved forecast')+' · ':''}${timeLabel(row.time)} · ${label} · ${temperature} °C`;
+      items+=`<g data-weather-hour="${row.time}"${row.saved?' data-saved-weather="true" opacity=".6"':''} ${detailAttributes(detail)}><rect x="${position-23}" y="${4+rowOffset}" width="46" height="76" rx="8" fill="transparent"/><text x="${position}" y="${20+rowOffset}" text-anchor="middle" fill="#526b75" style="font-size:11px">${time}</text><g transform="translate(${position-16} ${29+rowOffset}) scale(.9)">${weatherIcon(row.condition)}</g><text x="${position}" y="${75+rowOffset}" text-anchor="middle" fill="#253f49" style="font-size:12px">${temperature}°</text></g>`;
     }
     const labelX=compact?8:20;
     const label=this.t('Weather forecast');
@@ -940,11 +940,22 @@ class ThermalPilotPanel extends HTMLElement {
   }
   const open=this.priceAccordionState?.[history?'history':'overview']!==false;
   const heading=dashboard?'':`<details class="observation-accordion" id="price-accordion" ${open?'open':''}><summary><h2 style="margin:0">${escapeHTML(this.t('Total electricity price and heating'))}</h2></summary><div style="padding-top:0">`;
-  if(!history&&visibility.prices&&!values.length&&!zones.length&&!garageRooms.length&&!(this.info.data?.weather_forecast||[]).length)return `<section class="price-card">${heading}<p>${history?'No past electricity prices are available yet. History uses recorded prices and known past intervals from the published price list.':'No usable electricity price list is available.'}</p>${dashboard?'':'</div></details>'}</section>`;
+  if(!history&&visibility.prices&&!values.length&&!zones.length&&!garageRooms.length&&!(this.info.data?.weather_forecast||[]).length&&!(this.info.data?.weather_forecast_history||[]).length)return `<section class="price-card">${heading}<p>${history?'No past electricity prices are available yet. History uses recorded prices and known past intervals from the published price list.':'No usable electricity price list is available.'}</p>${dashboard?'':'</div></details>'}</section>`;
   const start=history?historyStart:Math.floor((published[0]?.time??values[0]?.time??(now-86400000))/900000)*900000;
   const end=history?historyEnd:Math.ceil((published.at(-1)?.end??Math.max(values.at(-1)?.end??(now+86400000),now))/900000)*900000;
   const span=end-start;
-  const weatherRows=history||!visibility.weather?[]:[...new Map((this.info.data?.weather_forecast||[]).filter(row=>row.temperature!==null&&row.temperature!==undefined&&Number.isFinite(Number(row.temperature))).map(row=>{const time=new Date(row.datetime).getTime();return [time,{...row,time,temperature:Number(row.temperature)}];})).values()].filter(row=>Number.isFinite(row.time)&&row.time>=start&&row.time<end&&row.time+3600000>now).sort((a,b)=>a.time-b.time);
+  const weatherByTime=new Map();
+  if(!history&&visibility.weather){
+    const forecasts=(this.info.data?.weather_forecast||[]).map(row=>({...row,saved:false}));
+    const saved=(this.info.data?.weather_forecast_history||[]).map(row=>({...row,saved:true}));
+    for(const row of [...forecasts,...saved]){
+      const time=new Date(row.datetime).getTime();
+      if(!Number.isFinite(time)||time<start||time>=end||!validTemperature(row.temperature))continue;
+      if(row.saved?time>=now:time+3600000<=now)continue;
+      weatherByTime.set(time,{...row,time,temperature:Number(row.temperature)});
+    }
+  }
+  const weatherRows=[...weatherByTime.values()].sort((a,b)=>a.time-b.time);
   let viewWidth=Math.max(240,this.priceChartWidth||((this.clientWidth||0)>0?this.clientWidth-104:900));
   const compact=viewWidth<600;
   let nameContext;

@@ -143,6 +143,23 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(data['weather_forecast'],self.c.forecast)
         self.assertFalse(any(call.args[:2]==('weather','get_forecasts') for call in self.hass.services.async_call.await_args_list))
 
+    async def test_weather_history_is_saved_once_and_exposed_after_target_hour(self):
+        self.c.settings['weather_entity'] = 'weather.home'
+        self.hass.states['weather.home'] = State('cloudy', {'temperature_unit': '°C'})
+        self.c.forecast_type = 'hourly'
+        self.c.forecast_entity = 'weather.home'
+        self.c.forecast_updated = now
+        self.c.forecast = [{'datetime': (now + timedelta(hours=1)).isoformat(),
+                            'temperature': -3, 'condition': 'snowy'}]
+        data = await self.c._async_update_data()
+        self.assertEqual(data['weather_forecast_history'], [])
+        later = now + timedelta(hours=1, minutes=5)
+        with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=later):
+            data = await self.c._async_update_data()
+        self.assertEqual(len(data['weather_forecast_history']), 1)
+        self.assertEqual(data['weather_forecast_history'][0]['temperature'], -3)
+        self.assertEqual(data['weather_forecast_history'][0]['condition'], 'snowy')
+
     async def test_non_electric_sources_observe_without_prices_plans_or_control(self):
         self.c.settings.update(price_entity='',price_forecast_entity='',simulation_enabled=False,live_control_confirmed=True,apply_season_setpoints=True)
         self.hass.states.pop('sensor.price')

@@ -75,6 +75,7 @@ class PlanChartEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.coordinator.settings.update(house_heat_source='air_to_water',heating_zones=[{'id':'zone','name':'Zone','thermostat':'climate.secret','heating_strategy':'tariff'}])
         self.coordinator.data['zones']={'zone':{'plan':{'commands':[{'time':'zone-later','action':'raise','setpoint':24}],'slots':[{'end':'zone-end'}]}}}
         self.coordinator.data['weather_forecast']=[{'datetime':'weather-time','temperature':12.1,'condition':'cloudy','private':'secret'}]
+        self.coordinator.data['weather_forecast_history']=[{'datetime':'past','temperature':1,'condition':'snowy','issued':123,'private':'secret'}]
         self.coordinator.data['price_chart']=[{'start':'start','end':'end','price':10,'internal':'secret'}]
         self.coordinator.data['rooms']['room'].update(air_control=True,plan={'commands':[{'time':'later','action':'raise','setpoint':24}],'slots':[{'end':'end','temperature':20}],'reason':'private'})
         self.rows=[{'room_id':'room','time':1,'pump_mode':'heat','temperature':7,'forecast_context':['secret']},{'room_id':'zone:zone','zone_id':'zone','time':1,'zone_mode':'cool'}]
@@ -93,6 +94,7 @@ class PlanChartEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result['history'][1]['zone_mode'],'cool')
         self.assertNotIn('internal',result['data']['price_chart'][0])
         self.assertEqual(result['data']['weather_forecast'],[{'datetime':'weather-time','temperature':12.1,'condition':'cloudy'}])
+        self.assertEqual(result['data']['weather_forecast_history'],[{'datetime':'past','temperature':1,'condition':'snowy','issued':123}])
     async def test_multiple_integrations_and_unloaded_selection(self):
         self.hass.data['thermal_pilot']['two']=Coordinator('Other')
         await self.handler(self.hass,self.connection,{'id':1})

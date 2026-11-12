@@ -603,6 +603,11 @@ class PilotCoordinator(DataUpdateCoordinator):
             now.timestamp()-HISTORY_DAYS*86400
         )
         forecasts = await self.get_forecast(now)
+        chart_forecast = self.weather_chart_forecast(now)
+        forecast_issued = self.forecast_updated.timestamp() if self.forecast_updated else now.timestamp()
+        saved_weather = await self.hass.async_add_executor_job(
+            self.history_db.save_weather_forecasts, chart_forecast, forecast_issued, now.timestamp()
+        )
         self.fallback_state = fallback_season(
             self.fallback_state,
             forecasts,
@@ -641,7 +646,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             await self.store.async_save(self.storage_data())
             data = {'updated':now.isoformat(),'simulation_only':not self.live_enabled() and not self.settings['apply_season_setpoints'],'heating_active':False,
                 'collection':self.season,'zones':{},'collection_evidence':self.collection_evidence(),'warnings':['ThermalPilot is passive. Planning, collection and learning are stopped.']+setpoint_errors,
-                'rooms':{},'outdoor':outdoor,'water':None,'weather_forecast':self.weather_chart_forecast(now),
+                'rooms':{},'outdoor':outdoor,'water':None,'weather_forecast':chart_forecast,'weather_forecast_history':saved_weather,
                 'season_summaries':await self.hass.async_add_executor_job(self.history_db.summaries),
                 'history_info':await self.hass.async_add_executor_job(self.history_db.size)}
             self._plan_settings = plan_settings
@@ -996,7 +1001,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         history_info = await self.hass.async_add_executor_job(self.history_db.size)
         data = {'season_summaries':archives,'history_info':history_info, 'updated':now.isoformat(), 'simulation_only':not self.live_enabled() and not self.settings['apply_season_setpoints'], 'warnings':warnings,
                 'heating_active':True, 'collection':self.season, 'outdoor':outdoor, 'water':water, 
-                'rooms':room_data,'price_chart':chart_prices,'weather_forecast':self.weather_chart_forecast(now),'price_outlook':price_outlook,'wind':wind_status,
+                'rooms':room_data,'price_chart':chart_prices,'weather_forecast':chart_forecast,'weather_forecast_history':saved_weather,'price_outlook':price_outlook,'wind':wind_status,
                 'zones':zone_data,'collection_evidence':self.collection_evidence(),
                 'source_status':{
                     'prices':bool(slots),

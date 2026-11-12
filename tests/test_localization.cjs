@@ -32,7 +32,7 @@ function runtime(fetch){
  }
  for(const code of Object.keys(catalogs)){
   await i18n.load(code);
-  for(const key of ['Close to reference','Assuming no temperature change performed equally well or better, so the rating is not green.','The benchmark is unavailable, so the rating is not green.']){
+  for(const key of ['Saved forecast','Close to reference','Assuming no temperature change performed equally well or better, so the rating is not green.','The benchmark is unavailable, so the rating is not green.']){
    assert.equal(i18n.translateText(key,code),catalogs[code].messages[key],code+' forecast rating explanation');
    if(code!=='en')assert.notEqual(i18n.translateText(key,code),key);
   }

@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 import sqlite3
 from bisect import bisect_left
+from datetime import datetime, timezone
 from contextlib import contextmanager
 
 
@@ -53,6 +54,41 @@ class HistoryDatabase:
                         times.append(value)
                 if times:
                     con.execute("INSERT INTO metadata VALUES ('collection_started_at',?)",(str(min(times)),))
+
+    def save_weather_forecasts(self, rows, issued, now):
+        """Keep the last forecast known before each hour, frozen once that hour begins.
+
+        This small, shared cache has at most seven past and seven future days.
+        Metadata keeps it inside existing SQLite backups without changing their
+        schema or duplicating forecasts for every room.
+        """
+        cutoff = now - 7 * 86400
+        with self._connect() as con:
+            stored = con.execute("SELECT value FROM metadata WHERE key='weather_forecast_hours'").fetchone()
+            previous = stored[0] if stored else '[]'
+            records = {row['time']: row for row in json.loads(previous)
+                       if cutoff <= row['time'] <= now + 7 * 86400}
+            for row in rows:
+                hour = int(datetime.fromisoformat(row['datetime'].replace('Z', '+00:00')).timestamp()) // 3600 * 3600
+                # Never manufacture a past forecast from a newly fetched result.
+                if issued > hour or issued > now or not cutoff <= hour <= now + 7 * 86400:
+                    continue
+                existing = records.get(hour)
+                if existing and (hour < now or existing['issued'] >= issued):
+                    continue
+                records[hour] = {
+                    'time': hour,
+                    'datetime': datetime.fromtimestamp(hour, timezone.utc).isoformat(),
+                    'issued': issued,
+                    'temperature': row['temperature'],
+                    'condition': row['condition'],
+                }
+            ordered = [records[hour] for hour in sorted(records)]
+            encoded = json.dumps(ordered, separators=(',', ':'), allow_nan=False)
+            # Cached forecast responses do not need another database write.
+            if encoded != previous:
+                con.execute("INSERT OR REPLACE INTO metadata VALUES ('weather_forecast_hours',?)", (encoded,))
+        return [row for row in ordered if row['time'] < now]
 
     def append(self, rows, cutoff, season='unknown'):
         with self._connect() as con:

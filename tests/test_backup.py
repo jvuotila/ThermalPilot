@@ -1,5 +1,6 @@
 """Exercise complete backup round trips and rejection without changing live data."""
 import hashlib
+from datetime import datetime, timezone
 from io import BytesIO
 import json
 from pathlib import Path
@@ -37,6 +38,10 @@ class BackupTests(unittest.TestCase):
             db.execute('INSERT INTO metadata VALUES (?,?)',('collection_started_at','12300'))
         from thermal_pilot.const import DEFAULTS, ROOM_DEFAULTS
         self.settings={**DEFAULTS,'price_entity':'sensor.price','outdoor_entity':'sensor.out','rooms':[{**ROOM_DEFAULTS,'id':'11111111-1111-4111-8111-111111111111','name':'Study','thermostat':'climate.room','temperature_entity':'sensor.room'}]}
+        issued = datetime(2026, 11, 12, 9, tzinfo=timezone.utc).timestamp()
+        HistoryDatabase(self.original).save_weather_forecasts(
+            [{'datetime':'2026-11-12T10:00:00+00:00','temperature':2,'condition':'cloudy'}],
+            issued, issued)
         self.content=create_backup(self.settings,state(),str(self.original))
     def tearDown(self):self.temp.cleanup()
     def rewrite(self,mutate):

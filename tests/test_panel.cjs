@@ -1812,3 +1812,23 @@ console.log('Companion recipient selector passed: explicit selection, legacy act
  assert.doesNotMatch(render([predicted(-240,8),predicted(30,4)]).svg,new RegExp('data-outdoor-forecast-time="'+now+'"')); // No interpolation across stale forecast gaps.
  console.log('Outdoor forecasts stay separate from measured bars, share the scale, interpolate only near Now, localize details and preserve gaps.');
 }
+
+{
+ const panel=new Component(),now=Date.now(),hour=3600000;
+ panel.settings={language:'fi',rooms:[],heating_zones:[]};panel.priceChartWidth=1200;
+ const savedTime=new Date(now-3*hour).toISOString();
+ panel.info={data:{price_chart:[{start:new Date(now-6*hour).toISOString(),end:new Date(now+12*hour).toISOString(),price:10}],rooms:{},
+  weather_forecast:[{datetime:savedTime,temperature:999,condition:'sunny'},{datetime:new Date(now+hour).toISOString(),temperature:4,condition:'rainy'}],
+  weather_forecast_history:[{datetime:savedTime,temperature:-2,condition:'snowy',issued:(now-4*hour)/1000},{datetime:new Date(now+2*hour).toISOString(),temperature:99,condition:'sunny'}]}};
+ panel.statusHistory=[];
+ const html=panel.priceChart(false);
+ assert.match(html,/data-saved-weather="true" opacity=".6"/);
+ assert.match(html,/Tallennettu ennuste/);assert.match(html,/Lumisadetta|Lunta/);
+ assert.doesNotMatch(html,/999|99 °C/);
+ assert.match(html,new RegExp('data-weather-hour="'+(now-3*hour)+'"'));
+ assert.match(html,new RegExp('data-weather-hour="'+(now+hour)+'"'));
+ panel.info.data.weather_forecast=[];
+ assert.match(panel.priceChart(false),/data-saved-weather/); // Outage does not hide saved forecasts.
+ panel.history=[];assert.doesNotMatch(panel.priceChart(true),/data-saved-weather/);
+ console.log('Plan weather shows frozen past icons with faded styling and localized saved labels, keeps future forecasts separate and survives forecast outages.');
+}
