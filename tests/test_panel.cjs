@@ -1832,3 +1832,33 @@ console.log('Companion recipient selector passed: explicit selection, legacy act
  panel.history=[];assert.doesNotMatch(panel.priceChart(true),/data-saved-weather/);
  console.log('Plan weather shows frozen past icons with faded styling and localized saved labels, keeps future forecasts separate and survives forecast outages.');
 }
+
+{
+ const panel=new Component(),now=Date.now(),minute=60000;
+ panel.settings={language:'en',rooms:[{id:'r',name:'Room'}],heating_zones:[]};panel.priceChartWidth=1200;
+ const time=offset=>new Date(now+offset*minute).toISOString();
+ const commands=[{time:time(-15),action:'raise'},{time:time(30),action:'restore'},{time:time(60),action:'raise'},{time:time(120),action:'restore'}];
+ panel.info={data:{rooms:{r:{plan:{commands}}},price_chart:[{start:time(-120),end:time(240),price:10}]}};
+ panel.statusHistory=[[-120,1],[-90,0],[-60,1],[-60,1],[-45,0],[-30,null],[-15,0]].map(([offset,activity])=>({room_id:'r',time:(now+offset*minute)/1000,activity,suggested_heat:true}));
+ let html=panel.priceChart(false);
+ assert.match(html,/Actual heating in displayed period: 45 min/);
+ assert.match(html,/Upcoming plan in displayed period: 1 h 30 min/);
+ assert.ok((html.match(/Actual heating in displayed period: 45 min/g)||[]).length>=2);
+ assert.match(html,/gaps are not filled\.\n\nActual heating/);
+ panel.settings.language='fi';assert.match(panel.priceChart(false),/Toteutunut lämmitys näytetyllä ajanjaksolla/);
+ panel.settings.language='en';
+ panel.settings.rooms[0]={id:'r',name:'Garage',is_garage:true,garage_strategy:'tariff'};
+ panel.info.data.rooms.r.air_control=true;
+ panel.statusHistory=[[-60,'heat'],[-55,null],[-45,'cool'],[-40,null]].map(([offset,pump_mode])=>({room_id:'r',time:(now+offset*minute)/1000,pump_mode,pump_basis:'activity'}));
+ html=panel.priceChart(false);
+ assert.match(html,/Actual heating in displayed period: 5 min/);
+ assert.match(html,/Upcoming plan in displayed period: 1 h 30 min/);
+ assert.doesNotMatch(html,/Actual heating in displayed period: 10 min/);
+ panel.settings.heating_zones=[{id:'z',name:'Zone',source_type:'air_to_air',heating_strategy:'tariff'}];
+ panel.info.data.zones={z:{plan:{commands,slots:[{end:time(240)}]}}};
+ panel.statusHistory.push(...[[-60,'heat'],[-55,null],[-45,'cool'],[-40,null]].map(([offset,zone_mode])=>({zone_id:'z',time:(now+offset*minute)/1000,zone_mode,zone_basis:'activity'})));
+ html=panel.priceChart(false);
+ assert.ok((html.match(/Actual heating in displayed period: 5 min/g)||[]).length>=2);
+ assert.ok((html.match(/Upcoming plan in displayed period: 1 h 30 min/g)||[]).length>=4);
+ console.log('Heating tooltip totals count only displayed actual heat and future plans, deduplicate observations, preserve paragraph breaks, localize labels and exclude pump/zone cooling.');
+}

@@ -998,6 +998,19 @@ class ThermalPilotPanel extends HTMLElement {
    return value?`<text data-current-temperature="${escapeHTML(item.id)}"${historyAction} data-user-text x="${compact?viewWidth-20:left-12}" y="${y+(compact?14:11)}" text-anchor="end" fill="${color}" style="fill:${color};font-size:13px;font-variant-numeric:tabular-nums;${entity?'cursor:pointer':''}">${targetArrow}${escapeHTML(value)}</text>`:'';
   };
   const detailAttributes=text=>`data-chart-detail="${escapeHTML(text)}" tabindex="0" role="img" aria-label="${escapeHTML(text)}"`;
+  const heatingSummary=(periods,upcoming)=>{
+   const lower=upcoming?Math.max(start,now):start;
+   const upper=upcoming?end:Math.min(end,now);
+   const clipped=periods.map(period=>({start:Math.max(lower,period.start),end:Math.min(upper,period.end)})).filter(period=>period.end>period.start).sort((a,b)=>a.start-b.start);
+   // Union intervals so repeated or overlapping observations never count twice.
+   let total=0,until=lower;
+   for(const period of clipped){
+    total+=Math.max(0,period.end-Math.max(until,period.start));
+    until=Math.max(until,period.end);
+   }
+   const label=this.t(upcoming?'Upcoming plan in displayed period:':'Actual heating in displayed period:');
+   return `\n\n${label} ${durationLabel(total)}\n${timeLabel(start)} – ${timeLabel(end)}`;
+  };
   const bars=values.map(v=>`<rect ${detailAttributes(`Electricity price: ${v.price.toFixed(2)} c/kWh\nStart: ${timeLabel(v.time)}\nEnd: ${timeLabel(v.end)}`)} x="${x(v.time)}" y="${Math.min(y(v.price),y(0))}" width="${Math.max(1,(v.end-v.time)/span*width-.5)}" height="${Math.max(1,Math.abs(y(0)-y(v.price)))}" rx="1" fill="${priceColor(v.price)}"></rect>`).join('');
   const maximumLabels=Math.max(2,Math.floor(width/120));
   const tickSteps=[15,30,60,120,180,360,720,1440,2880,5760,11520];
@@ -1046,14 +1059,18 @@ class ThermalPilotPanel extends HTMLElement {
     });
     const tariff=isGarage(room)?room.garage_strategy==='tariff':!room.heating_zone_id||(this.settings.heating_zones||[]).find(zone=>zone.id===room.heating_zone_id)?.heating_strategy==='tariff';
     if(!history&&tariff)periods.push(...planned.filter(period=>period.suggested_heat).map(period=>({...period,mode:'heat',basis:'plan'})));
+    const actualSummary=heatingSummary(periods.filter(period=>period.mode==='heat'&&period.basis!=='plan'),false);
+    const planSummary=heatingSummary(periods.filter(period=>period.basis==='plan'),true);
     const activity=periods.map(period=>{
      const a=Math.max(start,period.start),b=Math.min(end,period.end);if(b<=a)return '';
      const kind=period.basis==='plan'?'Suggested heating':period.basis==='operating_mode'?(period.mode==='cool'?'Observed cool mode':'Observed heat mode'):period.mode==='cool'?'Recorded cooling':'Recorded heating';
-     const detail=`${room.name} · ${this.t(kind)}\n${this.t('Start:')} ${timeLabel(period.start)}\n${this.t('End:')} ${timeLabel(period.end)}\n${this.t('Duration')}: ${durationLabel(period.end-period.start)}`;
+     const detail=`${room.name} · ${this.t(kind)}\n${this.t('Start:')} ${timeLabel(period.start)}\n${this.t('End:')} ${timeLabel(period.end)}\n${this.t('Duration')}: ${durationLabel(period.end-period.start)}${period.basis==='plan'?planSummary:period.mode==='heat'?actualSummary:''}`;
      return `<rect ${detailAttributes(detail)} data-pump-period="${period.basis==='plan'?'plan':period.mode}" x="${x(a)}" y="${y+laneTop}" width="${(b-a)/span*width}" height="13" rx="2" fill="${period.basis==='plan'?'url(#suggested-heating-stripes)':period.mode==='cool'?'#3498DB':'#EC7063'}"/>`;
     }).join('');
     return `<g class="chart-timeline-row" data-pump-timeline="${escapeHTML(room.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'#e9e1d8':'#eee8e1'):(roomIndex%2?'#f1f4f7':'#f0f5f3')}"/><foreignObject x="20" y="${compact?y-2:y-5+(rowHeight-roomGap-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'#6d5848')}</foreignObject>${temperatureLabel(room,y)}<rect x="${left}" y="${y+laneTop}" width="${width}" height="13" rx="3" fill="#e5ebee"/>${activity}</g>`;
    }
+   const actualSummary=heatingSummary(recorded.filter(period=>period.activity===1),false);
+   const planSummary=heatingSummary(planned.filter(period=>period.suggested_heat),true);
    const lane=(key,offset,color)=>{
     // Adjacent On observations form one period; never join gaps or unknown states.
     const periods=[];
@@ -1069,7 +1086,7 @@ class ThermalPilotPanel extends HTMLElement {
      const a=Math.max(start,v.start),b=Math.min(end,v.end);
      const label=key==='activity'||(!history&&v.recorded)?'Actual relay':'Suggested heating';
      const tooltipStart=v.originalStart??v.start;
-     const detail=`${room.name} · ${label} On\n${v.recorded&&!v.started?'First observed On':'Start'}: ${timeLabel(tooltipStart)}\n${v.recorded&&!v.stopped?'Observed until':'Stop'}: ${timeLabel(v.end)}\n${v.recorded?'Observed duration':'Duration'}: ${durationLabel(v.end-tooltipStart)}${v.recorded?'\nTimes are based on recorded observations; gaps are not filled.':''}`;
+     const detail=`${room.name} · ${label} On\n${v.recorded&&!v.started?'First observed On':'Start'}: ${timeLabel(tooltipStart)}\n${v.recorded&&!v.stopped?'Observed until':'Stop'}: ${timeLabel(v.end)}\n${v.recorded?'Observed duration':'Duration'}: ${durationLabel(v.end-tooltipStart)}${v.recorded?'\nTimes are based on recorded observations; gaps are not filled.':''}${v.recorded?(key==='activity'||!history?actualSummary:''):planSummary}`;
      return b>a?`<rect ${detailAttributes(detail)} x="${x(a)}" y="${y+laneTop+offset}" width="${(b-a)/span*width}" height="14" fill="${!history&&v.recorded?'#EC7063':key==='suggested_heat'?'url(#suggested-heating-stripes)':color}"></rect>`:'';
     }).join('');
    };
@@ -1104,11 +1121,13 @@ class ThermalPilotPanel extends HTMLElement {
      planned.push({start:Math.max(now,new Date(command.time).getTime()),end:Math.min(end,commands[index+1]?new Date(commands[index+1].time).getTime():new Date(plan?.slots?.at(-1)?.end||end).getTime()),basis:'plan'});
     });
    }
+   const actualSummary=heatingSummary(observed('heat'),false);
+   const planSummary=heatingSummary(planned,true);
    const track=(label,offset,color,periods)=>`<text x="${left-12}" y="${y+laneTop+offset+11}" text-anchor="end" fill="#76532b" font-size="10">${label==='Activity'||compact&&label==='Recorded'?'':escapeHTML(this.t(label))}</text><rect x="${left}" y="${y+laneTop+offset}" width="${width}" height="13" rx="3" fill="#e8e3dc"/>`+periods.map(period=>{
     const a=Math.max(start,period.start),b=Math.min(end,period.end);
     if(b<=a)return '';
     const kind=period.basis==='plan'?'Suggested heating':period.basis==='operating_mode'?(period.mode==='cool'?'Observed cool mode':'Observed heat mode'):period.mode==='cool'?'Recorded cooling':'Recorded heating';
-    const detail=`${zone.name} · ${this.t(kind)}\n${this.t('Start:')} ${timeLabel(period.start)}\n${this.t('End:')} ${timeLabel(period.end)}\n${this.t('Duration')}: ${durationLabel(period.end-period.start)}`;
+    const detail=`${zone.name} · ${this.t(kind)}\n${this.t('Start:')} ${timeLabel(period.start)}\n${this.t('End:')} ${timeLabel(period.end)}\n${this.t('Duration')}: ${durationLabel(period.end-period.start)}${period.basis==='plan'?planSummary:period.mode==='heat'?actualSummary:''}`;
     return `<rect ${detailAttributes(detail)} data-zone-period="${period.basis==='plan'?'plan':period.mode==='cool'?'cool':'heat'}" x="${x(a)}" y="${y+laneTop+offset}" width="${(b-a)/span*width}" height="13" rx="2" fill="${period.basis==='plan'?'url(#suggested-heating-stripes)':period.mode==='cool'?'#3498DB':color}"/>`;
    }).join('');
    return `<g class="chart-timeline-row" data-zone-timeline="${escapeHTML(zone.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${zoneHeight}" rx="6" fill="#f5f0e8"/><foreignObject x="20" y="${compact?y-2:y-5+(zoneHeight-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(zone.name,'zone:'+zone.id,history,'#76532b')}</foreignObject>${temperatureLabel(zone,y,true)}${track('Activity',0,'#EC7063',[...observed('heat'),...observed('cool'),...planned].sort((a,b)=>a.start-b.start))}</g>`;
