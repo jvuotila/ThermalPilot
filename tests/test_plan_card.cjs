@@ -12,7 +12,7 @@ response.data.zones={zone:{plan:structuredClone(response.data.rooms.room.plan)}}
  card.connectedCallback();await new Promise(setImmediate);
  assert.equal(calls[0].type,'thermal_pilot/plan_chart');assert.equal(calls.length,1);
  let html=card.shadowRoot.innerHTML;
- assert.match(html,/Total electricity price/);assert.match(html,/data-pump-timeline="garage"/);assert.match(html,/data-zone-period="cool"/);assert.match(html,/data-zone-period="plan"/);
+ assert.match(html,/Total price now/);assert.match(html,/data-pump-timeline="garage"/);assert.match(html,/data-zone-period="cool"/);assert.match(html,/data-zone-period="plan"/);
  assert.doesNotMatch(html,/<summary|<details|data-chart-notes|Today and tomorrow|All room timelines|<h2/);
  card.setConfig({title:'My <heating> & cooling',entry_id:'home'});await new Promise(setImmediate);html=card.shadowRoot.innerHTML;assert.match(html,/My &lt;heating&gt; &amp; cooling/);assert.equal(calls.at(-1).entry_id,'home');
  assert.match(card.priceChart(),/data-zone-period="plan"/); // Resize renderer keeps the dashboard variant.
