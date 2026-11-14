@@ -1816,7 +1816,8 @@ select{appearance:none;-webkit-appearance:none;padding-right:36px;background-ima
 
 /* Use parallel room cards on Plan and History without shrinking mobile layouts. */
 .page-layout{max-width:none;padding:16px 24px}
-header.page-layout{padding-bottom:0}
+/* Keep all header popups, including operation and season help, above sticky table headings. */
+header.page-layout{position:relative;z-index:20;padding-bottom:0}
 .tab-list{gap:5px;margin-top:22px;padding:0;align-items:flex-end}
 .tab-list button{margin:0 0 -1px;border:1px solid #91a5ad;border-radius:9px 9px 0 0;padding:12px 28px;background:var(--secondary-background-color,#eaf0f4);color:var(--secondary-text-color,#526671);font-weight:500;min-width:105px}
 .tab-list button:hover{color:var(--primary-text-color,#213547);background:var(--card-background-color,#fff)}
@@ -2071,7 +2072,9 @@ details{scroll-margin-block:16px}
 }
 
 .retention-card .retention-bar{margin-left:0;margin-right:10px;vertical-align:middle}
-.compact-status{display:none}
+/* The desktop alignment transform creates a stacking context. Raise that
+   context above sticky table headings so the details popup can overlap them. */
+.compact-status{display:none;position:relative;z-index:20}
 
  @media(min-width:1200px){
  header.page-layout{display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,1279px);align-items:center;gap:0 32px;padding-top:20px;grid-template-rows:minmax(100px,auto) auto}
