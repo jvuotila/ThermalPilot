@@ -1,8 +1,11 @@
 """Shared settings metadata and server-side validation."""
 from copy import deepcopy
+from hashlib import sha256
+import json
 from uuid import uuid4
 from .const import DEFAULTS, ROOM_DEFAULTS, ZONE_DEFAULTS, AIR_INITIAL_LAG_HOURS, WATER_REFERENCE
 from .model import number, tariff_minutes
+from .shared_air import room_groups
 
 # key, label, input type, bounds/domain; used by the dedicated settings panel.
 SOURCE_FIELDS = [
@@ -87,6 +90,7 @@ ROOM_FIELDS = [
  ('heating_zone_id', 'Zone (optional)', 'text'),
  ('heat_control', 'Room heating control', 'select:house,air_to_air'),
  ('baseline', 'Target temperature (°C)', 'number', 5, 30, 0.1),
+ ('shared_air_rooms', 'Shared air space', 'room_links'),
  (
      'garage_construction',
      'Construction type',
@@ -235,6 +239,23 @@ def resolved_rooms(settings):
             if zone.get('source_type', 'air_to_air') == 'air_to_air':
                 room['secondary_pump_entity'] = zone.get('thermostat', '')
         rooms.append(room)
+    by_id = {room['id']: room for room in rooms}
+    eligible = [room for room in rooms if not air_room(room, settings)]
+    for group in room_groups(eligible):
+        # Sensor/controller changes invalidate transfer fits and observation
+        # continuity, while preserving each circuit's existing learned model.
+        signature = [
+            [settings.get(key) for key in ('lag_hours', 'outdoor_entity', 'water_entity',
+                                          'wind_entity', 'house_distribution')],
+            [[key, by_id[key]['thermostat'], by_id[key]['temperature_entity'],
+              by_id[key].get('activity_entity', '')] for key in group],
+        ]
+        # A compact stable signature avoids copying every linked sensor mapping
+        # into every stored observation and saved temperature forecast.
+        signature = sha256(json.dumps(signature, separators=(',', ':')).encode()).hexdigest()
+        for room_id in group:
+            by_id[room_id]['shared_air_rooms'] = [peer for peer in group if peer != room_id]
+            by_id[room_id]['shared_air_signature'] = signature
     return rooms
 
 
@@ -316,6 +337,8 @@ def learning_fingerprint(room, settings):
         ]
     elif settings['house_distribution'] != 'water_floor':
         fingerprint += [settings['house_distribution']]
+    if effective.get('shared_air_signature'):
+        fingerprint += ['shared_air', effective['shared_air_signature']]
     return fingerprint
 
 
@@ -360,7 +383,12 @@ def validate(payload, hass=None):
         for field in fields:
             key, label, kind = field[:3]
             value = obj[key]
-            if kind.startswith('entities:'):
+            if kind == 'room_links':
+                if (not isinstance(value, list) or len(value) > 29
+                        or any(not isinstance(peer, str) for peer in value)
+                        or len(value) != len(set(value))):
+                    raise ValueError('Shared air space: select each room only once.')
+            elif kind.startswith('entities:'):
                 if not isinstance(value, list) or len(value) > 100 or any((not isinstance(entity, str) for entity in value)):
                     raise ValueError(f'{label}: expected a list of sensor entities.')
                 if len(value) != len(set(value)):
@@ -558,6 +586,18 @@ def validate(payload, hass=None):
         if room['heating_zone_id'] and room['heating_zone_id'] not in zone_ids:
             raise ValueError('Selected zone was not found.')
         zone = next((z for z in zones if z['id'] == room['heating_zone_id']), None)
+    by_id = {room['id']: room for room in rooms}
+    for room in rooms:
+        for peer_id in room['shared_air_rooms']:
+            peer = by_id.get(peer_id)
+            if peer is None or peer is room:
+                raise ValueError('Shared air space: select another existing room.')
+            if air_room(room, result) or air_room(peer, result):
+                raise ValueError('Shared air space: select primary heating circuits, not heat pumps or garages.')
+    # A link represents one air space: configuring either end is sufficient.
+    for group in room_groups(rooms):
+        for room_id in group:
+            by_id[room_id]['shared_air_rooms'] = [peer for peer in group if peer != room_id]
     result['rooms'] = rooms
     # Price setup may be completed on a different tab. Missing prices prevent
     # tariff plans at runtime; they must not prevent saving the rest of setup.

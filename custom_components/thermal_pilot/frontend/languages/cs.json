@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} porovnání · {similar} s podobným topením",
     "{days} more days to the initial thresholds at recent observation rates.": "Asi {days} dní do počátečních prahů při aktuálním tempu.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: ruční relace nemůže začít, protože garážová vrata jsou otevřená: {doors}. Zavřete všechna nastavená vrata, aby mohla aktivní relace začít.",
-    "— Select / not used —": "— Vybrat / nepoužito —"
+    "— Select / not used —": "— Vybrat / nepoužito —",
+    "Shared air space": "Společný vzdušný prostor",
+    "Remove room from shared air space": "Odebrat místnost ze společného prostoru",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Vyberte topné okruhy ve stejném otevřeném prostoru. Vazby fungují oběma směry a zahrnují propojené místnosti. Každý okruh si ponechá čidlo, cíl a meze. Pomocné topení začne po naučení přenosu tepla z alespoň 12 hodin topení a 12 hodin klidu s dostupnými propojenými čidly. Odebrání místnost odpojí od tohoto prostoru.",
+    "Shared air space: select each room only once.": "Společný prostor: každou místnost vyberte jen jednou.",
+    "Shared air space: select another existing room.": "Společný prostor: vyberte jinou existující místnost.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Společný prostor: vyberte hlavní topné okruhy, ne tepelná čerpadla ani garáže."
   },
   "legacy": {},
   "cardMessages": {

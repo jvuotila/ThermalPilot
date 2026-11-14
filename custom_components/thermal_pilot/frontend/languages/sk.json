@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} porovnaní · {similar} s podobným kúrením",
     "{days} more days to the initial thresholds at recent observation rates.": "Asi {days} dní do počiatočných prahov pri aktuálnom tempe.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: ručná relácia nemôže začať, pretože garážová brána je otvorená: {doors}. Zatvorte všetky nastavené brány, aby sa aktívna relácia mohla začať.",
-    "— Select / not used —": "— Vybrať / nepoužité —"
+    "— Select / not used —": "— Vybrať / nepoužité —",
+    "Shared air space": "Spoločný vzdušný priestor",
+    "Remove room from shared air space": "Odobrať miestnosť zo spoločného priestoru",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Vyberte vykurovacie okruhy v rovnakom otvorenom priestore. Väzby platia oboma smermi a zahŕňajú prepojené miestnosti. Každý okruh si ponechá snímač, cieľ a hranice. Pomocné kúrenie sa začne po naučení prenosu tepla z aspoň 12 hodín kúrenia a 12 hodín pokoja s dostupnými prepojenými snímačmi. Odobratie miestnosť odpojí od tohto priestoru.",
+    "Shared air space: select each room only once.": "Spoločný priestor: každú miestnosť vyberte len raz.",
+    "Shared air space: select another existing room.": "Spoločný priestor: vyberte inú existujúcu miestnosť.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Spoločný priestor: vyberte hlavné vykurovacie okruhy, nie tepelné čerpadlá ani garáže."
   },
   "legacy": {},
   "cardMessages": {

@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} vergelijkingen · {similar} met vergelijkbare verwarming",
     "{days} more days to the initial thresholds at recent observation rates.": "Ongeveer {days} dagen tot begindrempels bij huidig tempo.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: de handmatige sessie kan niet starten omdat een garagedeur open is: {doors}. Sluit alle ingestelde deuren zodat de actieve sessie kan starten.",
-    "— Select / not used —": "— Selecteren / niet gebruikt —"
+    "— Select / not used —": "— Selecteren / niet gebruikt —",
+    "Shared air space": "Gedeelde luchtruimte",
+    "Remove room from shared air space": "Kamer uit gedeelde luchtruimte verwijderen",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Kies verwarmingscircuits in dezelfde open ruimte. Koppelingen werken in beide richtingen en omvatten verbonden kamers. Elk circuit behoudt zijn sensor, doel en grenzen. Ondersteuning begint pas na het leren van warmteoverdracht met minstens 12 verwarmingsuren en 12 rusturen met beschikbare gekoppelde sensoren. Verwijderen koppelt de kamer los van deze ruimte.",
+    "Shared air space: select each room only once.": "Gedeelde luchtruimte: kies elke kamer slechts eenmaal.",
+    "Shared air space: select another existing room.": "Gedeelde luchtruimte: kies een andere bestaande kamer.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Gedeelde luchtruimte: kies primaire verwarmingscircuits, geen warmtepompen of garages."
   },
   "legacy": {},
   "cardMessages": {

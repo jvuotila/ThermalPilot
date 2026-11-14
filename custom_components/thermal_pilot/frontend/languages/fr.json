@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} comparaisons · {similar} avec chauffage similaire",
     "{days} more days to the initial thresholds at recent observation rates.": "Environ {days} jours jusqu’aux seuils initiaux au rythme actuel.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room} : la session manuelle ne peut pas démarrer car une porte de garage est ouverte : {doors}. Fermez toutes les portes configurées pour permettre le démarrage de la session active.",
-    "— Select / not used —": "— Sélectionner / inutilisé —"
+    "— Select / not used —": "— Sélectionner / inutilisé —",
+    "Shared air space": "Espace d’air commun",
+    "Remove room from shared air space": "Retirer la pièce de l’espace d’air commun",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Sélectionnez les circuits de chauffage dans le même espace ouvert. Les liens sont réciproques et incluent les pièces connectées. Chaque circuit conserve son capteur, sa consigne et ses limites. L’aide au chauffage commence après apprentissage du transfert thermique avec au moins 12 heures de chauffe et 12 heures de repos, capteurs liés disponibles. Retirer une pièce la détache de cet espace.",
+    "Shared air space: select each room only once.": "Espace d’air commun : sélectionnez chaque pièce une seule fois.",
+    "Shared air space: select another existing room.": "Espace d’air commun : sélectionnez une autre pièce existante.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Espace d’air commun : sélectionnez les circuits principaux, pas les pompes à chaleur ni les garages."
   },
   "legacy": {},
   "cardMessages": {

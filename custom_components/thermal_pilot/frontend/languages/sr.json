@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} поређења · {similar} са сличним грејањем",
     "{days} more days to the initial thresholds at recent observation rates.": "Око {days} дана до почетних прагова при садашњем темпу.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: ручна сесија не може да почне јер су гаражна врата отворена: {doors}. Затворите сва конфигурисана врата како би активна сесија могла да почне.",
-    "— Select / not used —": "— Изабери / не користи се —"
+    "— Select / not used —": "— Изабери / не користи се —",
+    "Shared air space": "Заједнички ваздушни простор",
+    "Remove room from shared air space": "Уклони собу из заједничког простора",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Изаберите грејне кругове у истом отвореном простору. Везе важе у оба смера и обухватају повезане собе. Сваки круг задржава свој сензор, циљ и границе. Помоћно грејање почиње после учења преноса топлоте из најмање 12 сати грејања и 12 сати мировања уз доступне повезане сензоре. Уклањање одваја собу од овог простора.",
+    "Shared air space: select each room only once.": "Заједнички простор: сваку собу изаберите само једном.",
+    "Shared air space: select another existing room.": "Заједнички простор: изаберите другу постојећу собу.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Заједнички простор: изаберите примарне грејне кругове, не топлотне пумпе или гараже."
   },
   "legacy": {},
   "cardMessages": {

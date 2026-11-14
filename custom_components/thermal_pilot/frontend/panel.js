@@ -26,6 +26,7 @@ function retentionRating(value){
 }
 const controlOptionLabels={house:'House heating system',air_to_air:'Air-to-air heat pump',temperature:'Temperature limits only',tariff:'Electricity tariff optimization',heat:'Heating only',cool:'Cooling only',both:'Heating in winter / cooling in summer',main:'Main room sensor',average:'Average of room sensors',coldest:'Coldest room sensor',fireplace:'Fireplace'};
 const settingHelp = {
+  shared_air_rooms:'Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.',
   heating_enabled: 'Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.',
   climate_mode:'Heating only operates in winter. Cooling only operates in summer. Both heats in winter and cools in summer. Automatic season changes must persist for 24 hours. Reversing between heating and cooling requires confirmed fan-only standby for ten minutes; automatic Heat/Cool mode is never used.',
   cooling_target:'The cooling target for this zone. Cooling starts 0.5 °C above this value and stops when any linked room reaches it. This keeps the pump from repeatedly starting and protects colder rooms.',
@@ -503,6 +504,11 @@ class ThermalPilotPanel extends HTMLElement {
       const options=fireplaceStateOptions(sensor,value);
       input=`<select data-field="${name}">${options.map(option=>`<option value="${escapeHTML(option.value)}" ${option.value===value?'selected':''}>${escapeHTML(option.label)}</option>`).join('')}</select><small class="fireplace-current-state" data-current-fireplace role="status">${escapeHTML(this.t('Current state:'))} ${escapeHTML(this.t(fireplaceCurrentState(sensor)))}</small>`;
     }
+    else if(type==='room_links'){
+      const selected=Array.isArray(value)?value:[];
+      const rooms=this.settings.rooms.filter(room=>room.id!==obj.id&&this.sharedAirEligible(room)).slice().sort(compareRoomNames);
+      input=`<span class="sensor-list" data-entity-list="${name}">${selected.map((id,index)=>`<span class="sensor-list-row"><select data-entity-item data-shared-air-member aria-label="${escapeHTML(this.t('Shared air space'))} ${index+1}" aria-describedby="help-${prefix}-${key}"><option value="">— Select / not used —</option>${rooms.map(room=>`<option data-user-text value="${escapeHTML(room.id)}" ${room.id===id?'selected':''} ${selected.some((other,i)=>i!==index&&other===room.id)?'disabled':''}>${escapeHTML(room.name)}</option>`).join('')}</select><button type="button" data-remove-sensor="${index}" aria-label="${escapeHTML(this.t('Remove room from shared air space'))}">×</button></span>`).join('')}<button type="button" class="add-sensor" data-add-sensor>Add room</button></span>`;
+    }
     else if(type==='rooms'){
       this.zoneRoomDrafts??={};
       const selected=this.zoneRoomDrafts[obj.id]??this.settings.rooms.filter(room=>room.heating_zone_id===obj.id).map(room=>room.id);
@@ -546,7 +552,7 @@ class ThermalPilotPanel extends HTMLElement {
     if(key==='transfer_day_start'||key==='transfer_night_start')helpText='Repeats daily in Home Assistant’s time zone.';
     const helpId=`help-${prefix}-${key}`;
     const help=helpText?` <span class="setting-help"><button type="button" class="setting-info" aria-label="About ${escapeHTML(label)}" aria-describedby="${helpId}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle class="info-dot" cx="12" cy="7" r="1"/></svg></button><span id="${helpId}" class="setting-tooltip" role="tooltip">${escapeHTML(helpText)}</span></span>`:'';
-    const tag=(type.startsWith('entities:')||type==='rooms')?'div':'label';
+    const tag=(type.startsWith('entities:')||type==='rooms'||type==='room_links')?'div':'label';
     return `<${tag} ${tag==='div'?'class="sensor-list-field"':''} ${key==='fireplace_active_state'?`data-fireplace-state ${obj.fireplace_entity?'':'hidden'}`:['simulation_enabled','apply_season_setpoints'].includes(key)?`data-electric-control ${electricHeating(this.settings)?'':'hidden'}`:key==='solar_exposure'?`data-solar-exposure ${(!obj.solar_direction||obj.solar_direction==='disabled')?'hidden':''}`:''}><span>${escapeHTML(label)}${help}</span>${input}</${tag}>`;
   }
   settingsGroups(groups){
@@ -604,8 +610,51 @@ class ThermalPilotPanel extends HTMLElement {
     }catch(error){this.backupMessage=this.t('Backup failed:')+' '+this.t(error.message||String(error));}
     finally{this.backupBusy=false;this.render();}
   }
+  sharedAirEligible(room){
+    return !room.is_garage&&room.heat_control!=='air_to_air'&&this.settings.house_heat_source!=='air_to_air';
+  }
+  updateSharedAirRooms(roomId,selected){
+    const room=this.settings.rooms.find(candidate=>candidate.id===roomId);
+    const previous=(room.shared_air_rooms||[]).filter(Boolean);
+    const removed=selected.length?previous.filter(id=>!selected.includes(id)):[];
+    if(!selected.length){
+      for(const member of this.settings.rooms)member.shared_air_rooms=(member.shared_air_rooms||[]).filter(id=>id!==roomId);
+    }
+    const oldGroup=new Set([roomId,...previous]);
+    // All members display the same air space. Removing B from A must also
+    // remove C→B; otherwise the transitive link would immediately restore B.
+    for(const member of this.settings.rooms){
+      if(removed.includes(member.id))member.shared_air_rooms=[];
+      else if(oldGroup.has(member.id))member.shared_air_rooms=(member.shared_air_rooms||[]).filter(id=>!removed.includes(id));
+    }
+    room.shared_air_rooms=selected.filter(id=>id!==roomId&&this.settings.rooms.some(peer=>peer.id===id&&this.sharedAirEligible(peer)));
+    const eligible=this.settings.rooms.filter(member=>this.sharedAirEligible(member));
+    const links=new Map(eligible.map(member=>[member.id,new Set()]));
+    for(const member of this.settings.rooms){
+      if(!links.has(member.id)){member.shared_air_rooms=[];continue;}
+      for(const peer of member.shared_air_rooms||[]){
+        if(peer!==member.id&&links.has(peer)){
+          links.get(member.id).add(peer);links.get(peer).add(member.id);
+        }
+      }
+    }
+    const visited=new Set();
+    for(const member of eligible){
+      if(visited.has(member.id))continue;
+      const group=new Set(),pending=[member.id];
+      while(pending.length){
+        const id=pending.pop();
+        if(group.has(id))continue;
+        group.add(id);pending.push(...links.get(id));
+      }
+      for(const id of group){
+        visited.add(id);
+        this.settings.rooms.find(candidate=>candidate.id===id).shared_air_rooms=[...group].filter(peer=>peer!==id).sort();
+      }
+    }
+  }
   roomSettingsFields(r,index){
-    const visible=this.info.room_fields.filter(f=>f[0].startsWith('garage_')?r.is_garage:f[0]==='baseline'?!r.is_garage:f[0]==='fireplace_reduction'?!r.is_garage:['heat_control','thermostat','activity_entity'].includes(f[0])?(!r.is_garage||f[0]==='thermostat'):f[0]==='heating_zone_id'?false:true);
+    const visible=this.info.room_fields.filter(f=>f[0]==='shared_air_rooms'?this.sharedAirEligible(r):f[0].startsWith('garage_')?r.is_garage:f[0]==='baseline'?!r.is_garage:f[0]==='fireplace_reduction'?!r.is_garage:['heat_control','thermostat','activity_entity'].includes(f[0])?(!r.is_garage||f[0]==='thermostat'):f[0]==='heating_zone_id'?false:true);
     const render=fields=>fields.map(field=>this.field(field,r,`room${index}`)).join('');
     const general=visible.filter(field=>!field[0].startsWith('garage_'));
     const garage=visible.filter(field=>field[0].startsWith('garage_'));
@@ -1646,14 +1695,25 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
   capture(preserveEmptyLists=false){
     const target=name=>{const [prefix,key]=name.split('.');return [prefix==='source'?this.settings:prefix.startsWith('zone')?this.settings.heating_zones[Number(prefix.slice(4))]:this.settings.rooms[Number(prefix.slice(4))],key];};
     this.shadowRoot.querySelectorAll('[data-field]').forEach(input=>{const [obj,key]=target(input.dataset.field);obj[key]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;});
-    const assignments=new Map(),editedZones=new Set();
+    const assignments=new Map(),editedZones=new Set(),sharedEdits=[],emptySharedLists=new Map();
     this.shadowRoot.querySelectorAll('[data-entity-list]').forEach(list=>{
       const [obj,key]=target(list.dataset.entityList);const selected=[...list.querySelectorAll('[data-entity-item]')].map(select=>select.value);
-      if(key==='zone_rooms'){
+      if(key==='shared_air_rooms'){
+        const ids=selected.filter(Boolean);
+        const previous=(obj.shared_air_rooms||[]).filter(Boolean);
+        if(JSON.stringify(ids.slice().sort())!==JSON.stringify(previous.slice().sort()))sharedEdits.push([obj.id,ids]);
+        if(preserveEmptyLists)emptySharedLists.set(obj.id,selected.length-ids.length);
+      }else if(key==='zone_rooms'){
         this.zoneRoomDrafts??={};this.zoneRoomDrafts[obj.id]=preserveEmptyLists?selected:selected.filter(Boolean);editedZones.add(obj.id);
         for(const id of selected.filter(Boolean))assignments.set(id,obj.id);
       }else obj[key]=preserveEmptyLists?selected:selected.filter(Boolean);
     });
+    for(const [id,selected] of sharedEdits)this.updateSharedAirRooms(id,selected);
+    for(const room of this.settings.rooms){
+      if(!this.sharedAirEligible(room)&&room.shared_air_rooms?.length)this.updateSharedAirRooms(room.id,[]);
+      const blanks=emptySharedLists.get(room.id)||0;
+      room.shared_air_rooms=[...(room.shared_air_rooms||[]).filter(Boolean),...Array(blanks).fill('')];
+    }
     this.settings.rooms.forEach(room=>{if(editedZones.has(room.heating_zone_id))room.heating_zone_id='';if(assignments.has(room.id))room.heating_zone_id=assignments.get(room.id);});
     for(const zone of this.settings.heating_zones||[]){
       if(!editedZones.has(zone.id))continue;
@@ -2073,6 +2133,7 @@ details{scroll-margin-block:16px}
       const warning=zones.length?'\n\n'+this.t('This room belongs to a zone. Removing it also removes its zone membership.')+'\n'+zones.map(zone=>zone.name||this.t('New zone')).join(', '):'';
       if(!confirm(this.t(`Remove room "${room.name||'New room'}"? Save settings to apply this change.`)+warning))return;
       this.message='';this.settings.rooms.splice(index,1);
+      for(const member of this.settings.rooms)member.shared_air_rooms=(member.shared_air_rooms||[]).filter(id=>id!==room.id);
       for(const zone of this.settings.heating_zones||[]){
         if(this.zoneRoomDrafts?.[zone.id])this.zoneRoomDrafts[zone.id]=this.zoneRoomDrafts[zone.id].filter(id=>id!==room.id);
         if(zone.main_room_id===room.id)zone.main_room_id=this.settings.rooms.find(member=>member.heating_zone_id===zone.id)?.id||'';
@@ -2095,11 +2156,13 @@ details{scroll-margin-block:16px}
       const button=event.target.closest?.('[data-add-sensor],[data-remove-sensor]');if(!button)return;
       event.preventDefault();this.capture(true);const list=button.closest('[data-entity-list]');const [prefix,key]=list.dataset.entityList.split('.');const obj=prefix.startsWith('zone')?this.settings.heating_zones[Number(prefix.slice(4))]:this.settings.rooms[Number(prefix.slice(4))];
       const values=key==='zone_rooms'?this.zoneRoomDrafts[obj.id]:obj[key];
-      if(button.hasAttribute('data-add-sensor'))values.push('');else values.splice(Number(button.dataset.removeSensor),1);
+      if(button.hasAttribute('data-add-sensor'))values.push('');
+      else if(key==='shared_air_rooms')this.updateSharedAirRooms(obj.id,values.filter((id,index)=>id&&index!==Number(button.dataset.removeSensor)));
+      else values.splice(Number(button.dataset.removeSensor),1);
       if(key==='zone_rooms'){const selected=new Set(values.filter(Boolean));this.settings.rooms.forEach(room=>{if(room.heating_zone_id===obj.id&&!selected.has(room.id))room.heating_zone_id='';});if(!selected.has(obj.main_room_id))obj.main_room_id=this.settings.rooms.find(room=>selected.has(room.id))?.id||'';}
       clearSaveMessage();this.render();
     });
-    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if(event?.target?.hasAttribute?.('data-zone-member')){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','heat_control','thermostat','heating_zone_id','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.shadowRoot.querySelectorAll('[data-water-group]').forEach(group=>group.hidden=!waterDistribution({house_distribution:event.target.value}));}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
+    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','heat_control','thermostat','heating_zone_id','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.shadowRoot.querySelectorAll('[data-water-group]').forEach(group=>group.hidden=!waterDistribution({house_distribution:event.target.value}));}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
     settingsForm?.addEventListener('submit',async e=>{
       e.preventDefault();if(this.saving||this.backupBusy)return;this.capture();
       const enableLive=electricHeating(this.settings)&&this.settings.simulation_enabled===false&&!this.info.settings?.live_control_confirmed;

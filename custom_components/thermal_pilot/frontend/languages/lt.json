@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} palyginimų · {similar} su panašiu šildymu",
     "{days} more days to the initial thresholds at recent observation rates.": "Apie {days} dienų iki pradinių ribų dabartiniu tempu.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: rankinis seansas negali prasidėti, nes garažo durys atviros: {doors}. Uždarykite visas sukonfigūruotas duris, kad aktyvus seansas galėtų prasidėti.",
-    "— Select / not used —": "— Pasirinkti / nenaudojama —"
+    "— Select / not used —": "— Pasirinkti / nenaudojama —",
+    "Shared air space": "Bendra oro erdvė",
+    "Remove room from shared air space": "Pašalinti kambarį iš bendros oro erdvės",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Pasirinkite šildymo kontūrus toje pačioje atviroje erdvėje. Ryšiai veikia abiem kryptimis ir apima susietus kambarius. Kiekvienas kontūras išlaiko jutiklį, tikslą ir ribas. Pagalbinis šildymas prasideda išmokus šilumos perdavimą iš bent 12 šildymo ir 12 ramybės valandų, kai susieti jutikliai pasiekiami. Pašalinus kambarys atsiejamas nuo šios erdvės.",
+    "Shared air space: select each room only once.": "Bendra oro erdvė: kiekvieną kambarį pasirinkite tik kartą.",
+    "Shared air space: select another existing room.": "Bendra oro erdvė: pasirinkite kitą esamą kambarį.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Bendra oro erdvė: pasirinkite pagrindinius šildymo kontūrus, ne šilumos siurblius ar garažus."
   },
   "legacy": {},
   "cardMessages": {

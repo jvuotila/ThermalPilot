@@ -766,7 +766,13 @@
     "{prefix}{name}: heat pump heating setpoint is outside device limits.": "{prefix}{name}: heat pump heating setpoint is outside device limits.",
     "{prefix}{name}: heat pump heating setpoint {target} °C is outside device limits ({minimum}–{maximum} °C).": "{prefix}{name}: heat pump heating setpoint {target} °C is outside device limits ({minimum}–{maximum} °C).",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.",
-    "— Select / not used —": "— Select / not used —"
+    "— Select / not used —": "— Select / not used —",
+    "Shared air space": "Shared air space",
+    "Remove room from shared air space": "Remove room from shared air space",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.",
+    "Shared air space: select each room only once.": "Shared air space: select each room only once.",
+    "Shared air space: select another existing room.": "Shared air space: select another existing room.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Shared air space: select primary heating circuits, not heat pumps or garages."
   },
   "legacy": {},
   "cardMessages": {

@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} võrdlust · {similar} sarnase küttega",
     "{days} more days to the initial thresholds at recent observation rates.": "Algkünnisteni umbes {days} päeva praeguse vaatlustempoga.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: käsitsi seanss ei saa alata, sest garaažiuks on avatud: {doors}. Aktiivse seansi alustamiseks sulge kõik seadistatud uksed.",
-    "— Select / not used —": "— Vali / ei kasutata —"
+    "— Select / not used —": "— Vali / ei kasutata —",
+    "Shared air space": "Ühine õhuruum",
+    "Remove room from shared air space": "Eemalda ruum ühisest õhuruumist",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Valige samas avatud õhuruumis olevad kütteringid. Seosed toimivad mõlemas suunas ja hõlmavad ühendatud ruume. Igal ringil säilivad oma andur, siht ja piirid. Abiküte algab pärast soojusülekande õppimist vähemalt 12 kütte- ja 12 puhketunni jooksul, kui seotud andurid on saadaval. Eemaldamine lahutab ruumi sellest õhuruumist.",
+    "Shared air space: select each room only once.": "Ühine õhuruum: valige iga ruum ainult üks kord.",
+    "Shared air space: select another existing room.": "Ühine õhuruum: valige teine olemasolev ruum.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Ühine õhuruum: valige põhilised kütteringid, mitte soojuspumbad ega garaažid."
   },
   "legacy": {},
   "cardMessages": {

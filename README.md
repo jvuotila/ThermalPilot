@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.81 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.82 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -133,6 +133,48 @@ If a sensor has been learning in an unsuitable location, move it first and let i
 settle. Consider resetting learning for that room using its circular-arrow button
 under **Rooms and zones**. This clears the learned parameters while retaining
 observation history; the room then needs fresh heating and idle observations.
+
+## Heating circuits sharing an open space
+
+A ThermalPilot room can represent a heating circuit rather than a separate
+physical room. For example, a kitchen and two living-room floor loops may heat
+one open space while retaining separate thermostats and sensors.
+
+Under **Rooms and zones**, open a room and use **Shared air space → Add room**
+to select the other circuits in that open space. Add as many as needed. Links
+work both ways: selecting B in A also links A in B. Connected selections form
+one group, so A–B and B–C share the same space. Removing one listed room detaches
+it from that space. Removing all links from a room detaches that room and keeps
+the remaining members linked.
+
+Each circuit keeps its own thermostat, relay, temperature sensor, target and
+comfort limits. Sensors are not averaged or replaced. Leave separate enclosed
+rooms unlinked, even if one water circuit serves several of them; a representative
+average sensor remains an option for that single circuit. Heat-pump zones remain
+secondary heat sources and use their existing settings.
+
+ThermalPilot learns how temperature differences between linked sensors transfer
+warmth, alongside each circuit's own heating response and heat loss. Existing
+learned parameters and observation history are retained. A new transfer fit needs
+at least **12 accepted heating hours and 12 accepted idle hours per circuit**
+with linked sensors available; these are observation hours, not a promise that
+assistance starts after one day. Similar sensor readings may provide little
+information about transfer. The model is an approximation, not a measurement
+of circuit power or water flow.
+
+After that fit is available for all members, the planner compares linked
+schedules together. It can add a boost through a helper circuit and reduce work
+on a colder circuit when the combined forecast improves. It keeps each circuit's
+targets, temperature limits, minimum runs and existing run commitments. It does
+not automatically boost every circuit. Costs use the same normalized heating
+estimate as other plans; actual circuit powers are not measured.
+
+Missing linked readings, cooling, an active fireplace or secondary heat pump
+pause shared-space learning and coordination. An active manual session also
+leaves planning independent for that group, preserving manual-control priority.
+Ordinary independent planning remains available while transfer learning is
+incomplete. Changing group membership or its sensor/controller sources starts
+a fresh transfer fit while retaining the existing room history and parameters.
 
 ## Electricity tariffs
 

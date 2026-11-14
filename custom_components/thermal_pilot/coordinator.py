@@ -16,6 +16,7 @@ from .control import ThermostatControl
 from .air_control import AirHeatPumpControl, zone_temperature, binary
 from .notifications import notify_manual_door_pause
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint
+from .shared_air import room_groups, coordinate_plans
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
 
 _LOGGER = logging.getLogger(__name__)
@@ -468,7 +469,11 @@ class PilotCoordinator(DataUpdateCoordinator):
                 'transfer_tariff', 'transfer_fixed_price', 'transfer_day_start',
                 'transfer_day_price', 'transfer_night_start', 'transfer_night_price'
             )]
-        return learning_fingerprint(room, self.settings) + [
+        # Shared-air links change a forecast, not an already opened valve's
+        # minimum run. Keep observation-fit continuity separate from this lock.
+        session_room = dict(room)
+        session_room.pop('shared_air_signature', None)
+        return learning_fingerprint(session_room, self.settings) + [
             effective.get('heat_control'), effective.get('minimum'), effective.get('maximum'),
             effective.get('boost'), effective.get('setback'), room.get('garage_strategy'),
             room.get('zone_control_enabled'), room.get('zone_climate_mode'),
@@ -749,7 +754,35 @@ class PilotCoordinator(DataUpdateCoordinator):
         fireplace_state = self.hass.states.get(self.settings['fireplace_entity']) if self.settings['fireplace_entity'] else None
         fireplace = bool(fireplace_state and fireplace_state.state == self.settings['fireplace_active_state'])
         readings, room_data = ([], {})
-        for configured_room in resolved_rooms(self.settings)+[candidate_room for candidate_room in zone_rooms(self.settings) if candidate_room['heat_control']!='zone_member']:
+        primary_rooms = resolved_rooms(self.settings)
+        shared_groups = room_groups([room for room in primary_rooms if not air_room(room, self.settings)])
+        by_id = {room['id']: room for room in primary_rooms}
+        shared_temperatures = {room['id']: self.value(room['temperature_entity']) for room in primary_rooms}
+        blocked_groups = set()
+        manual_groups = set()
+        planning_contexts = {}
+        previous_runs = deepcopy(self.suggested_runs)
+        for group in shared_groups:
+            for room_id in group:
+                member = by_id[room_id]
+                state = self.hass.states.get(member['thermostat'])
+                secondary = self.hass.states.get(member.get('secondary_pump_entity', ''))
+                zone_fire = self.hass.states.get(member.get('zone_fireplace_entity', ''))
+                member_fire = fireplace or bool(zone_fire and zone_fire.state == member.get('zone_fireplace_active_state', 'on'))
+                secondary_active = bool(secondary and (
+                    secondary.state == 'cool' or secondary.attributes.get('hvac_action') in ('heating', 'cooling')
+                    or (secondary.attributes.get('hvac_action') is None and secondary.state in ('heat', 'cool'))
+                ))
+                cooling = bool(state and (state.state == 'cool' or state.attributes.get('hvac_action') == 'cooling'))
+                if (shared_temperatures[room_id] is None or self.activity(member) is None
+                        or member_fire or secondary_active or cooling):
+                    # A neighbor's unexplained heater must not become apparent
+                    # primary heating capacity in the coupled fit or schedule.
+                    blocked_groups.update(group)
+                manual = self.manual_sessions.get(room_id)
+                if manual and manual['ends'] > now.timestamp():
+                    manual_groups.update(group)
+        for configured_room in primary_rooms+[candidate_room for candidate_room in zone_rooms(self.settings) if candidate_room['heat_control']!='zone_member']:
             room = {
                 **room_settings(configured_room, self.settings),
                 'water_reference': WATER_REFERENCE
@@ -764,10 +797,20 @@ class PilotCoordinator(DataUpdateCoordinator):
                 room_fireplace = fireplace
             room_id = room['id']
             temperature = zone_temperature(self.hass, room, self.settings)[0] if room.get('secondary_zone') else self.value(room['temperature_entity'])
+            if room.get('shared_air_signature'):
+                temperature = shared_temperatures[room_id]
             baseline = room['baseline']
             if baseline is not None:
                 room['baseline'] = baseline
             model = self.models.setdefault(room_id, initial_model(room))
+            shared_state = model.get('shared_air')
+            if shared_state and shared_state.get('signature') != room.get('shared_air_signature'):
+                # Membership/source changes discard only the transfer fit. Keep
+                # accepted hours and existing own-room parameters and history.
+                model.pop('shared_air')
+                model.pop('wind_statistics', None)
+                for key in ('xx', 'xy', 'yy', 'xz', 'yz'):
+                    model[key] = 0.0
             # Fingerprints track observation continuity, never permission to
             # discard learning. Only the explicit reset action removes a model.
             fingerprint = learning_fingerprint(configured_room, self.settings)
@@ -850,11 +893,24 @@ class PilotCoordinator(DataUpdateCoordinator):
                 else:
                     secondary = self.hass.states.get(room.get('secondary_pump_entity', ''))
                     current['excluded'] = current['excluded'] or bool(secondary and (secondary.state == 'cool' or secondary.attributes.get('hvac_action') in ('heating', 'cooling') or (secondary.attributes.get('hvac_action') is None and secondary.state in ('heat', 'cool'))))
+                if room.get('shared_air_signature'):
+                    current['shared_air_temperatures'] = {
+                        peer: shared_temperatures[peer] for peer in room['shared_air_rooms']
+                        if shared_temperatures.get(peer) is not None
+                    }
+                    current['excluded'] = current['excluded'] or room_id in blocked_groups
                 prediction = None
                 if self.season['collecting']:
                     previous = self.previous.get(room_id)
                     if previous is not None:
-                        prediction = learn(model, room, previous, current)
+                        if room.get('shared_air_signature'):
+                            # Fit off the event loop on a private copy; a delayed
+                            # storage save must never see a half-updated matrix.
+                            learned_model = deepcopy(model)
+                            prediction = await self.hass.async_add_executor_job(learn, learned_model, room, previous, current)
+                            model.update(learned_model)
+                        else:
+                            prediction = learn(model, room, previous, current)
                         elapsed = current['time'] - previous['time']
                         availability_changed = any(
                             (previous.get(key) is None) != (current.get(key) is None)
@@ -939,6 +995,13 @@ class PilotCoordinator(DataUpdateCoordinator):
                         if planning_temperature is not None:
                             result['plan'] = await self.hass.async_add_executor_job(plan, settings, deepcopy(model),
                                 planning_temperature, outdoors, slots, now, baseline, water_factor, room_fireplace)
+                            if (room.get('shared_air_signature') and room_id not in blocked_groups
+                                    and room_id not in manual_groups):
+                                planning_contexts[room_id] = {
+                                    'room': settings, 'model': deepcopy(model), 'temperature': temperature,
+                                    'baseline': baseline, 'outdoor': outdoors, 'slots': slots,
+                                    'water_factor': water_factor, 'plan': result['plan'],
+                                }
                 if room.get('is_garage') and room['garage_strategy'] == 'temperature' and (not slots):
                     cycle_slots = [Slot(now + timedelta(minutes=15 * i), now + timedelta(minutes=15 * (i + 1)), 0) for i in range(96)]
                     result['plan'] = garage_cycle_plan(
@@ -954,20 +1017,14 @@ class PilotCoordinator(DataUpdateCoordinator):
                 if result['plan'] and room.get('air_control'):
                     result['plan']['air_control'] = True
                     result['plan']['device_target'] = room['garage_heat_target'] if room.get('is_garage') else self.settings['air_heat_target']
-                if result['plan']:
-                    heat = result['plan']['scheduled_heat']
-                    old = self.suggested_runs.get(room_id, {})
-                    self.suggested_runs[room_id] = {
-                        **old,
-                        'heat': heat,
-                        'mode': result['plan'].get('scheduled_mode', 'boost' if heat else 'normal'),
-                        'reduction_available': result['plan'].get('reduction_available', heat),
-                        'since': old.get('since', now.timestamp()) if old.get('heat') == heat else now.timestamp()
-                    }
                 result['model'] = deepcopy(model)
                 result['one_step_prediction'] = prediction
                 if self.season['collecting'] and (not room.get('secondary_zone')):
-                    readings.append({'room_id':room_id, **current, **({'pump_mode':pump_mode,'pump_basis':pump_basis,'pump_entity':room['thermostat']} if room.get('air_control') else {}), 'forecast_context':fingerprint+[self.settings['wind_entity']]+solar_context, 'actual_setpoint':actual_request,
+                    # Only the learning anchor needs synchronized peer readings;
+                    # each peer already has its own persisted observation row.
+                    observation = dict(current)
+                    observation.pop('shared_air_temperatures', None)
+                    readings.append({'room_id':room_id, **observation, **({'pump_mode':pump_mode,'pump_basis':pump_basis,'pump_entity':room['thermostat']} if room.get('air_control') else {}), 'forecast_context':fingerprint+[self.settings['wind_entity']]+solar_context, 'actual_setpoint':actual_request,
                                  'prediction':prediction, 'suggested_heat':result['plan']['heat'] if result['plan'] else None,
                                  'suggested_setpoint':result['plan']['setpoint'] if result['plan'] else None,
                                  'price':slots[0].price if slots else None})
@@ -988,6 +1045,31 @@ class PilotCoordinator(DataUpdateCoordinator):
             result['learning_progress'] = learning_progress(model, now)
             result['heat_retention'] = heat_retention(model, room)
             room_data[room_id] = result
+        for group in shared_groups:
+            if not all(room_id in planning_contexts for room_id in group):
+                continue
+            contexts = {room_id: planning_contexts[room_id] for room_id in group}
+            coordinated = await self.hass.async_add_executor_job(coordinate_plans, contexts, now)
+            for room_id, coordinated_plan in coordinated.items():
+                room_data[room_id]['plan'] = coordinated_plan
+        # Publish and persist only the final group-aware suggestion. Its run clock
+        # must not briefly observe an intermediate independent plan on a replan.
+        for room_id, result in room_data.items():
+            if not result['plan']:
+                continue
+            suggestion = result['plan']
+            heat = suggestion['scheduled_heat']
+            old = previous_runs.get(room_id, {})
+            self.suggested_runs[room_id] = {
+                **old, 'heat': heat,
+                'mode': suggestion.get('scheduled_mode', 'boost' if heat else 'normal'),
+                'reduction_available': suggestion.get('reduction_available', heat),
+                'since': old.get('since', now.timestamp()) if old.get('heat') == heat else now.timestamp(),
+            }
+        for reading in readings:
+            suggestion = room_data[reading['room_id']]['plan']
+            reading['suggested_heat'] = suggestion['heat'] if suggestion else None
+            reading['suggested_setpoint'] = suggestion['setpoint'] if suggestion else None
         zone_data = {room_id[5:]: room_data.pop(room_id) for room_id in list(room_data) if room_id.startswith('zone:')}
         cutoff = now.timestamp() - HISTORY_DAYS * 86400
         await self.hass.async_add_executor_job(self.history_db.append, readings, cutoff, self.season['season_id'])

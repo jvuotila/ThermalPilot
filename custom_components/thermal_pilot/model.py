@@ -12,6 +12,7 @@ from .const import (
     HOUSE_COOLING_REFERENCES, MIN_LEARNING_INTERVAL_SECONDS,
     AIR_MAX_TEMPERATURE_RATE_PER_HOUR,
 )
+from .shared_air import heat_transfer, learn_shared_air
 
 
 def number(value, default=None):
@@ -693,6 +694,7 @@ def learn(
         effective_loss(model, previous.get('wind')) * temperature_gap
         + model['gain'] * heating_input + model.get('base_gain', 0)
         + solar_gain(model, previous.get('solar'), solar_enabled(room))
+        + heat_transfer(model, previous['temperature'], previous.get('shared_air_temperatures', {}))
     )
     model['response'] = response
     error = abs(prediction - current['temperature'])
@@ -739,12 +741,19 @@ def learn(
             observed_temperature_rate
             - effective_loss(model, previous.get('wind')) * temperature_gap
             - model['gain'] * heating_input
+            - heat_transfer(model, previous['temperature'], previous.get('shared_air_temperatures', {}))
         )
         learn_solar(model, previous, current, elapsed_hours, residual)
         # Unknown or present sunshine would be misattributed to ordinary heat loss.
         if (previous.get('solar') is None or current.get('solar') is None
                 or previous.get('solar', 0) > 0 or current.get('solar', 0) > 0):
             return prediction
+
+    if room.get('shared_air_signature'):
+        # Fit neighbor exchange alongside own heat/loss. Running the independent
+        # fit as well would attribute the same exchanged heat twice.
+        learn_shared_air(model, room, previous, current, elapsed_hours, heating_input, observed_temperature_rate)
+        return prediction
 
     # Accumulate the normal equations for temperature_rate = loss*x + gain*y.
     # Keep the historical x/y/z storage keys so older learned state still loads.
@@ -895,6 +904,9 @@ def plan(
     published_end = stamp(committed['end']) if committed else None
     loss = model['loss']
     gain = model['gain']
+    # Assistance changes the search objective, never the configured thermostat
+    # targets or limits. Its effect must also improve the whole group's forecast.
+    planning_target = room.get('planning_comfort_target', baseline)
     if fireplace:
         loss *= 1 + room['fireplace_reduction'] / 100
 
@@ -953,6 +965,9 @@ def plan(
         slot_solar = .5 * solar_exposure_factor(room) * solar_gain(
             model, solar_signal_value, solar_enabled(room)
         )
+        neighbors = {
+            peer: values[slot_index] for peer, values in room.get('shared_air_forecast', {}).items()
+        }
         slot_loss = effective_loss(model, wind)
         if fireplace:
             slot_loss *= 1 + room['fireplace_reduction'] / 100
@@ -1022,6 +1037,7 @@ def plan(
                     slot_loss * (outdoor[slot_index] - current_temperature)
                     + gain * water_factor * average_response
                     + model.get('base_gain', 0) + slot_solar
+                    + heat_transfer(model, current_temperature, neighbors)
                 )
                 if mode == 1 and predicted < baseline:
                     continue
@@ -1029,7 +1045,7 @@ def plan(
                 below_limit = max(0, room['minimum'] - predicted)
                 above_limit = max(0, predicted - room['maximum'])
                 next_violation = violation + hours * (below_limit + above_limit)
-                next_shortfall = shortfall + hours * max(0, baseline - predicted)
+                next_shortfall = shortfall + hours * max(0, planning_target - predicted)
                 # Preserve score priority: limit violations and comfort shortfall
                 # are separate tuple fields, ahead of this price/switching score.
                 next_cost = (
@@ -1142,7 +1158,7 @@ def plan(
         )
         return (
             round(violation + max(0, room['minimum'] - after_reserve) * reserve, 6),
-            round(shortfall + max(0, baseline - after_reserve) * reserve, 6),
+            round(shortfall + max(0, planning_target - after_reserve) * reserve, 6),
             cost,
         )
 

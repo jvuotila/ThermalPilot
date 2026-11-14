@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} comparaciones · {similar} con calefacción similar",
     "{days} more days to the initial thresholds at recent observation rates.": "Unos {days} días hasta umbrales iniciales al ritmo actual.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: la sesión manual no puede iniciarse porque una puerta del garaje está abierta: {doors}. Cierra todas las puertas configuradas para permitir que se inicie la sesión activa.",
-    "— Select / not used —": "— Seleccionar / sin uso —"
+    "— Select / not used —": "— Seleccionar / sin uso —",
+    "Shared air space": "Espacio de aire compartido",
+    "Remove room from shared air space": "Quitar habitación del espacio compartido",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Seleccione circuitos de calefacción en el mismo espacio abierto. Los enlaces son recíprocos e incluyen las habitaciones conectadas. Cada circuito conserva su sensor, objetivo y límites. La calefacción de apoyo empieza tras aprender la transferencia térmica con al menos 12 horas de calefacción y 12 de reposo con los sensores vinculados disponibles. Quitar una habitación la desvincula de este espacio.",
+    "Shared air space: select each room only once.": "Espacio compartido: seleccione cada habitación solo una vez.",
+    "Shared air space: select another existing room.": "Espacio compartido: seleccione otra habitación existente.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Espacio compartido: seleccione circuitos principales, no bombas de calor ni garajes."
   },
   "legacy": {},
   "cardMessages": {

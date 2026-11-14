@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} sammenligninger · {similar} med lignende varme",
     "{days} more days to the initial thresholds at recent observation rates.": "Cirka {days} dage til startgrænserne med den aktuelle observationstakt.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: den manuelle periode kan ikke starte, fordi en garageport er åben: {doors}. Luk alle konfigurerede porte, så den aktive periode kan starte.",
-    "— Select / not used —": "— Vælg / ikke brugt —"
+    "— Select / not used —": "— Vælg / ikke brugt —",
+    "Shared air space": "Fælles luftrum",
+    "Remove room from shared air space": "Fjern rum fra fælles luftrum",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Vælg varmekredse i samme åbne rum. Forbindelser gælder begge veje og omfatter tilknyttede rum. Hver kreds beholder sin føler, måltemperatur og grænser. Hjælpevarme starter først efter indlæring af varmeoverførsel med mindst 12 timers varme og 12 timers hvile med tilgængelige tilknyttede følere. Fjernelse kobler rummet fra dette luftrum.",
+    "Shared air space: select each room only once.": "Fælles luftrum: vælg hvert rum kun én gang.",
+    "Shared air space: select another existing room.": "Fælles luftrum: vælg et andet eksisterende rum.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Fælles luftrum: vælg primære varmekredse, ikke varmepumper eller garager."
   },
   "legacy": {},
   "cardMessages": {

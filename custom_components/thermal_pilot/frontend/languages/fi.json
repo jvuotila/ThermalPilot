@@ -393,7 +393,13 @@
     "{heating} observed heating hours; {idle} idle hours. Enough observations do not by themselves prove accuracy.": "Havaittua lämmitystä {heating} tuntia; lepoa {idle} tuntia. Riittävä havaintomäärä ei yksin takaa ennusteiden tarkkuutta.",
     "{prefix}{name}: heat pump heating setpoint is outside device limits.": "{prefix}{name}: Pumpun lämmityksen asetuslämpötila on laitteen salliman lämpötila-alueen ulkopuolella.",
     "{prefix}{name}: heat pump heating setpoint {target} °C is outside device limits ({minimum}–{maximum} °C).": "{prefix}{name}: Pumpun lämmityksen asetuslämpötila {target} °C on laitteen salliman alueen ulkopuolella ({minimum}–{maximum} °C).",
-    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: manuaalinen jakso ei voi alkaa, koska autotallin ovi on auki: {doors}. Sulje kaikki määritetyt ovet, jotta aktiivinen jakso voi alkaa."
+    "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: manuaalinen jakso ei voi alkaa, koska autotallin ovi on auki: {doors}. Sulje kaikki määritetyt ovet, jotta aktiivinen jakso voi alkaa.",
+    "Shared air space": "Yhteinen ilmatila",
+    "Remove room from shared air space": "Poista huone yhteisestä ilmatilasta",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Valitse samassa avoimessa ilmatilassa olevat lämmityspiirit. Yhteys toimii molempiin suuntiin ja kattaa myös yhdistetyt huoneet. Jokaisella piirillä säilyvät oma anturi, tavoite ja lämpötilarajat. Avustava lämmitys alkaa vasta, kun lämmön siirtymistä on opittu vähintään 12 lämmitystunnin ja 12 lepotunnin havainnoista yhdistettyjen anturien ollessa käytettävissä. Huoneen poistaminen irrottaa sen tästä ilmatilasta.",
+    "Shared air space: select each room only once.": "Yhteinen ilmatila: valitse kukin huone vain kerran.",
+    "Shared air space: select another existing room.": "Yhteinen ilmatila: valitse toinen olemassa oleva huone.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Yhteinen ilmatila: valitse varsinaiset lämmityspiirit, ei lämpöpumppuja tai autotalleja."
   },
   "legacy": {
     "Plan": "Suunnitelma",

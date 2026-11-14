@@ -539,7 +539,13 @@
     "{count} comparisons · {similar} with similar heating": "{count} comparações · {similar} com aquecimento semelhante",
     "{days} more days to the initial thresholds at recent observation rates.": "Cerca de {days} dias até aos limiares iniciais ao ritmo atual.",
     "{room}: the manual session cannot start because a garage door is open: {doors}. Close all configured doors to allow the active session to start.": "{room}: a sessão manual não pode iniciar porque uma porta da garagem está aberta: {doors}. Feche todas as portas configuradas para permitir que a sessão ativa comece.",
-    "— Select / not used —": "— Selecionar / não usado —"
+    "— Select / not used —": "— Selecionar / não usado —",
+    "Shared air space": "Espaço de ar partilhado",
+    "Remove room from shared air space": "Remover divisão do espaço partilhado",
+    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Selecione circuitos de aquecimento no mesmo espaço aberto. As ligações são recíprocas e incluem as divisões ligadas. Cada circuito mantém o seu sensor, alvo e limites. O apoio começa após aprender a transferência térmica com pelo menos 12 horas de aquecimento e 12 de repouso com os sensores ligados disponíveis. Remover uma divisão desliga-a deste espaço.",
+    "Shared air space: select each room only once.": "Espaço partilhado: selecione cada divisão apenas uma vez.",
+    "Shared air space: select another existing room.": "Espaço partilhado: selecione outra divisão existente.",
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Espaço partilhado: selecione circuitos principais, não bombas de calor nem garagens."
   },
   "legacy": {},
   "cardMessages": {
