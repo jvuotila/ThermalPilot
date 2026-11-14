@@ -1,0 +1,36 @@
+{
+  "provenance": "Documented response shapes with synthetic, fixed timestamps and prices. These are not live-installation recordings.",
+  "references": {
+    "community_nordpool": "https://github.com/custom-components/nordpool",
+    "nordpool": "https://www.home-assistant.io/actions/nordpool.get_prices_for_date/",
+    "tibber": "https://www.home-assistant.io/actions/tibber.get_prices/",
+    "weather": "https://www.home-assistant.io/integrations/weather/"
+  },
+  "community_nordpool": {
+    "unit_of_measurement": "c/kWh", "currency": "EUR", "price_in_cents": true,
+    "raw_today": [
+      {"start":"2026-01-02T00:00:00+00:00","end":"2026-01-02T01:00:00+00:00","value":-2},
+      {"start":"2026-01-02T01:00:00+00:00","end":"2026-01-02T02:00:00+00:00","value":12}
+    ], "raw_tomorrow": [], "tomorrow_valid": false
+  },
+  "nordpool": {"FI":[
+    {"start":"2026-01-02T00:00:00+00:00","end":"2026-01-02T01:00:00+00:00","price":-20},
+    {"start":"2026-01-02T01:00:00+00:00","end":"2026-01-02T02:00:00+00:00","price":120}
+  ]},
+  "tibber": {"prices":{"Example home":[
+    {"start_time":"2026-01-02T00:00:00+00:00","price":-0.02},
+    {"start_time":"2026-01-02T01:00:00+00:00","price":0.12}
+  ]}},
+  "weather_c": [
+    {"datetime":"2026-01-02T00:00:00+00:00","temperature":0,"condition":"cloudy"},
+    {"datetime":"2026-01-02T01:00:00+00:00","temperature":-10,"condition":"snowy"}
+  ],
+  "weather_f": [
+    {"datetime":"2026-01-02T00:00:00+00:00","temperature":32,"condition":"cloudy"},
+    {"datetime":"2026-01-02T01:00:00+00:00","temperature":14,"condition":"snowy"}
+  ],
+  "weather_k": [
+    {"datetime":"2026-01-02T00:00:00+00:00","temperature":273.15,"condition":"cloudy"},
+    {"datetime":"2026-01-02T01:00:00+00:00","temperature":263.15,"condition":"snowy"}
+  ]
+}

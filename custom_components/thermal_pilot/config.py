@@ -5,6 +5,7 @@ import json
 from uuid import uuid4
 from .const import DEFAULTS, ROOM_DEFAULTS, ZONE_DEFAULTS, AIR_INITIAL_LAG_HOURS, WATER_REFERENCE
 from .model import number, tariff_minutes
+from .sources import PRICE_SOURCE_CHOICES
 from .shared_air import room_connections, room_groups
 
 # key, label, input type, bounds/domain; used by the dedicated settings panel.
@@ -39,8 +40,13 @@ SOURCE_FIELDS = [
  ('house_foundation','Foundation','select:slab_on_ground,crawl_space,basement,other,unknown'),
  ('price_entity','Price sensor','sensor',{'kind':'price'}),
  ('static_price','Static price (c/kWh)','number',-1000,10000,.01),
+ ('nordpool_entry','Nord Pool integration','text'),
+ ('nordpool_area','Price area','text'),
+ ('nordpool_vat','VAT (%)','number',0,100,.1),
+ ('nordpool_margin','Retailer margin including VAT (c/kWh)','number',-1000,10000,.01),
+ ('tibber_price_entity','Tibber price sensor','sensor',{'kind':'tibber_price'}),
  ('price_forecast_entity','Price forecast (optional)','sensor',{'kind':'price_forecast'}),
- ('price_unit','Source price unit','select:c/kWh,€/kWh'),
+ ('price_unit','Source price unit','select:c/kWh,€/kWh,€/MWh'),
  ('transfer_tariff','Transfer tariff','select:included,fixed,day_night'),
  ('transfer_fixed_price','Transfer price (c/kWh)','number',0,10000,.01),
  ('transfer_day_start','Day starts','time'),
@@ -159,6 +165,8 @@ def entity_matches(state, rule, settings=None):
         return device_class == 'power' or (not device_class and unit in ('w', 'kw'))
     if kind == 'price_forecast':
         return domain == 'sensor' and isinstance(attrs.get('forecast'), (list, tuple))
+    if kind == 'tibber_price':
+        return isinstance(attrs.get('app_nickname'), str) and str(attrs.get('unit_of_measurement', '')).lower() in ('eur/kwh', '€/kwh')
     if kind == 'price':
         return any((isinstance(attrs.get(key), (list, tuple)) for key in ('today', 'tomorrow', 'raw_today', 'raw_tomorrow')))
     if kind == 'target':
@@ -380,7 +388,7 @@ def stored_settings(data, options):
     return settings
 
 
-def validate(payload, hass=None):
+def validate(payload, hass=None, *, require_outdoor=True):
     if not isinstance(payload, dict):
         raise ValueError('Settings must be an object.')
     result = deepcopy(DEFAULTS)
@@ -438,12 +446,14 @@ def validate(payload, hass=None):
     for field in SOURCE_FIELDS:
         key = field[0]
         unused_water = key == 'water_entity' and not water_distribution(result)
-        unused_price_sensor = key in ('price_entity', 'price_forecast_entity') and (
-            not electric_heating(result) or result['price_entity'] == 'static'
+        unused_price_sensor = (
+            key in ('price_entity', 'price_forecast_entity') and not electric_heating(result)
+            or key == 'price_entity' and result['price_entity'] in PRICE_SOURCE_CHOICES
+            or key == 'price_forecast_entity' and result['price_entity'] == 'static'
         )
-        # In fixed-price mode 'static' is a built-in choice, not an HA entity.
-        # Retain an unused forecast selection so switching back is reversible.
-        if unused_water or unused_price_sensor:
+        # Built-in sources are not sensor entity IDs. An unused forecast choice
+        # is retained so switching back from static prices stays reversible.
+        if unused_water or unused_price_sensor or (key == 'tibber_price_entity' and result['price_entity'] != 'tibber'):
             fields.append((key, field[1], 'text'))
         else:
             fields.append(field)
@@ -607,7 +617,7 @@ def validate(payload, hass=None):
     result['rooms'] = rooms
     # Price setup may be completed on a different tab. Missing prices prevent
     # tariff plans at runtime; they must not prevent saving the rest of setup.
-    if not result['outdoor_entity']:
+    if require_outdoor and not result['outdoor_entity']:
         raise ValueError('Select an outdoor temperature source.')
     if hass is not None and (result['apply_season_setpoints'] or not result['simulation_enabled']):
         for room in resolved_rooms(result):

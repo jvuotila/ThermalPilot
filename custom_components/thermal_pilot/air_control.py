@@ -2,6 +2,7 @@
 from typing import Any
 import asyncio
 from .model import number
+from .sources import temperature_celsius
 from .config import resolved_rooms, zone_rooms, garage_sensor_lists
 
 
@@ -28,7 +29,10 @@ def zone_temperature(
     values = []
     for member in members:
         state = hass.states.get(member['temperature_entity'])
-        value = number(state.state) if state else None
+        try:
+            value = temperature_celsius(state.state, state.attributes.get('unit_of_measurement', '°C')) if state else None
+        except ValueError:
+            value = None
         if value is None:
             return (None, False)
         values.append(value)

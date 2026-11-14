@@ -3,6 +3,19 @@
 These entities come from other integrations; they do not need replacement
 ThermalPilot templates. Entity IDs depend on your installation.
 
+## Community Nord Pool
+
+For [custom-components/nordpool](https://github.com/custom-components/nordpool),
+select the existing sensor under **Price sensor**. Match **Source price unit** to
+its output; retain any VAT and `additional_costs` already configured there.
+Do not choose **Nord Pool (Home Assistant)** for this community integration:
+that option requires the official integration’s price action.
+
+Use **Settings → Weather and forecast settings → Source checks → Test sources**
+to inspect coverage and normalized units without saving or controlling devices.
+See the [compatibility table](../../README.md#source-compatibility-and-checks)
+for tested contracts and current limitations.
+
 ## Netatmo wind
 
 Select the wind sensor supplied by the

@@ -18,6 +18,7 @@ jobs:
       - run: node tests/test_localization.cjs
       - run: node tests/test_panel.cjs
       - run: node tests/test_shared_air_panel.cjs
+      - run: node tests/test_sources_panel.cjs
       - run: node tests/test_manual_panel.cjs
       - run: node tests/test_mobile_tooltips.cjs
       - run: node tests/test_live_panel.cjs

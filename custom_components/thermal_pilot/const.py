@@ -1,6 +1,6 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.84'
+VERSION = '0.9.85'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
@@ -12,6 +12,8 @@ AIR_MAX_TEMPERATURE_RATE_PER_HOUR = 12.0  # °C/hour; allow normal rapid air war
 DEFAULTS = {
     'price_entity': '', 'price_forecast_entity': '', 'price_unit': 'c/kWh',
     'static_price': 10.0,
+    'nordpool_entry': '', 'nordpool_area': '', 'nordpool_vat': 0.0, 'nordpool_margin': 0.0,
+    'tibber_price_entity': '',
     'transfer_tariff': 'included', 'transfer_fixed_price': 0.0,
     'transfer_day_price': 0.0, 'transfer_night_price': 0.0,
     'transfer_day_start': '07:00', 'transfer_night_start': '22:00',

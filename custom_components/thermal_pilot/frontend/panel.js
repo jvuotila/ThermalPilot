@@ -26,6 +26,10 @@ function retentionRating(value){
 }
 const controlOptionLabels={house:'House heating system',air_to_air:'Air-to-air heat pump',temperature:'Temperature limits only',tariff:'Electricity tariff optimization',heat:'Heating only',cool:'Cooling only',both:'Heating in winter / cooling in summer',main:'Main room sensor',average:'Average of room sensors',coldest:'Coldest room sensor',fireplace:'Fireplace'};
 const settingHelp = {
+  nordpool_entry:'Read EUR prices through Home Assistant. For community Nord Pool, select its sensor instead.',
+  nordpool_area:'Automatic requires one integration and one price area.',
+  nordpool_vat:'Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.',
+  tibber_price_entity:'Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.',
   shared_air_rooms:'Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.',
   heating_enabled: 'Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.',
   climate_mode:'Heating only operates in winter. Cooling only operates in summer. Both heats in winter and cools in summer. Automatic season changes must persist for 24 hours. Reversing between heating and cooling requires confirmed fan-only standby for ten minutes; automatic Heat/Cool mode is never used.',
@@ -88,7 +92,7 @@ const settingHelp = {
 };
 const sourceSettingGroups = [
   ['Integration settings',['heating_enabled','simulation_enabled','language']],
-  ['Electricity price settings',['price_entity','static_price','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode']],
+  ['Electricity price settings',['price_entity','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode']],
   ['Weather and forecast settings',['weather_entity','outdoor_entity','wind_entity','summer_minimum_temperature']],
   ['Heating settings',['minimum_run_minutes','fireplace_entity','fireplace_active_state']],
   ['Notifications',['manual_notification_target']],
@@ -113,6 +117,8 @@ function fireplaceStateOptions(sensor,saved){
 const sourceReadingKeys=['price_entity','weather_entity','outdoor_entity','wind_entity','water_entity'];
 function sourceReading(key,entity,sensor){
   if(key==='price_entity'&&entity==='static')return 'Static price';
+  if(key==='price_entity'&&entity==='nordpool')return 'Nord Pool (Home Assistant)';
+  if(key==='price_entity'&&entity==='tibber')return 'Tibber (Home Assistant)';
   if(!entity)return 'Not selected';
   if(!sensor||sensor.state==='unavailable')return 'Unavailable';
   if(sensor.state==='unknown')return 'Unknown';
@@ -198,6 +204,7 @@ function entityMatches(state,rule={},settings={}){
   if(rule.kind==='wind')return domain==='sensor'&&['m/s','km/h','mph','kn','knots'].includes(unit);
   if(rule.kind==='power')return deviceClass==='power'||(!deviceClass&&['w','kw'].includes(unit));
   if(rule.kind==='price_forecast')return domain==='sensor'&&Array.isArray(attrs.forecast);
+  if(rule.kind==='tibber_price')return typeof attrs.app_nickname==='string'&&['eur/kwh','€/kwh'].includes(unit);
   if(rule.kind==='price')return ['today','tomorrow','raw_today','raw_tomorrow'].some(key=>Array.isArray(attrs[key]));
   if(rule.kind==='target')return temperature||(['number','input_number'].includes(domain)&&!deviceClass&&!unit);
   if(rule.kind==='activity'){
@@ -499,6 +506,12 @@ class ThermalPilotPanel extends HTMLElement {
       const options=[...targets];if(value&&!options.includes(value))options.push(value);
       input=`<select data-field="${name}"><option value="">${escapeHTML(this.t('— Select / not used —'))}</option>${options.map(target=>`<option data-user-text value="${escapeHTML(target)}" ${target===value?'selected':''}>${escapeHTML(target.replace(/^notify\.mobile_app_/, '').replace(/^notify\./, '').replaceAll('_',' '))}${targets.includes(target)?'':` (${escapeHTML(this.t('Unavailable'))})`}</option>`).join('')}</select>`;
     }
+    else if(key==='nordpool_entry'||key==='nordpool_area'){
+      const entries=this.info.price_provider_options?.nordpool_entries||[];
+      const entry=entries.find(item=>item.id===obj.nordpool_entry)||(entries.length===1?entries[0]:null);
+      const options=key==='nordpool_entry'?entries.map(item=>({id:item.id,name:item.name})):(entry?.areas||[]).map(area=>({id:area,name:area}));
+      input=`<select data-field="${name}"><option value="">${escapeHTML(this.t('Automatic'))}</option>${value&&!options.some(item=>item.id===value)?`<option selected value="${escapeHTML(value)}">${escapeHTML(value)}</option>`:''}${options.map(item=>`<option data-user-text value="${escapeHTML(item.id)}" ${item.id===value?'selected':''}>${escapeHTML(item.name)}</option>`).join('')}</select>`;
+    }
     else if(key==='fireplace_active_state'){
       const sensor=this._hass?.states?.[obj.fireplace_entity];
       const options=fireplaceStateOptions(sensor,value);
@@ -543,8 +556,8 @@ class ThermalPilotPanel extends HTMLElement {
     else if(type==='text')input=`<input data-field="${name}" value="${escapeHTML(value)}">`;
     else{
       const domains=type.split(','),rule=field[3]||{};const entities=Object.values(this._hass.states).filter(s=>domains.includes(s.entity_id.split('.')[0])&&entityMatches(s,rule,obj)).sort((a,b)=>entityLabel(a).localeCompare(entityLabel(b)));
-      const retained=value&&!(key==='price_entity'&&value==='static')&&!entities.some(s=>s.entity_id===value)?`<option selected value="${escapeHTML(value)}">${escapeHTML(entityLabel(this._hass.states[value]))} (${this._hass.states[value]?'does not match filter':'unavailable'})</option>`:'';
-      input=`<select data-field="${name}"><option value="" ${!value?'selected':''}>${key==='price_entity'?escapeHTML(this.t('Not configured')):'— Select / not used —'}</option>${key==='price_entity'?`<option value="static" ${value==='static'?'selected':''}>${escapeHTML(this.t('Static price'))}</option>`:''}${retained}${entities.map(s=>`<option data-user-text value="${escapeHTML(s.entity_id)}" ${s.entity_id===value?'selected':''}>${escapeHTML(entityLabel(s))}</option>`).join('')}</select>`;
+      const retained=value&&!(key==='price_entity'&&['static','nordpool','tibber'].includes(value))&&!entities.some(s=>s.entity_id===value)?`<option selected value="${escapeHTML(value)}">${escapeHTML(entityLabel(this._hass.states[value]))} (${this._hass.states[value]?'does not match filter':'unavailable'})</option>`:'';
+      input=`<select data-field="${name}"><option value="" ${!value?'selected':''}>${key==='price_entity'?escapeHTML(this.t('Not configured')):'— Select / not used —'}</option>${key==='price_entity'?`<option value="static" ${value==='static'?'selected':''}>${escapeHTML(this.t('Static price'))}</option><option value="nordpool" ${value==='nordpool'?'selected':''}>Nord Pool (Home Assistant)</option><option value="tibber" ${value==='tibber'?'selected':''}>Tibber (Home Assistant)</option>`:''}${retained}${entities.map(s=>`<option data-user-text value="${escapeHTML(s.entity_id)}" ${s.entity_id===value?'selected':''}>${escapeHTML(entityLabel(s))}</option>`).join('')}</select>`;
     }
     if(sourceReadingKeys.includes(key))input+=`<small class="source-current-state" data-source-reading="${key}" role="status">${escapeHTML(this.t('Current state:'))} ${escapeHTML(this.t(sourceReading(key,value,this._hass?.states?.[value])))}</small>`;
     if(key==='fireplace_reduction')input=`<span class="number-unit">${input}<span>%</span></span>`;
@@ -560,8 +573,12 @@ class ThermalPilotPanel extends HTMLElement {
     const fields=new Map(this.info.source_fields.map(field=>[field[0],field]));
     return groups.map(([title,keys])=>{
       const staticPrice=this.settings.price_entity==='static';
+      const nativePrice=['nordpool','tibber'].includes(this.settings.price_entity);
       const available=keys.filter(key=>{
         if(key==='static_price')return staticPrice;
+        if(key.startsWith('nordpool_'))return this.settings.price_entity==='nordpool';
+        if(key==='tibber_price_entity')return this.settings.price_entity==='tibber';
+        if(nativePrice&&key==='price_unit')return false;
         if(staticPrice&&['price_forecast_entity','price_unit'].includes(key))return false;
         if(key==='transfer_fixed_price')return this.settings.transfer_tariff==='fixed';
         if(['transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price'].includes(key))return this.settings.transfer_tariff==='day_night';
@@ -576,7 +593,10 @@ class ThermalPilotPanel extends HTMLElement {
         // Keep energy inputs together, then transfer selection and complete
         // time/rate pairs. Row boundaries stay the same at every desktop width.
         fieldMarkup=`<div class="price-settings-fields">
-          ${row(['price_entity','static_price','price_unit','price_forecast_entity'])}
+          ${row(['price_entity','static_price','price_unit'])}
+          ${row(['nordpool_entry','nordpool_area'])}
+          ${row(['nordpool_vat','nordpool_margin','tibber_price_entity'])}
+          ${row(['price_forecast_entity'])}
           <div class="price-transfer-fields">
             ${row(['transfer_tariff','transfer_fixed_price'])}
             ${row(['transfer_day_start','transfer_day_price'])}
@@ -585,8 +605,28 @@ class ThermalPilotPanel extends HTMLElement {
           ${row(['pricing_mode'])}
         </div>`;
       }
-      return available.length?`<div class="settings-group" ${title==='Integration settings'?'data-integration-group':''} ${title==='Electricity price settings'?`data-electric-group ${electricHeating(this.settings)?'':'hidden'}`:title==='Air-to-air heat pump settings'?`data-air-group ${this.settings.rooms.some(r=>!r.is_garage&&r.heat_control==='air_to_air')||(this.settings.heating_zones||[]).some(z=>z.source_type!=='fireplace')||this.settings.house_heat_source==='air_to_air'?'':'hidden'}`:title==='Water heating'?`data-water-group ${waterDistribution(this.settings)?'':'hidden'}`:''}><h3>${escapeHTML(title)}</h3>${title==='Miscellaneous'?'<p>Warn when room temperature readings stay unchanged or unavailable.</p>':''}${fieldMarkup}${title==='Miscellaneous'?this.backupControls():''}</div>`:'';
+      return available.length?`<div class="settings-group" ${title==='Integration settings'?'data-integration-group':''} ${title==='Electricity price settings'?`data-electric-group ${electricHeating(this.settings)?'':'hidden'}`:title==='Air-to-air heat pump settings'?`data-air-group ${this.settings.rooms.some(r=>!r.is_garage&&r.heat_control==='air_to_air')||(this.settings.heating_zones||[]).some(z=>z.source_type!=='fireplace')||this.settings.house_heat_source==='air_to_air'?'':'hidden'}`:title==='Water heating'?`data-water-group ${waterDistribution(this.settings)?'':'hidden'}`:''}><h3>${escapeHTML(title)}</h3>${title==='Miscellaneous'?'<p>Warn when room temperature readings stay unchanged or unavailable.</p>':''}${fieldMarkup}${title==='Weather and forecast settings'?this.sourceCheckView():''}${title==='Miscellaneous'?this.backupControls():''}</div>`:'';
     }).join('');
+  }
+  sourceCheckView(){
+    const report=this.sourceCheck;
+    const date=value=>new Intl.DateTimeFormat(this.settings.language||'en',{dateStyle:'short',timeStyle:'short'}).format(new Date(value));
+    const summary=(title,value)=>{
+      if(!value)return '';
+      const details=value.ok?`${value.unit}${value.kind?' · '+this.t({hourly:'Hourly',twice_daily:'Twice daily',daily:'Daily'}[value.kind]):' · '+value.interval_minutes.map(minutes=>new Intl.NumberFormat(this.settings.language||'en',{style:'unit',unit:'minute',unitDisplay:'short'}).format(minutes)).join(', ')}`:this.t(value.error);
+      return `<div><h4>${escapeHTML(this.t(title))}</h4><p>${escapeHTML(value.ok?this.t('Available')+' · '+details:details)}</p>${value.ok?`<p>${escapeHTML(date(value.start))} – ${escapeHTML(date(value.end))}</p>`:''}</div>`;
+    };
+    return `<details class="source-checks" data-settings-disclosure="source-checks"><summary>${escapeHTML(this.t('Source checks'))}</summary><button type="button" data-test-sources ${this.testingSources?'disabled':''}>${escapeHTML(this.t(this.testingSources?'Testing sources…':'Test sources'))}</button><div data-source-check-results role="status">${report?summary('Price sensor',report.prices)+summary('Weather forecast source',report.weather):''}${this.sourceCheckError?`<p>${escapeHTML(this.t(this.sourceCheckError))}</p>`:''}</div></details>`;
+  }
+  async testSources(){
+    if(this.testingSources)return;
+    this.capture();const draft=structuredClone(this.settings);
+    this.testingSources=true;this.sourceCheck=null;this.sourceCheckError='';this.render();
+    try{
+      const report=await this.call('test_sources',{settings:draft});
+      if(JSON.stringify(this.settings)===JSON.stringify(draft))this.sourceCheck=report;
+    }catch(error){if(JSON.stringify(this.settings)===JSON.stringify(draft))this.sourceCheckError=error.message||String(error);}
+    finally{this.testingSources=false;this.render();}
   }
   backupControls(){
     const help=(id,label,text)=>`<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t(label))}" aria-describedby="${id}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle class="info-dot" cx="12" cy="7" r="1"/></svg></button><span id="${id}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t(text))}</span></span>`;
@@ -1720,6 +1760,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
 #settings h2{margin:0 0 12px}
 #settings p{margin:0 0 14px;line-height:1.45}
 #settings .settings-group{margin-top:16px}
+.source-checks{margin-top:18px}.source-checks summary{margin-bottom:8px}.source-checks h4{margin:16px 0 6px}.source-checks p{margin:6px 0;overflow-wrap:anywhere}
 #settings .settings-group+.settings-group{padding-top:12px}
 #settings .settings-group h3{margin:0 0 12px}
 #settings .grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 16px}
@@ -2124,7 +2165,7 @@ details{scroll-margin-block:16px}
     const settingsForm=this.shadowRoot.querySelector('#settings');
     const clearSaveMessage=()=>{clearTimeout(this.saveMessageTimer);this.saveConfirmation=false;this.message='';this.shadowRoot.querySelector('.message')?.remove();};
     settingsForm?.addEventListener('input',event=>{
-      clearSaveMessage();this.updateUnsavedNotice();
+      clearSaveMessage();this.sourceCheck=null;this.sourceCheckError='';this.shadowRoot.querySelector('[data-source-check-results]')?.replaceChildren();this.updateUnsavedNotice();
       const field=event.target?.dataset?.field;
       if(field?.startsWith('room')&&field.endsWith('.baseline')){
         const target=event.target.closest('.room-card')?.querySelector('.room-target');
@@ -2142,7 +2183,7 @@ details{scroll-margin-block:16px}
       if(key==='zone_rooms'){const selected=new Set(values.filter(Boolean));this.settings.rooms.forEach(room=>{if(room.heating_zone_id===obj.id&&!selected.has(room.id))room.heating_zone_id='';});if(!selected.has(obj.main_room_id))obj.main_room_id=this.settings.rooms.find(room=>selected.has(room.id))?.id||'';}
       clearSaveMessage();this.render();
     });
-    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','heat_control','thermostat','heating_zone_id','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.shadowRoot.querySelectorAll('[data-water-group]').forEach(group=>group.hidden=!waterDistribution({house_distribution:event.target.value}));}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
+    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','heat_control','thermostat','heating_zone_id','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff','source.nordpool_entry'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.shadowRoot.querySelectorAll('[data-water-group]').forEach(group=>group.hidden=!waterDistribution({house_distribution:event.target.value}));}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
     settingsForm?.addEventListener('submit',async e=>{
       e.preventDefault();if(this.saving||this.backupBusy)return;this.capture();
       const enableLive=electricHeating(this.settings)&&this.settings.simulation_enabled===false&&!this.info.settings?.live_control_confirmed;
@@ -2162,6 +2203,7 @@ details{scroll-margin-block:16px}
       catch(error){this.message=`Settings were not saved: ${error.message||String(error)}`;this.messageLevel='error';this.saveConfirmation=false;}
       finally{this.saving=false;this.render();}
     });
+    this.shadowRoot.querySelector('[data-test-sources]')?.addEventListener('click',()=>this.testSources());
     this.shadowRoot.querySelector('#backup-export')?.addEventListener('click',()=>this.transferBackup());
     this.shadowRoot.querySelector('#backup-import')?.addEventListener('click',()=>this.shadowRoot.querySelector('#backup-file')?.click());
     this.shadowRoot.querySelector('#backup-file')?.addEventListener('change',event=>{const file=event.target.files?.[0];if(file)this.transferBackup(file);});

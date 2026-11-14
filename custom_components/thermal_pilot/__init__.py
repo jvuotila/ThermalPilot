@@ -13,6 +13,7 @@ from .const import DOMAIN, VERSION, PLATFORMS, DEFAULTS, ROOM_DEFAULTS, ZONE_DEF
 from .config import validate, stored_settings, confirm_control_settings, SOURCE_FIELDS, ROOM_FIELDS, ZONE_FIELDS
 from .coordinator import PilotCoordinator
 from .backup_http import BackupView
+from .sources import price_provider_options, check_sources
 
 
 async def async_setup_entry(hass, entry):
@@ -38,7 +39,7 @@ async def async_setup_entry(hass, entry):
                 str(Path(__file__).parent/'brand'/'icon.png'), False),
             StaticPathConfig('/thermal_pilot/rooms-floor-plan.png',
                 str(Path(__file__).parent/'frontend'/'rooms-floor-plan.png'), False)])
-        for handler in (ws_get, ws_retention, ws_plan_chart, ws_save, ws_history, ws_reset, ws_manual):
+        for handler in (ws_get, ws_retention, ws_plan_chart, ws_save, ws_history, ws_reset, ws_manual, ws_test_sources):
             websocket_api.async_register_command(hass, handler)
         frontend.add_extra_js_url(hass, f'/thermal_pilot/heat-retention-card.js?v={VERSION}')
         frontend.add_extra_js_url(hass, f'/thermal_pilot/plan-chart-card.js?v={VERSION}')
@@ -156,7 +157,7 @@ def ws_get(hass, connection, msg):
             'retention_history_entities':retention_history_entities(hass,c)
         }, 'manual_controls':c.manual_controls(), 'notification_targets':companion_notification_targets(hass),
             'room_entities':room_entities,
-            'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS})
+            'price_provider_options':price_provider_options(hass), 'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS})
 
 
 @websocket_api.websocket_command({vol.Required('type'):'thermal_pilot/retention', vol.Optional('entry_id'):str})
@@ -243,6 +244,31 @@ async def ws_plan_chart(hass, connection, msg):
         },
         'history':[subset(row,('room_id','time','activity','suggested_heat','pump_mode','pump_basis','pump_entity',
                                'zone_id','zone_mode','zone_basis','zone_entity')) for row in rows]})
+
+
+@websocket_api.websocket_command({
+    vol.Required('type'): 'thermal_pilot/test_sources',
+    vol.Required('entry_id'): str,
+    vol.Required('settings'): dict,
+})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_test_sources(hass, connection, msg):
+    if (c := get_coordinator(hass, connection, msg)) is None:
+        return
+    # Check only source/settings fields. An unfinished room draft must not stop
+    # a read-only source check or accidentally become a saved configuration.
+    fields = {field[0] for field in SOURCE_FIELDS}
+    draft = {**c.settings, **{key: value for key, value in msg['settings'].items() if key in fields},
+             'rooms': [], 'heating_zones': []}
+    try:
+        settings = validate(draft, require_outdoor=False)
+        async with c.backup_lock:
+            result = await check_sources(hass, c.price_reader, settings, dt_util.utcnow())
+    except ValueError as error:
+        connection.send_error(msg['id'], 'invalid_settings', str(error))
+        return
+    connection.send_result(msg['id'], result)
 
 
 @websocket_api.websocket_command({

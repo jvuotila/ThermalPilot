@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.84 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.85 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -189,7 +189,7 @@ Oil, gas, wood, pellet and district heating do not require an electricity price
 for observation and learning. Separate electric rooms or zones using tariff
 scheduling still need one.
 
-For electric tariff planning, choose either option under
+For electric tariff planning, choose a source under
 **Settings → Electricity price settings → Price sensor**:
 
 - **A price sensor** supplying timestamped prices or today/tomorrow lists, with
@@ -199,6 +199,12 @@ For electric tariff planning, choose either option under
   charges separately below, enter the energy price without those charges.
   Otherwise enter the total per-kWh price. No price sensor or price forecast is
   needed in this mode.
+
+- **Nord Pool (Home Assistant)** reads the official integration’s price action.
+  Choose its integration and price area, then enter applicable VAT and retailer
+  margin. This is separate from the community Nord Pool sensor option above.
+- **Tibber (Home Assistant)** reads the official integration’s price action for
+  the home identified by the selected Tibber price sensor. EUR/kWh is supported.
 
 Until a price source is configured, tariff heating plans are unavailable.
 Observation and learning can continue with valid inputs; enabled live controllers
@@ -233,6 +239,50 @@ A fixed energy price with day/night transfer rates still has different total
 costs at different hours. With an entirely fixed total price, there is no cheaper
 hour to favour. In both cases ThermalPilot uses room measurements, comfort limits
 and weather; the tariff does not make thermal predictions inherently more accurate.
+
+## Source compatibility and checks
+
+Your existing [community Nord Pool](https://github.com/custom-components/nordpool)
+sensor can remain selected under **Price sensor**. Match **Source price unit**
+to its configured output: c/kWh, €/kWh or €/MWh. Its VAT and additional costs
+are retained; ThermalPilot does not add them again. Add transfer charges only
+when they are absent from the selected sensor.
+
+| Source | How ThermalPilot reads it | Automated coverage |
+| --- | --- | --- |
+| Community Nord Pool | Sensor attributes: timestamped `raw_today` / `raw_tomorrow`, or complete 24/96-value daily lists | Documented sensor-format fixtures; existing installations retain their selection |
+| Official Home Assistant Nord Pool | `nordpool.get_prices_for_date`, explicitly requesting EUR; EUR/MWh converted to c/kWh | Synthetic action-response fixtures; not yet verified on a live installation |
+| Official Home Assistant Tibber | `tibber.get_prices`, matching the selected sensor’s home; EUR/kWh converted to c/kWh | Synthetic action-response fixtures; not yet verified on a live installation |
+| Weather entities | Common `weather.get_forecasts` action: hourly, then twice daily, then daily; legacy forecast attribute fallback | Action fallback tests, timestamp validation and Celsius/Fahrenheit/Kelvin conversion tests |
+| Other price sensors | The same recognized sensor-list formats | Generic parser tests; a provider name alone does not guarantee compatibility |
+
+For the official Nord Pool source, prices exclude retail additions: enter your
+VAT percentage and your retailer margin **including VAT**. For Tibber, energy
+taxes are already included. Configure any missing network/transfer charges
+separately, and avoid adding a component twice. Other currencies are not converted.
+The existing sensor path continues to use the explicitly selected source unit.
+
+Under **Settings → Weather and forecast settings → Source checks**, choose
+**Test sources**. This checks the current draft without saving it or issuing
+heating/cooling commands. It shows the normalized units, price interval and
+available date range, or an actionable error. It can be used before completing
+room setup. Results describe that draft at the time checked, not a guarantee of
+future availability.
+
+Native price actions reuse Home Assistant’s existing integrations and credentials;
+ThermalPilot does not request provider credentials. Successful native reads are
+cached for five minutes and refreshed after a local-date change. Tomorrow’s
+unpublished Nord Pool prices leave today’s usable prices available. Missing or
+invalid price intervals are not invented. Weather gaps use the current outdoor
+reading for planning rather than extending the last forecast indefinitely.
+Forecast temperatures and measured temperature-sensor inputs are normalized to
+Celsius before calculations. Physical thermostat control still requires supported
+Celsius device limits; this does not add Fahrenheit thermostat control.
+
+These tests cover documented response shapes, not every provider or version.
+If **Test sources** fails, include the provider/version and the displayed error
+in an issue. A redacted example of its timestamped data helps add a regression
+test; remove account names, entity IDs and credentials before sharing it.
 
 ## Before you start learning
 

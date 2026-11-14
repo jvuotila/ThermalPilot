@@ -17,6 +17,7 @@ from .air_control import AirHeatPumpControl, zone_temperature, binary
 from .notifications import notify_manual_door_pause
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint
 from .shared_air import room_groups, coordinate_plans
+from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,6 +34,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.history_db = HistoryDatabase(hass.config.path('.storage', f'{DOMAIN}.{entry.entry_id}.sqlite3'))
         self.previous = {}
         self.forecast = []
+        self.forecast_unit = None
+        self.price_reader = PriceSourceReader(hass)
         self.forecast_updated = None
         self.forecast_entity = None
         self.forecast_type = None
@@ -74,8 +77,10 @@ class PilotCoordinator(DataUpdateCoordinator):
             'price_entity', 'price_forecast_entity', 'outdoor_entity',
             'water_entity', 'weather_entity', 'wind_entity', 'fireplace_entity',
         )
-        entities = {self.settings[key] for key in source_keys if self.settings[key] and self.settings[key] != 'static'
+        entities = {self.settings[key] for key in source_keys if self.settings[key] and self.settings[key] not in PRICE_SOURCE_CHOICES
                     and not (self.settings['price_entity'] == 'static' and key == 'price_forecast_entity')}
+        if self.settings['price_entity'] == 'tibber' and self.settings['tibber_price_entity']:
+            entities.add(self.settings['tibber_price_entity'])
         rooms = resolved_rooms(self.settings) + zone_rooms(self.settings)
         for room in rooms:
             for key in ('temperature_entity', 'thermostat', 'activity_entity', 'zone_fireplace_entity'):
@@ -244,7 +249,12 @@ class PilotCoordinator(DataUpdateCoordinator):
 
     def value(self, entity):
         state = self.hass.states.get(entity) if entity else None
-        return number(state.state) if state else None
+        if state is None:
+            return None
+        try:
+            return temperature_celsius(state.state, state.attributes.get('unit_of_measurement', '°C'))
+        except ValueError:
+            return None
 
     def wind_reading(self, now):
         """Optional, bounded, smoothed input; frozen readings expire after two hours."""
@@ -399,35 +409,11 @@ class PilotCoordinator(DataUpdateCoordinator):
             return []
         if entity == self.forecast_entity and self.forecast_updated is not None and ((now - self.forecast_updated).total_seconds() < (3600 if self.forecast else 300)):
             return self.forecast
-        def usable(rows, kind):
-            if not isinstance(rows, list):
-                return []
-            return [row for row in rows if isinstance(row,dict) and stamp(row.get('datetime')) is not None and
-                    number(row.get('templow',row.get('temperature')) if kind=='daily' else row.get('temperature')) is not None]
-        self.forecast = []
-        self.forecast_type = None
-        errors = []
         previous_error = self.forecast_error
-        for kind in ('hourly','twice_daily','daily'):
-            try:
-                result = await self.hass.services.async_call('weather', 'get_forecasts',
-                    {'entity_id':entity, 'type':kind}, blocking=True, return_response=True)
-                raw_rows = (result or {}).get(entity, {}).get('forecast', [])
-                rows = usable(raw_rows, kind)
-                if rows:
-                    self.forecast, self.forecast_type = (rows, kind)
-                    break
-                errors.append(f'{kind}: no usable timestamped temperature rows returned')
-            except Exception as error:
-                errors.append(f'{kind}: {type(error).__name__}: {error}')
-                _LOGGER.debug('Forecast type %s unavailable for %s',kind,entity,exc_info=True)
-        if not self.forecast:
-            state = self.hass.states.get(entity)
-            rows = state.attributes.get('forecast', []) if state else []
-            kind = 'daily' if isinstance(rows, list) and any((isinstance(row, dict) and 'templow' in row for row in rows)) else 'hourly'
-            self.forecast = usable(rows, kind)
-            self.forecast_type = kind if self.forecast else None
-        self.forecast_error = None if self.forecast else f'{entity}: ' + '; '.join(errors)
+        response = await read_weather(self.hass, entity, now)
+        self.forecast, self.forecast_type = response['rows'], response['kind']
+        self.forecast_unit = '°C'
+        self.forecast_error = response['error']
         if self.forecast_error and self.forecast_error != previous_error:
             _LOGGER.warning('Weather forecast unavailable: %s', self.forecast_error)
         self.forecast_updated = now
@@ -439,7 +425,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         if self.forecast_type != 'hourly':
             return []
         state = self.hass.states.get(self.settings.get('weather_entity'))
-        unit = str(state.attributes.get('temperature_unit', '°C') if state else '°C').lower()
+        unit = str(self.forecast_unit or (state.attributes.get('temperature_unit', '°C') if state else '°C')).lower()
         if unit not in ('°c', 'c', 'celsius', '°f', 'f', 'fahrenheit', 'k', 'kelvin'):
             return []
         conditions = {'clear-night','cloudy','exceptional','fog','hail','lightning',
@@ -464,6 +450,9 @@ class PilotCoordinator(DataUpdateCoordinator):
         """Invalidate a checkpoint when device mapping or heating policy changes."""
         effective = room_settings(room, self.settings)
         price_policy = ['static', self.settings['static_price']] if self.settings['price_entity'] == 'static' else []
+        if self.settings['price_entity'] in NATIVE_PRICE_SOURCES:
+            price_policy += [self.settings[key] for key in ('price_entity', 'nordpool_entry', 'nordpool_area',
+                                                         'nordpool_vat', 'nordpool_margin', 'tibber_price_entity')]
         if self.settings['transfer_tariff'] != 'included':
             price_policy += [self.settings[key] for key in (
                 'transfer_tariff', 'transfer_fixed_price', 'transfer_day_start',
@@ -600,7 +589,6 @@ class PilotCoordinator(DataUpdateCoordinator):
         now = dt_util.utcnow()
         plan_settings = deepcopy(self.settings)
         outdoor = self.value(self.settings['outdoor_entity'])
-        source = self.hass.states.get(self.settings['price_entity'])
         heating_active = self.settings['heating_enabled']
         await self.hass.async_add_executor_job(
             self.history_db.append_zones,
@@ -678,14 +666,13 @@ class PilotCoordinator(DataUpdateCoordinator):
             midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
             chart_prices = [{'start':slot.start.isoformat(), 'end':slot.end.isoformat(), 'price':slot.price}
                             for slot in price_slots({}, self.settings, midnight, ZoneInfo(self.hass.config.time_zone))]
-        elif source is None or source.state in ('unknown', 'unavailable'):
-            warnings.append('Price sensor is missing or unavailable.')
         else:
             try:
-                slots = price_slots(source.attributes, self.settings, now, ZoneInfo(self.hass.config.time_zone))
+                attributes, price_settings, _ = await self.price_reader.read(self.settings, now)
+                slots = price_slots(attributes, price_settings, now, ZoneInfo(self.hass.config.time_zone))
                 midnight = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-                chart_prices = [{'start':price_slot.start.isoformat(),'end':price_slot.end.isoformat(),'price':price_slot.price}
-                    for price_slot in (price_slots(source.attributes,self.settings,midnight,ZoneInfo(self.hass.config.time_zone)) or slots)]
+                chart_prices = [{'start': row.start.isoformat(), 'end': row.end.isoformat(), 'price': row.price}
+                                for row in (price_slots(attributes, price_settings, midnight, ZoneInfo(self.hass.config.time_zone)) or slots)]
             except ValueError as error:
                 warnings.append(str(error))
         if scheduling and self.settings['price_entity'] and (not slots):
@@ -731,24 +718,19 @@ class PilotCoordinator(DataUpdateCoordinator):
                     matches.append((date,row))
             values = max(matches, key=lambda item: item[0])[1] if matches else None
             solar_forecast.append(solar_signal(midpoint,latitude,longitude,values))
-        outdoors = []
-        for slot in slots:
-            points = []
-            for forecast_row in forecasts:
-                date = stamp(forecast_row.get('datetime'))
-                temp = number(forecast_row.get('templow', forecast_row.get('temperature')) if self.forecast_type == 'daily' else forecast_row.get('temperature'))
-                if date and temp is not None:
-                    points.append((date, temp))
-            earlier = [point for point in points if point[0] <= slot.start]
-            outdoors.append(max(earlier, key=lambda point: point[0])[1] if earlier else outdoor)
+        outdoors = [forecast_temperature(forecasts, self.forecast_type, slot.start,
+                                         ZoneInfo(self.hass.config.time_zone), outdoor) for slot in slots]
         uses_water = water_distribution(self.settings) and any((not air_room(candidate_room, self.settings) and candidate_room.get('heat_control') != 'zone_member' for candidate_room in resolved_rooms(self.settings)))
         water_state = self.hass.states.get(self.settings['water_entity']) if uses_water and self.settings['water_entity'] else None
         water = None
         if water_state:
             if self.settings['water_entity'].startswith('climate.'):
-                water = number(water_state.attributes.get('current_temperature'))
+                try:
+                    water = temperature_celsius(water_state.attributes.get('current_temperature'), water_state.attributes.get('temperature_unit', '°C'))
+                except ValueError:
+                    water = None
             else:
-                water = number(water_state.state)
+                water = self.value(self.settings['water_entity'])
         if uses_water and water is None:
             warnings.append('Heating water temperature is not available; planning and learning use observed thermostat demand without water-temperature adjustment.')
         fireplace_state = self.hass.states.get(self.settings['fireplace_entity']) if self.settings['fireplace_entity'] else None
@@ -1315,14 +1297,14 @@ class PilotCoordinator(DataUpdateCoordinator):
         targets, fallback = ({}, [])
         sources_ok = self.value(snapshot['outdoor_entity']) is not None
         uses_water = water_distribution(snapshot)
-        water_state = self.hass.states.get(snapshot['water_entity']) if uses_water else None
-        water = number(water_state.attributes.get('current_temperature') if snapshot['water_entity'].startswith('climate.') else water_state.state) if water_state else None
-        price_state = self.hass.states.get(snapshot['price_entity'])
         try:
             if snapshot['price_entity'] == 'static':
                 prices = price_slots({}, snapshot, now, ZoneInfo(self.hass.config.time_zone))
             else:
-                prices = price_slots(price_state.attributes, snapshot, now, ZoneInfo(self.hass.config.time_zone)) if price_state and price_state.state not in ('unknown', 'unavailable') else []
+                # Reuse the same normalized source and cache as planning. Native
+                # action sources have no sensor state to read at a checkpoint.
+                attributes, price_settings, _ = await self.price_reader.read(snapshot, now)
+                prices = price_slots(attributes, price_settings, now, ZoneInfo(self.hass.config.time_zone))
         except ValueError:
             prices = []
         sources_ok = sources_ok and bool(prices)

@@ -115,7 +115,7 @@ accepted solely on regular 24-hour days, with their interval detected from
             output.append(Slot(start, stop, price))
             start = stop
         return apply_transfer_tariff(output, config, tz)
-    factor = 100.0 if config['price_unit'] == '€/kWh' else 1.0
+    factor = {'c/kWh': 1.0, '€/kWh': 100.0, '€/MWh': .1}[config['price_unit']]
     raw = []
     for key in ('raw_today', 'raw_tomorrow'):
         raw.extend(attributes.get(key) or [])

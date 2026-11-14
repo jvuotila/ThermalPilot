@@ -422,3 +422,19 @@ Prefer consistency over novelty.
 Prefer maintainability over brevity.
 
 Human-readable code is a requirement, not an optional improvement.
+
+## Release and Branch Workflow
+
+The project is preparing its first 1.0 release. Do not publish that release or
+create its tag without the user’s release instruction and completed validation.
+After 1.0, develop features and fixes on separate branches and review them in
+pull requests before merging to the release branch. Keep release numbers and
+notes consistent with the published code. Do not include private backup dumps,
+local investigation files or credentials in a commit or release.
+
+When adding source compatibility, keep documented response fixtures and tests
+for units, timestamps, missing data and failure handling. Distinguish fixture
+coverage from live-installation verification in documentation. Keep external
+provider reads separate from physical control, preserve current configurations,
+and use Home Assistant’s public actions rather than provider credentials or
+private runtime clients.

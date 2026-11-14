@@ -274,7 +274,7 @@ class SettingsTests(unittest.TestCase):
                         commands={node.elts[0].value for node in ast.walk(tree) if isinstance(node,ast.Tuple) and node.elts and isinstance(node.elts[0],ast.Constant) and str(node.elts[0].value).startswith('set_')}
                         self.assertEqual(commands,{'set_hvac_mode','set_temperature','set_fan_mode','set_swing_mode'})
                         continue
-                    self.assertIn((n.args[0].value,n.args[1].value),{('weather','get_forecasts'),('climate','set_temperature'),('persistent_notification','create')})
+                    self.assertIn((n.args[0].value,n.args[1].value),{('weather','get_forecasts'),('nordpool','get_prices_for_date'),('tibber','get_prices'),('climate','set_temperature'),('persistent_notification','create')})
                     if n.args[0].value=='climate':
                         method=next(f for f in ast.walk(tree) if isinstance(f,ast.AsyncFunctionDef) and n in list(ast.walk(f)))
                         self.assertIn((path.name,method.name),{('coordinator.py','apply_season_targets'),('control.py','apply')})
