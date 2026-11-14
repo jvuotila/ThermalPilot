@@ -542,10 +542,10 @@
     "— Select / not used —": "— Vybrať / nepoužité —",
     "Shared air space": "Spoločný vzdušný priestor",
     "Remove room from shared air space": "Odobrať miestnosť zo spoločného priestoru",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Vyberte vykurovacie okruhy v rovnakom otvorenom priestore. Väzby platia oboma smermi a zahŕňajú prepojené miestnosti. Každý okruh si ponechá snímač, cieľ a hranice. Pomocné kúrenie sa začne po naučení prenosu tepla z aspoň 12 hodín kúrenia a 12 hodín pokoja s dostupnými prepojenými snímačmi. Odobratie miestnosť odpojí od tohto priestoru.",
     "Shared air space: select each room only once.": "Spoločný priestor: každú miestnosť vyberte len raz.",
     "Shared air space: select another existing room.": "Spoločný priestor: vyberte inú existujúcu miestnosť.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Spoločný priestor: vyberte hlavné vykurovacie okruhy, nie tepelné čerpadlá ani garáže."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Spoločný priestor: vyberte hlavné vykurovacie okruhy, nie tepelné čerpadlá ani garáže.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Vyberte vykurovacie okruhy, ktoré si priamo vymieňajú vzduch a teplo. Väzby platia oboma smermi; A–B a B–C nepridajú A–C. Odobratie výberu odstráni iba toto spojenie. Každý okruh si ponechá snímač, cieľ a hranice. Pomocné kúrenie sa začne po naučení prenosu tepla z aspoň 12 hodín kúrenia a 12 hodín pokoja s dostupnými prepojenými snímačmi."
   },
   "legacy": {},
   "cardMessages": {

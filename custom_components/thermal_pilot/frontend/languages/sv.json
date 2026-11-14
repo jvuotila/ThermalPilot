@@ -542,10 +542,10 @@
     "— Select / not used —": "— Välj / används inte —",
     "Shared air space": "Gemensamt luftutrymme",
     "Remove room from shared air space": "Ta bort rum från gemensamt luftutrymme",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Välj värmekretsar i samma öppna utrymme. Länkarna gäller åt båda hållen och omfattar anslutna rum. Varje krets behåller sin givare, sitt mål och sina gränser. Hjälpvärme börjar först efter inlärning av värmeöverföring med minst 12 värmetimmar och 12 vilotimmar med tillgängliga länkade givare. Ett borttaget rum kopplas loss från utrymmet.",
     "Shared air space: select each room only once.": "Gemensamt luftutrymme: välj varje rum endast en gång.",
     "Shared air space: select another existing room.": "Gemensamt luftutrymme: välj ett annat befintligt rum.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Gemensamt luftutrymme: välj primära värmekretsar, inte värmepumpar eller garage."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Gemensamt luftutrymme: välj primära värmekretsar, inte värmepumpar eller garage.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Välj värmekretsar som direkt delar luft och utbyter värme. Länkar gäller åt båda hållen; A–B och B–C lägger inte till A–C. Att ta bort ett val tar bara bort den förbindelsen. Varje krets behåller sin givare, sitt mål och sina gränser. Hjälpvärme börjar först efter inlärning av värmeöverföring med minst 12 värmetimmar och 12 vilotimmar med tillgängliga länkade givare."
   },
   "legacy": {},
   "cardMessages": {

@@ -542,10 +542,10 @@
     "— Select / not used —": "— Vælg / ikke brugt —",
     "Shared air space": "Fælles luftrum",
     "Remove room from shared air space": "Fjern rum fra fælles luftrum",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Vælg varmekredse i samme åbne rum. Forbindelser gælder begge veje og omfatter tilknyttede rum. Hver kreds beholder sin føler, måltemperatur og grænser. Hjælpevarme starter først efter indlæring af varmeoverførsel med mindst 12 timers varme og 12 timers hvile med tilgængelige tilknyttede følere. Fjernelse kobler rummet fra dette luftrum.",
     "Shared air space: select each room only once.": "Fælles luftrum: vælg hvert rum kun én gang.",
     "Shared air space: select another existing room.": "Fælles luftrum: vælg et andet eksisterende rum.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Fælles luftrum: vælg primære varmekredse, ikke varmepumper eller garager."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Fælles luftrum: vælg primære varmekredse, ikke varmepumper eller garager.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Vælg varmekredse, som direkte deler luft og udveksler varme. Forbindelser gælder begge veje; A–B og B–C tilføjer ikke A–C. Fjernelse af et valg fjerner kun forbindelsen mellem det par. Hver kreds beholder sin føler, måltemperatur og grænser. Hjælpevarme starter først efter indlæring af varmeoverførsel med mindst 12 timers varme og 12 timers hvile med tilgængelige tilknyttede følere."
   },
   "legacy": {},
   "cardMessages": {

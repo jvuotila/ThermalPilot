@@ -542,10 +542,10 @@
     "— Select / not used —": "— Velja / ekki notað —",
     "Shared air space": "Sameiginlegt loftrými",
     "Remove room from shared air space": "Fjarlægja herbergi úr sameiginlegu loftrými",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Veldu hitunarrásir í sama opna rými. Tengingar virka í báðar áttir og ná til tengdra herbergja. Hver rás heldur sínum skynjara, markhita og mörkum. Aðstoðarhitun hefst eftir að varmaflutningur hefur lærst af að minnsta kosti 12 hitunartímum og 12 hvíldartímum með aðgengilegum tengdum skynjurum. Fjarlæging aftengir herbergið frá þessu loftrými.",
     "Shared air space: select each room only once.": "Sameiginlegt loftrými: veldu hvert herbergi aðeins einu sinni.",
     "Shared air space: select another existing room.": "Sameiginlegt loftrými: veldu annað herbergi sem er til.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Sameiginlegt loftrými: veldu aðalhitunarrásir, ekki varmadælur eða bílskúra."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Sameiginlegt loftrými: veldu aðalhitunarrásir, ekki varmadælur eða bílskúra.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Veldu hitunarrásir sem skiptast beint á lofti og varma. Tengingar virka í báðar áttir; A–B og B–C bæta ekki við A–C. Að fjarlægja val fjarlægir aðeins þá tengingu. Hver rás heldur sínum skynjara, markhita og mörkum. Aðstoðarhitun hefst eftir að varmaflutningur hefur lærst af að minnsta kosti 12 hitunartímum og 12 hvíldartímum með aðgengilegum tengdum skynjurum."
   },
   "legacy": {},
   "cardMessages": {

@@ -542,10 +542,10 @@
     "— Select / not used —": "— Selecteren / niet gebruikt —",
     "Shared air space": "Gedeelde luchtruimte",
     "Remove room from shared air space": "Kamer uit gedeelde luchtruimte verwijderen",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Kies verwarmingscircuits in dezelfde open ruimte. Koppelingen werken in beide richtingen en omvatten verbonden kamers. Elk circuit behoudt zijn sensor, doel en grenzen. Ondersteuning begint pas na het leren van warmteoverdracht met minstens 12 verwarmingsuren en 12 rusturen met beschikbare gekoppelde sensoren. Verwijderen koppelt de kamer los van deze ruimte.",
     "Shared air space: select each room only once.": "Gedeelde luchtruimte: kies elke kamer slechts eenmaal.",
     "Shared air space: select another existing room.": "Gedeelde luchtruimte: kies een andere bestaande kamer.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Gedeelde luchtruimte: kies primaire verwarmingscircuits, geen warmtepompen of garages."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Gedeelde luchtruimte: kies primaire verwarmingscircuits, geen warmtepompen of garages.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Kies verwarmingscircuits die rechtstreeks lucht en warmte uitwisselen. Koppelingen werken in beide richtingen; A–B en B–C voegen geen A–C toe. Een selectie verwijderen verwijdert alleen die verbinding. Elk circuit behoudt zijn sensor, doel en grenzen. Ondersteuning begint pas na het leren van warmteoverdracht met minstens 12 verwarmingsuren en 12 rusturen met beschikbare gekoppelde sensoren."
   },
   "legacy": {},
   "cardMessages": {

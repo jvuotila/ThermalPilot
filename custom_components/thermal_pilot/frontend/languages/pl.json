@@ -542,10 +542,10 @@
     "— Select / not used —": "— Wybierz / nieużywane —",
     "Shared air space": "Wspólna przestrzeń powietrzna",
     "Remove room from shared air space": "Usuń pokój ze wspólnej przestrzeni",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Wybierz obiegi grzewcze w tej samej otwartej przestrzeni. Połączenia są wzajemne i obejmują połączone pokoje. Każdy obieg zachowuje czujnik, cel i granice. Wspomaganie zaczyna się po nauczeniu wymiany ciepła z co najmniej 12 godzin grzania i 12 godzin spoczynku z dostępnymi połączonymi czujnikami. Usunięcie odłącza pokój od tej przestrzeni.",
     "Shared air space: select each room only once.": "Wspólna przestrzeń: wybierz każdy pokój tylko raz.",
     "Shared air space: select another existing room.": "Wspólna przestrzeń: wybierz inny istniejący pokój.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Wspólna przestrzeń: wybierz główne obiegi grzewcze, nie pompy ciepła ani garaże."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Wspólna przestrzeń: wybierz główne obiegi grzewcze, nie pompy ciepła ani garaże.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Wybierz obiegi, które bezpośrednio wymieniają powietrze i ciepło. Połączenia są wzajemne; A–B i B–C nie dodają A–C. Usunięcie wyboru usuwa tylko to połączenie. Każdy obieg zachowuje czujnik, cel i granice. Wspomaganie zaczyna się po nauczeniu wymiany ciepła z co najmniej 12 godzin grzania i 12 godzin spoczynku z dostępnymi połączonymi czujnikami."
   },
   "legacy": {},
   "cardMessages": {

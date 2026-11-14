@@ -542,10 +542,10 @@
     "— Select / not used —": "— Velg / ikke brukt —",
     "Shared air space": "Felles luftrom",
     "Remove room from shared air space": "Fjern rom fra felles luftrom",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Velg varmekretser i samme åpne rom. Koblinger gjelder begge veier og omfatter tilknyttede rom. Hver krets beholder sin sensor, måltemperatur og grenser. Hjelpevarme starter først etter innlæring av varmeoverføring med minst 12 timer oppvarming og 12 timer hvile med tilgjengelige tilknyttede sensorer. Fjerning kobler rommet fra dette luftrommet.",
     "Shared air space: select each room only once.": "Felles luftrom: velg hvert rom bare én gang.",
     "Shared air space: select another existing room.": "Felles luftrom: velg et annet eksisterende rom.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Felles luftrom: velg primære varmekretser, ikke varmepumper eller garasjer."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Felles luftrom: velg primære varmekretser, ikke varmepumper eller garasjer.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Velg varmekretser som deler luft og utveksler varme direkte. Koblinger gjelder begge veier; A–B og B–C legger ikke til A–C. Fjerning av et valg fjerner bare forbindelsen mellom det paret. Hver krets beholder sin sensor, måltemperatur og grenser. Hjelpevarme starter først etter innlæring av varmeoverføring med minst 12 timer oppvarming og 12 timer hvile med tilgjengelige tilknyttede sensorer."
   },
   "legacy": {},
   "cardMessages": {

@@ -542,10 +542,10 @@
     "— Select / not used —": "— Válasszon / nincs használatban —",
     "Shared air space": "Közös légtér",
     "Remove room from shared air space": "Szoba eltávolítása a közös légtérből",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Válassza ki az azonos nyitott légtérben lévő fűtőköröket. A kapcsolatok kétirányúak és a kapcsolt szobákat is magukban foglalják. Minden kör megtartja érzékelőjét, célját és határait. A rásegítés a hőátadás megtanulása után indul, legalább 12 fűtési és 12 nyugalmi óra adataiból, elérhető kapcsolt érzékelőkkel. Az eltávolítás leválasztja a szobát erről a légtérről.",
     "Shared air space: select each room only once.": "Közös légtér: minden szobát csak egyszer válasszon ki.",
     "Shared air space: select another existing room.": "Közös légtér: válasszon másik meglévő szobát.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Közös légtér: elsődleges fűtőköröket válasszon, ne hőszivattyúkat vagy garázsokat."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Közös légtér: elsődleges fűtőköröket válasszon, ne hőszivattyúkat vagy garázsokat.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Válassza ki a közvetlenül levegőt és hőt cserélő fűtőköröket. A kapcsolatok kétirányúak; A–B és B–C nem ad hozzá A–C kapcsolatot. Egy választás eltávolítása csak azt a kapcsolatot törli. Minden kör megtartja érzékelőjét, célját és határait. A rásegítés a hőátadás megtanulása után indul, legalább 12 fűtési és 12 nyugalmi óra adataiból, elérhető kapcsolt érzékelőkkel."
   },
   "legacy": {},
   "cardMessages": {

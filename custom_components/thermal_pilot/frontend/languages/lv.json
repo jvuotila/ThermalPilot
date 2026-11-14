@@ -542,10 +542,10 @@
     "— Select / not used —": "— Izvēlēties / netiek lietots —",
     "Shared air space": "Kopīga gaisa telpa",
     "Remove room from shared air space": "Noņemt istabu no kopīgās gaisa telpas",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Izvēlieties apkures lokus vienā atvērtā telpā. Saites darbojas abos virzienos un ietver savienotās istabas. Katrs loks saglabā savu sensoru, mērķi un robežas. Palīgapkure sākas pēc siltuma pārneses apguves ar vismaz 12 apkures un 12 dīkstāves stundām, kad saistītie sensori ir pieejami. Noņemšana atvieno istabu no šīs gaisa telpas.",
     "Shared air space: select each room only once.": "Kopīga gaisa telpa: katru istabu izvēlieties tikai vienreiz.",
     "Shared air space: select another existing room.": "Kopīga gaisa telpa: izvēlieties citu esošu istabu.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Kopīga gaisa telpa: izvēlieties primāros apkures lokus, nevis siltumsūkņus vai garāžas."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Kopīga gaisa telpa: izvēlieties primāros apkures lokus, nevis siltumsūkņus vai garāžas.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Izvēlieties apkures lokus, kas tieši apmainās ar gaisu un siltumu. Saites darbojas abos virzienos; A–B un B–C nepievieno A–C. Izvēles noņemšana dzēš tikai šī pāra saiti. Katrs loks saglabā savu sensoru, mērķi un robežas. Palīgapkure sākas pēc siltuma pārneses apguves ar vismaz 12 apkures un 12 dīkstāves stundām, kad saistītie sensori ir pieejami."
   },
   "legacy": {},
   "cardMessages": {

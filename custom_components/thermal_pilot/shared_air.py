@@ -9,14 +9,20 @@ import math
 from typing import Any
 
 
-def room_groups(rooms: list[dict]) -> list[list[str]]:
-    """Return reciprocal, transitive groups without changing room identifiers."""
+def room_connections(rooms: list[dict]) -> dict[str, list[str]]:
+    """Make direct links reciprocal without inventing links through a third room."""
     links = {room['id']: set() for room in rooms}
     for room in rooms:
         for peer in room.get('shared_air_rooms', []):
             if peer in links and peer != room['id']:
                 links[room['id']].add(peer)
                 links[peer].add(room['id'])
+    return {room_id: sorted(peers) for room_id, peers in links.items()}
+
+
+def room_groups(rooms: list[dict]) -> list[list[str]]:
+    """Find connected networks for joint planning; retain their direct links."""
+    links = room_connections(rooms)
     groups = []
     visited = set()
     for room_id in links:
@@ -29,7 +35,7 @@ def room_groups(rooms: list[dict]) -> list[list[str]]:
             if member in members:
                 continue
             members.add(member)
-            pending.extend(links[member] - members)
+            pending.extend(peer for peer in links[member] if peer not in members)
         visited.update(members)
         if len(members) > 1:
             groups.append(sorted(members))
@@ -187,7 +193,7 @@ def simulate_group(contexts: dict[str, dict], plans: dict[str, dict], now: datet
                 responses[key], average = response_step(
                     responses[key], float(heating), step, response_lag(room, model)
                 )
-                neighbors = {peer: value for peer, value in temperatures.items() if peer != key}
+                neighbors = {peer: temperatures[peer] for peer in room['shared_air_rooms']}
                 wind = room.get('wind_speed')
                 if wind is not None:
                     wind = 3 + (wind - 3) * math.exp(-(moment - now).total_seconds() / 10800)
@@ -241,7 +247,9 @@ def coordinate_plans(contexts: dict[str, dict], now: datetime) -> dict[str, Any]
     members = set(contexts)
     for key, context in contexts.items():
         state = context['model'].get('shared_air', {})
-        if (not state.get('updates') or set(state.get('members', [])) != members - {key}
+        neighbors = set(context['room']['shared_air_rooms'])
+        if (not neighbors.issubset(members) or not state.get('updates')
+                or set(state.get('members', [])) != neighbors
                 or state.get('signature') != context['room'].get('shared_air_signature')):
             return {}
     if not any(coefficient > .001 for context in contexts.values()
@@ -266,7 +274,7 @@ def coordinate_plans(contexts: dict[str, dict], now: datetime) -> dict[str, Any]
                 room = deepcopy(context['room'])
                 room['shared_air_forecast'] = {
                     peer: [contexts[peer]['temperature']] + [row['temperature'] for row in evaluated[peer]['slots'][:-1]]
-                    for peer in contexts if peer != key
+                    for peer in room['shared_air_rooms']
                 }
                 if assist:
                     room['planning_comfort_target'] = min(room['maximum'], context['baseline'] + room['boost'])
@@ -291,7 +299,7 @@ def coordinate_plans(contexts: dict[str, dict], now: datetime) -> dict[str, Any]
                         peer_room = deepcopy(peer_context['room'])
                         peer_room['shared_air_forecast'] = {
                             peer: [contexts[peer]['temperature']] + [row['temperature'] for row in new_evaluated[peer]['slots'][:-1]]
-                            for peer in contexts if peer != recipient
+                            for peer in peer_room['shared_air_rooms']
                         }
                         budget -= 1
                         peer_plan = plan(peer_room, peer_context['model'], peer_context['temperature'],

@@ -26,7 +26,7 @@ function retentionRating(value){
 }
 const controlOptionLabels={house:'House heating system',air_to_air:'Air-to-air heat pump',temperature:'Temperature limits only',tariff:'Electricity tariff optimization',heat:'Heating only',cool:'Cooling only',both:'Heating in winter / cooling in summer',main:'Main room sensor',average:'Average of room sensors',coldest:'Coldest room sensor',fireplace:'Fireplace'};
 const settingHelp = {
-  shared_air_rooms:'Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.',
+  shared_air_rooms:'Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.',
   heating_enabled: 'Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.',
   climate_mode:'Heating only operates in winter. Cooling only operates in summer. Both heats in winter and cools in summer. Automatic season changes must persist for 24 hours. Reversing between heating and cooling requires confirmed fan-only standby for ten minutes; automatic Heat/Cool mode is never used.',
   cooling_target:'The cooling target for this zone. Cooling starts 0.5 °C above this value and stops when any linked room reaches it. This keeps the pump from repeatedly starting and protects colder rooms.',
@@ -616,42 +616,18 @@ class ThermalPilotPanel extends HTMLElement {
   }
   updateSharedAirRooms(roomId,selected){
     const room=this.settings.rooms.find(candidate=>candidate.id===roomId);
-    const previous=(room.shared_air_rooms||[]).filter(Boolean);
-    const removed=selected.length?previous.filter(id=>!selected.includes(id)):[];
-    if(!selected.length){
-      for(const member of this.settings.rooms)member.shared_air_rooms=(member.shared_air_rooms||[]).filter(id=>id!==roomId);
-    }
-    const oldGroup=new Set([roomId,...previous]);
-    // All members display the same air space. Removing B from A must also
-    // remove C→B; otherwise the transitive link would immediately restore B.
+    const eligible=new Set(this.settings.rooms.filter(member=>this.sharedAirEligible(member)).map(member=>member.id));
+    const peers=new Set(selected.filter(id=>id!==roomId&&eligible.has(id)));
+    if(!eligible.has(roomId))peers.clear();
+    room.shared_air_rooms=[...peers].sort();
+    // Change only pairs involving this room. A→B and B→C do not imply A→C;
+    // removing A→C must preserve B→C and every unrelated connection.
     for(const member of this.settings.rooms){
-      if(removed.includes(member.id))member.shared_air_rooms=[];
-      else if(oldGroup.has(member.id))member.shared_air_rooms=(member.shared_air_rooms||[]).filter(id=>!removed.includes(id));
-    }
-    room.shared_air_rooms=selected.filter(id=>id!==roomId&&this.settings.rooms.some(peer=>peer.id===id&&this.sharedAirEligible(peer)));
-    const eligible=this.settings.rooms.filter(member=>this.sharedAirEligible(member));
-    const links=new Map(eligible.map(member=>[member.id,new Set()]));
-    for(const member of this.settings.rooms){
-      if(!links.has(member.id)){member.shared_air_rooms=[];continue;}
-      for(const peer of member.shared_air_rooms||[]){
-        if(peer!==member.id&&links.has(peer)){
-          links.get(member.id).add(peer);links.get(peer).add(member.id);
-        }
-      }
-    }
-    const visited=new Set();
-    for(const member of eligible){
-      if(visited.has(member.id))continue;
-      const group=new Set(),pending=[member.id];
-      while(pending.length){
-        const id=pending.pop();
-        if(group.has(id))continue;
-        group.add(id);pending.push(...links.get(id));
-      }
-      for(const id of group){
-        visited.add(id);
-        this.settings.rooms.find(candidate=>candidate.id===id).shared_air_rooms=[...group].filter(peer=>peer!==id).sort();
-      }
+      if(member.id===roomId)continue;
+      const connections=new Set((member.shared_air_rooms||[]).filter(id=>id!==member.id&&eligible.has(id)));
+      if(peers.has(member.id))connections.add(roomId);
+      else connections.delete(roomId);
+      member.shared_air_rooms=eligible.has(member.id)?[...connections].sort():[];
     }
   }
   roomSettingsFields(r,index){

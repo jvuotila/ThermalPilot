@@ -542,10 +542,10 @@
     "— Select / not used —": "— Επιλογή / δεν χρησιμοποιείται —",
     "Shared air space": "Κοινός χώρος αέρα",
     "Remove room from shared air space": "Αφαίρεση δωματίου από τον κοινό χώρο",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Επιλέξτε κυκλώματα θέρμανσης στον ίδιο ανοικτό χώρο. Οι συνδέσεις ισχύουν αμφίδρομα και περιλαμβάνουν τα συνδεδεμένα δωμάτια. Κάθε κύκλωμα διατηρεί αισθητήρα, στόχο και όρια. Η υποβοήθηση αρχίζει μετά την εκμάθηση μεταφοράς θερμότητας από τουλάχιστον 12 ώρες θέρμανσης και 12 ώρες αδράνειας με διαθέσιμους συνδεδεμένους αισθητήρες. Η αφαίρεση αποσυνδέει το δωμάτιο από τον χώρο.",
     "Shared air space: select each room only once.": "Κοινός χώρος: επιλέξτε κάθε δωμάτιο μόνο μία φορά.",
     "Shared air space: select another existing room.": "Κοινός χώρος: επιλέξτε άλλο υπάρχον δωμάτιο.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Κοινός χώρος: επιλέξτε κύρια κυκλώματα θέρμανσης, όχι αντλίες θερμότητας ή γκαράζ."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Κοινός χώρος: επιλέξτε κύρια κυκλώματα θέρμανσης, όχι αντλίες θερμότητας ή γκαράζ.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Επιλέξτε κυκλώματα που ανταλλάσσουν άμεσα αέρα και θερμότητα. Οι συνδέσεις είναι αμφίδρομες· A–B και B–C δεν προσθέτουν A–C. Η αφαίρεση επιλογής καταργεί μόνο αυτή τη σύνδεση. Κάθε κύκλωμα διατηρεί αισθητήρα, στόχο και όρια. Η υποβοήθηση αρχίζει μετά την εκμάθηση μεταφοράς θερμότητας από τουλάχιστον 12 ώρες θέρμανσης και 12 ώρες αδράνειας με διαθέσιμους συνδεδεμένους αισθητήρες."
   },
   "legacy": {},
   "cardMessages": {

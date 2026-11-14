@@ -31,7 +31,7 @@ class SharedConfigurationTests(unittest.TestCase):
         self.assertEqual([room['id'] for room in saved['rooms']], IDS)
         self.assertEqual(room_groups(saved['rooms']), [])
 
-    def test_links_are_reciprocal_and_transitive_without_losing_individual_settings(self):
+    def test_direct_links_are_reciprocal_without_losing_individual_settings(self):
         settings = settings_fixture()
         settings['rooms'][0]['shared_air_rooms'] = [IDS[1]]
         settings['rooms'][1]['shared_air_rooms'] = [IDS[2]]
@@ -39,9 +39,23 @@ class SharedConfigurationTests(unittest.TestCase):
         settings['rooms'][1]['baseline'] = 21
         saved = validate(settings)
         self.assertEqual(room_groups(saved['rooms']), [IDS])
-        for room in saved['rooms']:
-            self.assertEqual(set(room['shared_air_rooms']), set(IDS) - {room['id']})
+        expected = [[IDS[1]], [IDS[0], IDS[2]], [IDS[1]]]
+        self.assertEqual([room['shared_air_rooms'] for room in saved['rooms']], expected)
+        self.assertEqual([room['shared_air_rooms'] for room in resolved_rooms(saved)], expected)
         self.assertEqual([room['baseline'] for room in saved['rooms']], [19.5, 21, 20])
+
+    def test_changing_one_edge_changes_fit_context_even_when_network_stays_connected(self):
+        settings = settings_fixture()
+        for room in settings['rooms']:
+            room['shared_air_rooms'] = [peer for peer in IDS if peer != room['id']]
+        before = learning_fingerprint(resolved_rooms(settings)[1], settings)
+        settings['rooms'][0]['shared_air_rooms'].remove(IDS[2])
+        settings['rooms'][2]['shared_air_rooms'].remove(IDS[0])
+        rooms = resolved_rooms(settings)
+        self.assertEqual(room_groups(rooms), [IDS])
+        self.assertNotEqual(before, learning_fingerprint(rooms[1], settings))
+        self.assertEqual(rooms[0]['shared_air_rooms'], [IDS[1]])
+        self.assertEqual(rooms[2]['shared_air_rooms'], [IDS[1]])
 
     def test_invalid_links_are_rejected(self):
         for links, overrides in [([IDS[0]], {}), (['missing'], {}), ([IDS[1], IDS[1]], {}),
@@ -170,7 +184,61 @@ def contexts_fixture():
     return contexts
 
 
+def network_contexts_fixture():
+    settings = settings_fixture()
+    settings['rooms'][0]['shared_air_rooms'] = [IDS[1]]
+    settings['rooms'][1]['shared_air_rooms'] = [IDS[2]]
+    slots = [Slot(NOW + timedelta(minutes=15 * index), NOW + timedelta(minutes=15 * (index + 1)), 5)
+             for index in range(16)]
+    contexts = {}
+    for room in resolved_rooms(settings):
+        room = {**room_settings(room, settings), 'terminal_reserve_hours': 0}
+        model = initial_model(room)
+        model.update(loss=.012, gain=1, base_gain=.05)
+        model['shared_air'] = {'members': room['shared_air_rooms'], 'signature': room['shared_air_signature'],
+                               'couplings': {peer: .2 for peer in room['shared_air_rooms']}, 'updates': 50}
+        result = plan(room, model, 20.1, [0] * len(slots), slots, NOW, room['baseline'])
+        contexts[room['id']] = {'room': room, 'model': model, 'temperature': 20.1,
+                               'baseline': room['baseline'], 'water_factor': 1,
+                               'outdoor': [0] * len(slots), 'slots': slots, 'plan': result}
+    return contexts
+
+
 class SharedPlanningTests(unittest.TestCase):
+    def test_connected_network_plans_use_only_each_circuits_direct_neighbors(self):
+        contexts = network_contexts_fixture()
+        with patch('thermal_pilot.model.plan', wraps=plan) as planner:
+            result = coordinate_plans(contexts, NOW)
+        self.assertEqual(set(result), set(IDS))
+        self.assertTrue(planner.call_count)
+        for call in planner.call_args_list:
+            room = call.args[0]
+            self.assertEqual(set(room['shared_air_forecast']), set(room['shared_air_rooms']))
+        self.assertEqual(contexts[IDS[0]]['model']['shared_air']['members'], [IDS[1]])
+
+    def test_indirect_warmth_passes_through_middle_room_without_a_direct_edge(self):
+        contexts = network_contexts_fixture()
+        from thermal_pilot.model import thermostat_timing
+        for index, context in enumerate(contexts.values()):
+            context['temperature'] = 24.0 if index == 2 else 20.0
+            context['model'].update(loss=0, gain=0, base_gain=0, response=0)
+            row = {'start': NOW.isoformat(), 'end': (NOW + timedelta(minutes=15)).isoformat(),
+                   'price': 5, 'outdoor': 0, 'heat': False, 'mode': 'normal',
+                   'setpoint': 20, 'temperature': context['temperature']}
+            context['plan'] = {**context['plan'], 'slots': [row],
+                               **thermostat_timing([row], context['room'], 20, NOW)}
+        plans = {key: context['plan'] for key, context in contexts.items()}
+        _, _, direct = simulate_group(contexts, plans, NOW)
+        self.assertGreater(direct[IDS[0]]['slots'][0]['temperature'], 20)
+        self.assertLess(direct[IDS[0]]['slots'][0]['temperature'], 20.02)
+        # A direct outer-room connection would produce much faster transfer.
+        for key, peer in [(IDS[0], IDS[2]), (IDS[2], IDS[0])]:
+            contexts[key]['room']['shared_air_rooms'].append(peer)
+            contexts[key]['model']['shared_air']['members'] = sorted(contexts[key]['room']['shared_air_rooms'])
+            contexts[key]['model']['shared_air']['couplings'][peer] = .2
+        _, _, fully_connected = simulate_group(contexts, plans, NOW)
+        self.assertGreater(fully_connected[IDS[0]]['slots'][0]['temperature'], 20.15)
+
     def test_uncalibrated_or_incomplete_groups_keep_independent_plans(self):
         contexts = contexts_fixture()
         contexts[IDS[1]]['model']['shared_air']['updates'] = 0

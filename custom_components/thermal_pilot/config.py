@@ -5,7 +5,7 @@ import json
 from uuid import uuid4
 from .const import DEFAULTS, ROOM_DEFAULTS, ZONE_DEFAULTS, AIR_INITIAL_LAG_HOURS, WATER_REFERENCE
 from .model import number, tariff_minutes
-from .shared_air import room_groups
+from .shared_air import room_connections, room_groups
 
 # key, label, input type, bounds/domain; used by the dedicated settings panel.
 SOURCE_FIELDS = [
@@ -241,6 +241,9 @@ def resolved_rooms(settings):
         rooms.append(room)
     by_id = {room['id']: room for room in rooms}
     eligible = [room for room in rooms if not air_room(room, settings)]
+    connections = room_connections(eligible)
+    for room in eligible:
+        room['shared_air_rooms'] = connections[room['id']]
     for group in room_groups(eligible):
         # Sensor/controller changes invalidate transfer fits and observation
         # continuity, while preserving each circuit's existing learned model.
@@ -250,11 +253,14 @@ def resolved_rooms(settings):
             [[key, by_id[key]['thermostat'], by_id[key]['temperature_entity'],
               by_id[key].get('activity_entity', '')] for key in group],
         ]
+        # Existing fully connected groups keep their valid fits. A network with
+        # fewer direct edges must invalidate fits that assumed all-to-all transfer.
+        if any(len(connections[key]) != len(group) - 1 for key in group):
+            signature.append(['direct_links', [[key, connections[key]] for key in group]])
         # A compact stable signature avoids copying every linked sensor mapping
         # into every stored observation and saved temperature forecast.
         signature = sha256(json.dumps(signature, separators=(',', ':')).encode()).hexdigest()
         for room_id in group:
-            by_id[room_id]['shared_air_rooms'] = [peer for peer in group if peer != room_id]
             by_id[room_id]['shared_air_signature'] = signature
     return rooms
 
@@ -594,10 +600,10 @@ def validate(payload, hass=None):
                 raise ValueError('Shared air space: select another existing room.')
             if air_room(room, result) or air_room(peer, result):
                 raise ValueError('Shared air space: select primary heating circuits, not heat pumps or garages.')
-    # A link represents one air space: configuring either end is sufficient.
-    for group in room_groups(rooms):
-        for room_id in group:
-            by_id[room_id]['shared_air_rooms'] = [peer for peer in group if peer != room_id]
+    # Configuring either end adds the reverse edge, never an indirect edge.
+    connections = room_connections(rooms)
+    for room in rooms:
+        room['shared_air_rooms'] = connections[room['id']]
     result['rooms'] = rooms
     # Price setup may be completed on a different tab. Missing prices prevent
     # tariff plans at runtime; they must not prevent saving the rest of setup.

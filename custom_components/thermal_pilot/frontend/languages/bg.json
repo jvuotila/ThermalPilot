@@ -542,10 +542,10 @@
     "— Select / not used —": "— Избор / не се използва —",
     "Shared air space": "Общо въздушно пространство",
     "Remove room from shared air space": "Премахни стаята от общото пространство",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Изберете отоплителни кръгове в едно и също отворено пространство. Връзките са двупосочни и включват свързаните стаи. Всеки кръг запазва своя датчик, цел и граници. Подпомагането започва след научаване на топлообмена от поне 12 часа отопление и 12 часа покой с достъпни свързани датчици. Премахването отделя стаята от това пространство.",
     "Shared air space: select each room only once.": "Общо пространство: избирайте всяка стая само веднъж.",
     "Shared air space: select another existing room.": "Общо пространство: изберете друга съществуваща стая.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Общо пространство: изберете основни отоплителни кръгове, не термопомпи или гаражи."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Общо пространство: изберете основни отоплителни кръгове, не термопомпи или гаражи.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Изберете отоплителни кръгове, които пряко обменят въздух и топлина. Връзките са двупосочни; A–B и B–C не добавят A–C. Премахването на избор изтрива само тази връзка. Всеки кръг запазва своя датчик, цел и граници. Подпомагането започва след научаване на топлообмена от поне 12 часа отопление и 12 часа покой с достъпни свързани датчици."
   },
   "legacy": {},
   "cardMessages": {

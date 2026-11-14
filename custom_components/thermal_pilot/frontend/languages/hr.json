@@ -542,10 +542,10 @@
     "— Select / not used —": "— Odaberi / ne koristi se —",
     "Shared air space": "Zajednički zračni prostor",
     "Remove room from shared air space": "Ukloni sobu iz zajedničkog prostora",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Odaberite krugove grijanja u istom otvorenom prostoru. Veze vrijede u oba smjera i uključuju povezane sobe. Svaki krug zadržava svoj senzor, cilj i granice. Pomoćno grijanje počinje nakon učenja prijenosa topline iz najmanje 12 sati grijanja i 12 sati mirovanja uz dostupne povezane senzore. Uklanjanje odvaja sobu od ovog prostora.",
     "Shared air space: select each room only once.": "Zajednički prostor: svaku sobu odaberite samo jednom.",
     "Shared air space: select another existing room.": "Zajednički prostor: odaberite drugu postojeću sobu.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Zajednički prostor: odaberite primarne krugove grijanja, ne dizalice topline ili garaže."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Zajednički prostor: odaberite primarne krugove grijanja, ne dizalice topline ili garaže.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Odaberite krugove grijanja koji izravno razmjenjuju zrak i toplinu. Veze vrijede u oba smjera; A–B i B–C ne dodaju A–C. Uklanjanje odabira uklanja samo tu vezu. Svaki krug zadržava svoj senzor, cilj i granice. Pomoćno grijanje počinje nakon učenja prijenosa topline iz najmanje 12 sati grijanja i 12 sati mirovanja uz dostupne povezane senzore."
   },
   "legacy": {},
   "cardMessages": {

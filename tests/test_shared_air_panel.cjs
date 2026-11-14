@@ -14,15 +14,15 @@ const peers=id=>Array.from(panel.settings.rooms.find(room=>room.id===id).shared_
 panel.updateSharedAirRooms('a',['b']);
 assert.deepEqual(peers('a'),['b']);assert.deepEqual(peers('b'),['a']);
 panel.updateSharedAirRooms('b',['a','c']);
-assert.deepEqual(peers('a'),['b','c']);assert.deepEqual(peers('c'),['a','b']);
-panel.updateSharedAirRooms('a',['c']);
-assert.deepEqual(peers('a'),['c']);assert.deepEqual(peers('b'),[]);assert.deepEqual(peers('c'),['a']);
+// Kitchen↔Living 2↔Living 1 remains a chain, not an all-to-all group.
+assert.deepEqual(peers('a'),['b']);assert.deepEqual(peers('b'),['a','c']);assert.deepEqual(peers('c'),['b']);
 panel.updateSharedAirRooms('a',['b','c']);
+assert.deepEqual(peers('a'),['b','c']);assert.deepEqual(peers('c'),['a','b']);
+panel.updateSharedAirRooms('a',['b']);
+assert.deepEqual(peers('a'),['b']);assert.deepEqual(peers('b'),['a','c']);assert.deepEqual(peers('c'),['b']);
 panel.updateSharedAirRooms('a',[]);
 assert.deepEqual(peers('a'),[]);assert.deepEqual(peers('b'),['c']);assert.deepEqual(peers('c'),['b']);
-// Joining an existing group requires one selection, not reciprocal setup.
-panel.updateSharedAirRooms('a',['b']);
-assert.deepEqual(peers('a'),['b','c']);
+panel.updateSharedAirRooms('a',['b','c']);
 const field=['shared_air_rooms','Shared air space','room_links'];
 let markup=panel.field(field,panel.settings.rooms[0],'room0');
 assert.doesNotMatch(markup,/<option[^>]*value="a"/);
@@ -37,7 +37,7 @@ const selections={a:['c'],b:['a','c'],c:['a','b']};
 const renderedSelections=Object.fromEntries(panel.settings.rooms.map(room=>[room.id,JSON.stringify(room.shared_air_rooms.filter(Boolean))]));
 panel.shadowRoot.querySelectorAll=selector=>selector==='[data-entity-list]'?panel.settings.rooms.slice(0,3).map((room,index)=>({dataset:{entityList:`room${index}.shared_air_rooms`,sharedAirSelection:renderedSelections[room.id]},querySelectorAll:()=>selections[room.id].map(value=>({value}))})):[];
 panel.capture();
-assert.deepEqual(peers('a'),['c']);assert.deepEqual(peers('b'),[]);assert.deepEqual(peers('c'),['a']);
+assert.deepEqual(peers('a'),['c']);assert.deepEqual(peers('b'),['c']);assert.deepEqual(peers('c'),['a','b']);
 // Empty Add-room drafts survive rerenders but never enter saved settings.
 selections.a=['c',''];selections.b=[];selections.c=['a'];
 panel.capture(true);assert.deepEqual(peers('a'),['c','']);
@@ -89,13 +89,16 @@ console.log('Shared-air-space selector, reciprocal editing, drafts and localizat
  assert.deepEqual(roomPeers('b'),['a'],'untouched reciprocal dropdown must not remove the new link');
  assert.equal(lists[0].selects[0].value,'b','selection stays visible after rerender');
  click(0);select(0,1,'c');
- assert.deepEqual(roomPeers('a'),['b','c']);assert.deepEqual(roomPeers('b'),['a','c']);assert.deepEqual(roomPeers('c'),['a','b']);
- click(0,1);assert.deepEqual(roomPeers('a'),['b']);assert.deepEqual(roomPeers('c'),[]);
- select(0,0,'');assert.deepEqual(roomPeers('a'),[]);assert.deepEqual(roomPeers('b'),[]);
- click(1);select(1,0,'a');assert.deepEqual(roomPeers('a'),['b']);assert.deepEqual(roomPeers('b'),['a']);
+ assert.deepEqual(roomPeers('a'),['b','c']);assert.deepEqual(roomPeers('b'),['a']);assert.deepEqual(roomPeers('c'),['a']);
+ click(1);select(1,1,'c');
+ assert.deepEqual(roomPeers('b'),['a','c']);assert.deepEqual(roomPeers('c'),['a','b']);
+ click(0,1);assert.deepEqual(roomPeers('a'),['b']);assert.deepEqual(roomPeers('b'),['a','c']);assert.deepEqual(roomPeers('c'),['b']);
+ select(0,0,'');assert.deepEqual(roomPeers('a'),[]);assert.deepEqual(roomPeers('b'),['c']);assert.deepEqual(roomPeers('c'),['b']);
+ click(1);select(1,1,'a');assert.deepEqual(roomPeers('a'),['b']);assert.deepEqual(roomPeers('b'),['a','c']);assert.deepEqual(roomPeers('c'),['b']);
  await handlers.submit({preventDefault(){}});clearTimeout(editor.saveMessageTimer);
  assert.deepEqual(Array.from(saved.settings.rooms[0].shared_air_rooms),['b']);
- assert.deepEqual(Array.from(saved.settings.rooms[1].shared_air_rooms),['a']);
+ assert.deepEqual(Array.from(saved.settings.rooms[1].shared_air_rooms),['a','c']);
+ assert.deepEqual(Array.from(saved.settings.rooms[2].shared_air_rooms),['b']);
  editor.settings=structuredClone(saved.settings);editor.render();
  assert.equal(lists[0].selects[0].value,'b');assert.equal(lists[1].selects[0].value,'a');
  console.log('Shared-air-space native input/change, multiple selections, removal and save/reload passed.');

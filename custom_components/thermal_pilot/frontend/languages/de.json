@@ -542,10 +542,10 @@
     "— Select / not used —": "— Auswählen / ungenutzt —",
     "Shared air space": "Gemeinsamer Luftraum",
     "Remove room from shared air space": "Raum aus gemeinsamem Luftraum entfernen",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Wählen Sie Heizkreise im selben offenen Raum. Verknüpfungen gelten in beide Richtungen und schließen verbundene Räume ein. Jeder Kreis behält Sensor, Sollwert und Grenzen. Unterstützendes Heizen beginnt erst nach dem Lernen der Wärmeübertragung aus mindestens 12 Heizstunden und 12 Ruhestunden mit verfügbaren verknüpften Sensoren. Entfernen trennt den Raum von diesem Luftraum.",
     "Shared air space: select each room only once.": "Gemeinsamer Luftraum: jeden Raum nur einmal wählen.",
     "Shared air space: select another existing room.": "Gemeinsamer Luftraum: einen anderen vorhandenen Raum wählen.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Gemeinsamer Luftraum: primäre Heizkreise wählen, keine Wärmepumpen oder Garagen."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Gemeinsamer Luftraum: primäre Heizkreise wählen, keine Wärmepumpen oder Garagen.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Wählen Sie Heizkreise, die direkt Luft und Wärme austauschen. Verbindungen gelten in beide Richtungen; A–B und B–C erzeugen kein A–C. Entfernen einer Auswahl entfernt nur diese Verbindung. Jeder Kreis behält Sensor, Sollwert und Grenzen. Unterstützendes Heizen beginnt erst nach dem Lernen der Wärmeübertragung aus mindestens 12 Heizstunden und 12 Ruhestunden mit verfügbaren verknüpften Sensoren."
   },
   "legacy": {},
   "cardMessages": {

@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.83 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.84 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -142,10 +142,15 @@ one open space while retaining separate thermostats and sensors.
 
 Under **Rooms and zones**, open a room and use **Shared air space → Add room**
 to select the other circuits in that open space. Add as many as needed. Links
-work both ways: selecting B in A also links A in B. Connected selections form
-one group, so A–B and B–C share the same space. Removing one listed room detaches
-it from that space. Removing all links from a room detaches that room and keeps
-the remaining members linked.
+work both ways: selecting B in A also links A in B. Each selection describes a
+direct connection. A–B and B–C do not automatically add A–C. Removing a selection
+removes only that pair, leaving other connections intact.
+
+For example, Keittiö can link only to Olohuone 2, while Olohuone 2 links to both
+Keittiö and Olohuone 1, and Olohuone 1 links only to Olohuone 2. The planner still
+compares this connected network together, but models direct heat transfer only
+along the selected connections. Indirect effects pass through the intermediate
+room rather than creating another direct link.
 
 Each circuit keeps its own thermostat, relay, temperature sensor, target and
 comfort limits. Sensors are not averaged or replaced. Leave separate enclosed
@@ -173,7 +178,7 @@ Missing linked readings, cooling, an active fireplace or secondary heat pump
 pause shared-space learning and coordination. An active manual session also
 leaves planning independent for that group, preserving manual-control priority.
 Ordinary independent planning remains available while transfer learning is
-incomplete. Changing group membership or its sensor/controller sources starts
+incomplete. Changing direct connections or their sensor/controller sources starts
 a fresh transfer fit while retaining the existing room history and parameters.
 
 ## Electricity tariffs

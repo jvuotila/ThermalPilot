@@ -542,10 +542,10 @@
     "— Select / not used —": "— Seleziona / non usato —",
     "Shared air space": "Spazio d’aria condiviso",
     "Remove room from shared air space": "Rimuovi stanza dallo spazio condiviso",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Seleziona i circuiti di riscaldamento nello stesso spazio aperto. I collegamenti sono reciproci e includono le stanze connesse. Ogni circuito mantiene sensore, obiettivo e limiti. Il riscaldamento di supporto inizia dopo aver appreso lo scambio termico da almeno 12 ore di riscaldamento e 12 di riposo con i sensori collegati disponibili. Rimuovere una stanza la scollega da questo spazio.",
     "Shared air space: select each room only once.": "Spazio condiviso: seleziona ogni stanza una sola volta.",
     "Shared air space: select another existing room.": "Spazio condiviso: seleziona un’altra stanza esistente.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Spazio condiviso: seleziona circuiti principali, non pompe di calore o garage."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Spazio condiviso: seleziona circuiti principali, non pompe di calore o garage.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Seleziona circuiti che condividono direttamente l’aria e scambiano calore. I collegamenti sono reciproci; A–B e B–C non aggiungono A–C. Rimuovere una selezione elimina solo quel collegamento. Ogni circuito mantiene sensore, obiettivo e limiti. Il riscaldamento di supporto inizia dopo aver appreso lo scambio termico da almeno 12 ore di riscaldamento e 12 di riposo con i sensori collegati disponibili."
   },
   "legacy": {},
   "cardMessages": {

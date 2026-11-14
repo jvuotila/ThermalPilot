@@ -542,10 +542,10 @@
     "— Select / not used —": "— Zgjidh / nuk përdoret —",
     "Shared air space": "Hapësirë ajri e përbashkët",
     "Remove room from shared air space": "Hiq dhomën nga hapësira e përbashkët",
-    "Select primary heating circuits in the same open air space. Links work both ways and include connected rooms. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available. Removing a room detaches it from this air space.": "Zgjidhni qarqet e ngrohjes në të njëjtën hapësirë të hapur. Lidhjet vlejnë në të dy drejtimet dhe përfshijnë dhomat e lidhura. Çdo qark ruan sensorin, objektivin dhe kufijtë. Ngrohja ndihmëse fillon pas mësimit të transferimit të nxehtësisë nga të paktën 12 orë ngrohjeje dhe 12 orë pushimi me sensorët e lidhur të disponueshëm. Heqja e shkëput dhomën nga kjo hapësirë.",
     "Shared air space: select each room only once.": "Hapësirë e përbashkët: zgjidhni çdo dhomë vetëm një herë.",
     "Shared air space: select another existing room.": "Hapësirë e përbashkët: zgjidhni një dhomë tjetër ekzistuese.",
-    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Hapësirë e përbashkët: zgjidhni qarqe kryesore ngrohjeje, jo pompa nxehtësie apo garazhe."
+    "Shared air space: select primary heating circuits, not heat pumps or garages.": "Hapësirë e përbashkët: zgjidhni qarqe kryesore ngrohjeje, jo pompa nxehtësie apo garazhe.",
+    "Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.": "Zgjidhni qarqet që shkëmbejnë drejtpërdrejt ajër dhe nxehtësi. Lidhjet vlejnë në të dy drejtimet; A–B dhe B–C nuk shtojnë A–C. Heqja e një zgjedhjeje heq vetëm atë lidhje. Çdo qark ruan sensorin, objektivin dhe kufijtë. Ngrohja ndihmëse fillon pas mësimit të transferimit të nxehtësisë nga të paktën 12 orë ngrohjeje dhe 12 orë pushimi me sensorët e lidhur të disponueshëm."
   },
   "legacy": {},
   "cardMessages": {
