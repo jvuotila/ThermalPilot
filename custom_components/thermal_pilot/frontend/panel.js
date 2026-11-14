@@ -507,7 +507,8 @@ class ThermalPilotPanel extends HTMLElement {
     else if(type==='room_links'){
       const selected=Array.isArray(value)?value:[];
       const rooms=this.settings.rooms.filter(room=>room.id!==obj.id&&this.sharedAirEligible(room)).slice().sort(compareRoomNames);
-      input=`<span class="sensor-list" data-entity-list="${name}">${selected.map((id,index)=>`<span class="sensor-list-row"><select data-entity-item data-shared-air-member aria-label="${escapeHTML(this.t('Shared air space'))} ${index+1}" aria-describedby="help-${prefix}-${key}"><option value="">— Select / not used —</option>${rooms.map(room=>`<option data-user-text value="${escapeHTML(room.id)}" ${room.id===id?'selected':''} ${selected.some((other,i)=>i!==index&&other===room.id)?'disabled':''}>${escapeHTML(room.name)}</option>`).join('')}</select><button type="button" data-remove-sensor="${index}" aria-label="${escapeHTML(this.t('Remove room from shared air space'))}">×</button></span>`).join('')}<button type="button" class="add-sensor" data-add-sensor>Add room</button></span>`;
+      const renderedSelection=escapeHTML(JSON.stringify(selected.filter(Boolean)));
+      input=`<span class="sensor-list" data-entity-list="${name}" data-shared-air-selection="${renderedSelection}">${selected.map((id,index)=>`<span class="sensor-list-row"><select data-entity-item data-shared-air-member aria-label="${escapeHTML(this.t('Shared air space'))} ${index+1}" aria-describedby="help-${prefix}-${key}"><option value="">— Select / not used —</option>${rooms.map(room=>`<option data-user-text value="${escapeHTML(room.id)}" ${room.id===id?'selected':''} ${selected.some((other,i)=>i!==index&&other===room.id)?'disabled':''}>${escapeHTML(room.name)}</option>`).join('')}</select><button type="button" data-remove-sensor="${index}" aria-label="${escapeHTML(this.t('Remove room from shared air space'))}">×</button></span>`).join('')}<button type="button" class="add-sensor" data-add-sensor>Add room</button></span>`;
     }
     else if(type==='rooms'){
       this.zoneRoomDrafts??={};
@@ -1700,7 +1701,10 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
       const [obj,key]=target(list.dataset.entityList);const selected=[...list.querySelectorAll('[data-entity-item]')].map(select=>select.value);
       if(key==='shared_air_rooms'){
         const ids=selected.filter(Boolean);
-        const previous=(obj.shared_air_rooms||[]).filter(Boolean);
+        // Native input and change events can capture twice before rerendering.
+        // Compare with the rendered selection: reciprocal model updates must
+        // never make an untouched peer dropdown look like a user's removal.
+        const previous=JSON.parse(list.dataset.sharedAirSelection);
         if(JSON.stringify(ids.slice().sort())!==JSON.stringify(previous.slice().sort()))sharedEdits.push([obj.id,ids]);
         if(preserveEmptyLists)emptySharedLists.set(obj.id,selected.length-ids.length);
       }else if(key==='zone_rooms'){

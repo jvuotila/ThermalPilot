@@ -34,7 +34,8 @@ assert.doesNotMatch(panel.field(field,panel.settings.rooms[0],'room0'),/<option[
 // Capture reads all selectors before reciprocal changes, so stale sibling DOM
 // selections cannot restore a deliberately detached member.
 const selections={a:['c'],b:['a','c'],c:['a','b']};
-panel.shadowRoot.querySelectorAll=selector=>selector==='[data-entity-list]'?panel.settings.rooms.slice(0,3).map((room,index)=>({dataset:{entityList:`room${index}.shared_air_rooms`},querySelectorAll:()=>selections[room.id].map(value=>({value}))})):[];
+const renderedSelections=Object.fromEntries(panel.settings.rooms.map(room=>[room.id,JSON.stringify(room.shared_air_rooms.filter(Boolean))]));
+panel.shadowRoot.querySelectorAll=selector=>selector==='[data-entity-list]'?panel.settings.rooms.slice(0,3).map((room,index)=>({dataset:{entityList:`room${index}.shared_air_rooms`,sharedAirSelection:renderedSelections[room.id]},querySelectorAll:()=>selections[room.id].map(value=>({value}))})):[];
 panel.capture();
 assert.deepEqual(peers('a'),['c']);assert.deepEqual(peers('b'),[]);assert.deepEqual(peers('c'),['a']);
 // Empty Add-room drafts survive rerenders but never enter saved settings.
@@ -48,3 +49,54 @@ for(const filename of fs.readdirSync(path.join(__dirname,'../custom_components/t
  for(const key of ['Shared air space','Remove room from shared air space','Shared air space: select each room only once.','Shared air space: select another existing room.','Shared air space: select primary heating circuits, not heat pumps or garages.'])assert.ok(catalog.messages[key],filename+': '+key);
 }
 console.log('Shared-air-space selector, reciprocal editing, drafts and localization checks passed.');
+
+(async()=>{
+ const editor=new Panel();
+ editor.settings={house_heat_source:'air_to_water',language:'en',simulation_enabled:true,rooms:['a','b','c'].map(id=>({id,name:id.toUpperCase(),baseline:20,heat_control:'house',shared_air_rooms:[]}))};
+ editor.info={settings:structuredClone(editor.settings),source_fields:[],room_fields:[field],zone_fields:[],data:{}};
+ editor._hass={states:{}};editor.tab='rooms';
+ const handlers={},notice={hidden:true};let lists=[],html='',saved;
+ const form={addEventListener:(name,callback)=>handlers[name]=callback,querySelector:()=>null,querySelectorAll:()=>[]};
+ const decodeAttribute=value=>value.replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll('&amp;','&');
+ Object.defineProperty(editor.shadowRoot,'innerHTML',{get:()=>html,set:value=>{
+  html=value;
+  // A rerender replaces the real selects. Until then their values and rendered
+  // baseline stay unchanged even if capture adds links in another room's model.
+  lists=editor.settings.rooms.map((room,index)=>{
+   const markup=editor.field(field,room,`room${index}`);
+   const baseline=markup.match(/data-shared-air-selection="([^"]*)"/);
+   const selects=room.shared_air_rooms.map(value=>({value,dataset:{},hasAttribute:name=>name==='data-shared-air-member'}));
+   return {dataset:{entityList:`room${index}.shared_air_rooms`,...(baseline?{sharedAirSelection:decodeAttribute(baseline[1])}:{})},selects,querySelectorAll:()=>selects};
+  });
+ }});
+ editor.shadowRoot.querySelector=selector=>selector==='#settings'?form:selector==='#settings-unsaved'?notice:null;
+ editor.shadowRoot.querySelectorAll=selector=>selector==='[data-entity-list]'?lists:[];
+ editor.call=async(action,payload)=>{assert.equal(action,'save');saved=structuredClone(payload);return {saved:true};};
+ editor.render();
+ const roomPeers=id=>Array.from(editor.settings.rooms.find(room=>room.id===id).shared_air_rooms).filter(Boolean);
+ const click=(roomIndex,remove)=>{
+  const list=lists[roomIndex];
+  const button={dataset:remove===undefined?{}:{removeSensor:String(remove)},hasAttribute:name=>name==='data-add-sensor'&&remove===undefined,closest:()=>list};
+  handlers.click({preventDefault(){},target:{closest:()=>button}});
+ };
+ const select=(roomIndex,index,value)=>{
+  const target=lists[roomIndex].selects[index];target.value=value;
+  // Native selects dispatch input before change. Both handlers read settings.
+  handlers.input({target});handlers.change({target});
+ };
+ click(0);select(0,0,'b');
+ assert.deepEqual(roomPeers('a'),['b'],'native input/change must retain the first selection');
+ assert.deepEqual(roomPeers('b'),['a'],'untouched reciprocal dropdown must not remove the new link');
+ assert.equal(lists[0].selects[0].value,'b','selection stays visible after rerender');
+ click(0);select(0,1,'c');
+ assert.deepEqual(roomPeers('a'),['b','c']);assert.deepEqual(roomPeers('b'),['a','c']);assert.deepEqual(roomPeers('c'),['a','b']);
+ click(0,1);assert.deepEqual(roomPeers('a'),['b']);assert.deepEqual(roomPeers('c'),[]);
+ select(0,0,'');assert.deepEqual(roomPeers('a'),[]);assert.deepEqual(roomPeers('b'),[]);
+ click(1);select(1,0,'a');assert.deepEqual(roomPeers('a'),['b']);assert.deepEqual(roomPeers('b'),['a']);
+ await handlers.submit({preventDefault(){}});clearTimeout(editor.saveMessageTimer);
+ assert.deepEqual(Array.from(saved.settings.rooms[0].shared_air_rooms),['b']);
+ assert.deepEqual(Array.from(saved.settings.rooms[1].shared_air_rooms),['a']);
+ editor.settings=structuredClone(saved.settings);editor.render();
+ assert.equal(lists[0].selects[0].value,'b');assert.equal(lists[1].selects[0].value,'a');
+ console.log('Shared-air-space native input/change, multiple selections, removal and save/reload passed.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
