@@ -572,7 +572,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Lisa börsihinnale käibemaks. Müüja marginaal sisaldab käibemaksu. Lisa võrgutasud eraldi.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Vali oma Tibberi kodu EUR/kWh andur. Energiamaksud on juba hinnas.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Päikeseelektriga kütmise seaded",
+    "Solar production power sensor": "Päikeseelektri võimsusandur",
+    "Start solar heating above (kW)": "Alusta päikesekütet üle (kW)",
+    "Stop solar heating below (kW)": "Lõpeta päikeseküte alla (kW)",
+    "Minimum solar heating session (minutes)": "Päikesekütte minimaalne kestus (minutit)",
+    "Solar heating session": "Päikesekütte periood",
+    "Minimum solar heating until": "Päikesekütte miinimum kestab kuni",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Päikeseküte: lõpetamispiir peab olema alustamispiirist madalam.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "Päikeseelektri andur pole saadaval, on aegunud või kasutab toetamata ühikut; päikeseküte on peatatud.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Vali praegune päikeseelektri tootmisvõimsus W või kW. Tühjaks jätmine lülitab funktsiooni välja. Tootmine pole ülejääk: muu tarbimine võib endiselt vajada võrguelektrit.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Alusta pärast viit minutit üle piiri. Ruumid peavad suutma salvestada kasulikku soojust olemasoleva tõste ja temperatuuripiiride piires.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Pärast viit minutit alla alumise piiri lõpeb päikeseküte minimaalse kestuse täitumisel. Piiride vahel jätkuvad olemasolevad perioodid.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimaalne taotletud kestus säilib taaskäivitustel. See võib kasutada võrguelektrit. Käsijuhtimine, puuduvad andmed, jahutus ning temperatuuri- ja uksekaitsed on eelisjärjekorras."
   },
   "legacy": {},
   "cardMessages": {

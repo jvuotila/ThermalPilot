@@ -572,7 +572,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Bættu VSK við stundarverð. Álag seljanda inniheldur VSK. Bættu flutningsgjöldum við sérstaklega.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Veldu EUR/kWh-skynjara Tibber-heimilisins. Orkuskattar eru þegar innifaldir.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Hitun með sólarorku",
+    "Solar production power sensor": "Aflskynjari sólarframleiðslu",
+    "Start solar heating above (kW)": "Hefja sólarhitun yfir (kW)",
+    "Stop solar heating below (kW)": "Stöðva sólarhitun undir (kW)",
+    "Minimum solar heating session (minutes)": "Lágmarkslengd sólarhitunar (mínútur)",
+    "Solar heating session": "Sólarhitunartímabil",
+    "Minimum solar heating until": "Lágmarkssólarhitun til",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Sólarhitun: stöðvunarmörk verða að vera lægri en ræsimörk.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "Sólarskynjari er ótiltækur, úreltur eða með óstudda einingu; sólarhitun er í bið.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Veldu núverandi sólarframleiðslu í W eða kW. Skildu eftir autt til að slökkva. Framleiðsla er ekki afgangur: önnur notkun getur enn krafist rafmagns úr kerfinu.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Byrja eftir fimm mínútur yfir mörkunum. Herbergin verða að geta geymt gagnlegan hita innan núverandi hækkunar og hitamarka.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Eftir fimm mínútur undir lægri mörkunum lýkur sólarhitun þegar lágmarkslengd er náð. Milli markanna halda núverandi tímabil áfram.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Lágmarkslengd umbeðinnar hitunar varðveitist við endurræsingu. Hún getur notað rafmagn úr kerfinu. Handstýring, vantar gögn, kæling og hita- eða hurðavarnir hafa forgang."
   },
   "legacy": {},
   "cardMessages": {

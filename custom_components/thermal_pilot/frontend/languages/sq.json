@@ -572,7 +572,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Shtoni TVSH te çmimet spot. Marzhi i furnizuesit përfshin TVSH. Shtoni veçmas tarifat e rrjetit.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Zgjidhni sensorin EUR/kWh të shtëpisë suaj Tibber. Taksat e energjisë janë përfshirë tashmë.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Ngrohja me energji diellore",
+    "Solar production power sensor": "Sensori i fuqisë së prodhimit diellor",
+    "Start solar heating above (kW)": "Nis ngrohjen diellore mbi (kW)",
+    "Stop solar heating below (kW)": "Ndalo ngrohjen diellore nën (kW)",
+    "Minimum solar heating session (minutes)": "Kohëzgjatja minimale e ngrohjes diellore (minuta)",
+    "Solar heating session": "Periudhë ngrohjeje diellore",
+    "Minimum solar heating until": "Ngrohje minimale diellore deri",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Ngrohja diellore: pragu i ndalimit duhet të jetë më i ulët se pragu i nisjes.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "Sensori diellor është i padisponueshëm, i vjetruar ose ka njësi të pambështetur; ngrohja diellore është pezulluar.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Zgjidhni fuqinë aktuale diellore në W ose kW. Lëreni bosh për çaktivizim. Prodhimi nuk është tepricë: ngarkesa të tjera mund të kërkojnë energji nga rrjeti.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Nisni pas pesë minutash mbi prag. Dhomat duhet të mund të ruajnë nxehtësi të dobishme brenda rritjes dhe kufijve ekzistues të temperaturës.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Pas pesë minutash nën pragun e ulët, ngrohja përfundon pasi plotëson kohëzgjatjen minimale. Mes pragjeve periudhat ekzistuese vazhdojnë.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Kohëzgjatja minimale e kërkuar ruhet pas rinisjes. Mund të përdorë energji nga rrjeti. Kontrolli manual, të dhënat që mungojnë, ftohja dhe mbrojtja e temperaturës ose dyerve kanë përparësi."
   },
   "legacy": {},
   "cardMessages": {

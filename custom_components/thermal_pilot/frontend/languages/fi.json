@@ -426,7 +426,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Lisää spot-hintaan ALV. Myyjän marginaali sisältää ALV:n. Lisää siirtomaksut erikseen.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Valitse Tibber-kotisi anturi, jonka yksikkö on EUR/kWh. Energiaverot sisältyvät jo hintaan.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Aurinkovoimalan lämmitysasetukset",
+    "Solar production power sensor": "Aurinkovoimalan tuotantotehon anturi",
+    "Start solar heating above (kW)": "Aloita aurinkolämmitys tehon ylittäessä (kW)",
+    "Stop solar heating below (kW)": "Lopeta aurinkolämmitys tehon alittaessa (kW)",
+    "Minimum solar heating session (minutes)": "Aurinkolämmitysjakson vähimmäiskesto (min)",
+    "Solar heating session": "Aurinkovoimalan lämmitysjakso",
+    "Minimum solar heating until": "Aurinkolämmityksen vähimmäiskesto päättyy",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Aurinkolämmitys: lopetusrajan on oltava aloitusrajaa pienempi.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "Aurinkovoimalan tehoanturi ei ole saatavilla, on vanhentunut tai sen yksikköä ei tueta. Aurinkolämmitys on keskeytetty.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Valitse aurinkovoimalan hetkellinen tuotantoteho watteina tai kilowatteina. Tyhjä valinta poistaa toiminnon käytöstä. Tuotanto ei ole ylijäämää: talon muu kulutus voi edelleen vaatia verkkosähköä.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Aloita tehon oltua rajan yläpuolella viisi minuuttia. Huoneissa on oltava tilaa hyödylliselle lämmölle nykyisen korotuksen ja lämpötilarajojen sisällä.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Kun teho on ollut tämän alemman rajan alapuolella viisi minuuttia, aurinkolämmitys päättyy vähimmäiskeston täytyttyä. Rajojen välillä käynnissä olevat jaksot jatkuvat.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Pyydetyn aurinkolämmityksen vähimmäiskesto säilyy uudelleenkäynnistyksissä. Jakso voi käyttää verkkosähköä. Käsiohjaus, puuttuvat tiedot, jäähdytys sekä lämpötila- ja oviturvat ovat etusijalla."
   },
   "legacy": {
     "Plan": "Suunnitelma",

@@ -14,6 +14,7 @@ from .const import DOMAIN, DEFAULTS, RESERVE_HOURS, ARCHIVE_KEEP_DAYS, WATER_REF
 from .history import HistoryDatabase
 from .control import ThermostatControl
 from .air_control import AirHeatPumpControl, zone_temperature, binary
+from .solar_heating import SOLAR_THRESHOLD_SECONDS, production_kw, update_sessions
 from .notifications import notify_manual_door_pause
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint
 from .shared_air import room_groups, coordinate_plans
@@ -44,6 +45,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.suggested_runs = {}
         self.session_plans = {}
         self.manual_sessions = {}
+        self.solar_heating = {}
         self.season = {}
         self.applied_season_targets = {}
         self.sensor_health = {'rooms': {}, 'last_notification_day': None}
@@ -75,7 +77,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             self._source_unsubscribe()
         source_keys = (
             'price_entity', 'price_forecast_entity', 'outdoor_entity',
-            'water_entity', 'weather_entity', 'wind_entity', 'fireplace_entity',
+            'solar_power_entity', 'water_entity', 'weather_entity', 'wind_entity', 'fireplace_entity',
         )
         entities = {self.settings[key] for key in source_keys if self.settings[key] and self.settings[key] not in PRICE_SOURCE_CHOICES
                     and not (self.settings['price_entity'] == 'static' and key == 'price_forecast_entity')}
@@ -153,6 +155,14 @@ class PilotCoordinator(DataUpdateCoordinator):
         for session in self.manual_sessions.values():
             if session['ends'] > now.timestamp():
                 future.append(datetime.fromtimestamp(session['ends'], now.tzinfo))
+        solar_candidate = self.solar_heating.get('candidate')
+        if solar_candidate:
+            deadline = solar_candidate['since'] + SOLAR_THRESHOLD_SECONDS
+            if deadline > now.timestamp():
+                future.append(datetime.fromtimestamp(deadline, now.tzinfo))
+        for session in self.solar_heating.get('sessions', {}).values():
+            if session['minimum_until'] > now.timestamp():
+                future.append(datetime.fromtimestamp(session['minimum_until'], now.tzinfo))
         for deadline in self.air_control.deadlines:
             if deadline > now.timestamp():
                 future.append(datetime.fromtimestamp(deadline, now.tzinfo))
@@ -186,6 +196,9 @@ class PilotCoordinator(DataUpdateCoordinator):
         saved = await self.store.async_load() or {}
         self.models = saved.get('models', {})
         self.manual_sessions = saved.get('manual_sessions', {})
+        self.solar_heating = saved.get('solar_heating', {})
+        if self.solar_heating:
+            self.solar_heating['candidate'] = None
         for model in self.models.values():
             model['response'] = 0.0  # Thermal response cannot be trusted across downtime.
             bank = model.get('air_lag_learning', {})
@@ -311,7 +324,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         return 1.0 if value == 'on' else 0.0 if value == 'off' else None
 
     def storage_data(self):
-        return {'manual_sessions':self.manual_sessions,'models':self.models,'season':self.season,'zone_seasons':self.air_control.zone_seasons,'pump_thermal_modes':self.air_control.thermal_modes,'pump_reversals':self.air_control.reversals,
+        return {'solar_heating':self.solar_heating,'manual_sessions':self.manual_sessions,'models':self.models,'season':self.season,'zone_seasons':self.air_control.zone_seasons,'pump_thermal_modes':self.air_control.thermal_modes,'pump_reversals':self.air_control.reversals,
                 'applied_season_targets':self.applied_season_targets,
                 'fingerprints':self.config_fingerprint,'sensor_health':self.sensor_health,'managed_rooms':self.managed_rooms,'fallback_state':self.fallback_state,
                 'heating_sessions':self.session_plans}
@@ -1212,6 +1225,85 @@ class PilotCoordinator(DataUpdateCoordinator):
             await self.store.async_save(self.storage_data())
         return errors
 
+    async def update_solar_heating(self, data: dict[str, Any], now: datetime) -> dict[str, Any]:
+        """Build eligible requests, persist their clocks before any device writes."""
+        settings = self.settings
+        sensor = self.hass.states.get(settings['solar_power_entity']) if settings['solar_power_entity'] else None
+        power = production_kw(sensor, now)
+        rooms = {}
+        configured = resolved_rooms(settings) + zone_rooms(settings)
+        outdoor_valid = self.value(settings['outdoor_entity']) is not None
+        enabled = (settings['heating_enabled'] and electric_heating(settings)
+                   and not self.fallback_state.get('summer', False) and outdoor_valid)
+        for room in configured:
+            room_id = room['id']
+            if not room_electric(room, settings) or room.get('heat_control') == 'zone_member':
+                continue
+            manual = self.manual_sessions.get(room_id)
+            if manual and manual['ends'] > now.timestamp():
+                continue
+            if not room.get('zone_control_enabled', True) or room.get('zone_climate_mode') == 'cool':
+                continue
+            # A manually controlled secondary pump owns this space too. Never
+            # add solar floor heat while that zone is being cooled or overridden.
+            zone_manual = self.manual_sessions.get('zone:' + room.get('heating_zone_id', ''))
+            if zone_manual and zone_manual['ends'] > now.timestamp():
+                continue
+            secondary = self.hass.states.get(room.get('secondary_pump_entity', ''))
+            if secondary and (secondary.state == 'cool' or secondary.attributes.get('hvac_action') == 'cooling'):
+                continue
+            if room.get('secondary_zone') and self.air_control.zone_season(
+                    room['heating_zone_id'], self.fallback_state.get('summer', False), now.timestamp()):
+                continue
+            device = self.hass.states.get(room['thermostat'])
+            if device is None or device.state in ('unknown', 'unavailable', 'cool'):
+                continue
+            if device.attributes.get('hvac_action') == 'cooling':
+                continue
+            air = air_room(room, settings)
+            if air:
+                temperature, too_warm = zone_temperature(self.hass, room, settings)
+            else:
+                temperature, too_warm = self.value(room['temperature_entity']), False
+            if room.get('is_garage'):
+                limit = room['garage_maximum']
+                target = room['garage_heat_target']
+                doors = room.get('garage_door_entities', [])
+                if any(binary(self.hass, entity) is not False for entity in doors):
+                    continue
+            else:
+                limit = min(settings['maximum'], room['baseline'] + settings['boost'])
+                target = settings['air_heat_target'] if air else limit
+            if temperature is None or too_warm or temperature >= limit:
+                continue
+            rooms[room_id] = {
+                'entity': room['thermostat'], 'target': target,
+                'signature': [room['thermostat'], room['temperature_entity'], limit, target, air,
+                              settings['house_heat_source'], settings['house_distribution']],
+                'can_start': temperature < limit - .2,
+            }
+        updated = update_sessions(self.solar_heating, settings, power, rooms, now.timestamp(), enabled)
+        if updated != self.solar_heating:
+            saved = self.storage_data()
+            saved['solar_heating'] = updated
+            await self.store.async_save(saved)
+            # Commit memory only after persistence, so a failed save cannot let
+            # an immediate retry issue commands without a restart-safe clock.
+            self.solar_heating = updated
+        sessions = self.solar_heating.get('sessions', {})
+        data['solar_heating'] = {'power_kw': power, 'active': bool(self.solar_heating.get('active')),
+                                 'sessions': deepcopy(sessions)}
+        for room in configured:
+            bucket = data.get('zones', {}) if room.get('secondary_zone') else data.get('rooms', {})
+            key = room['heating_zone_id'] if room.get('secondary_zone') else room['id']
+            if key in bucket:
+                bucket[key]['solar_heating'] = deepcopy(sessions.get(room['id']))
+        warning = 'Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.'
+        data['warnings'] = [value for value in data.get('warnings', []) if value != warning]
+        if settings['solar_power_entity'] and power is None:
+            data['warnings'].append(warning)
+        return sessions
+
     async def apply_live_targets(self, data, now):
         """Reconcile current windows and restore comfort targets when inputs fail."""
         self.air_control.deadlines = []
@@ -1236,10 +1328,15 @@ class PilotCoordinator(DataUpdateCoordinator):
                 ended.add(room_id)
         if ended:
             await self.store.async_save(self.storage_data())
+        previous_solar = set(self.solar_heating.get('sessions', {}))
+        solar_sessions = await self.update_solar_heating(data, now)
+        ended_solar = previous_solar - set(solar_sessions)
         intents = {}
         for room in air_rooms:
             room = {**room, 'manual_session': self.manual_sessions.get(room['id']),
-                    'manual_session_ended': room['id'] in ended}
+                    'manual_session_ended': room['id'] in ended,
+                    'solar_session': solar_sessions.get(room['id']),
+                    'solar_session_ended': room['id'] in ended_solar}
 
             bucket = data.get('zones', {}) if room.get('secondary_zone') else data.get('rooms', {})
             key = room['heating_zone_id'] if room.get('secondary_zone') else room['id']
@@ -1319,6 +1416,11 @@ class PilotCoordinator(DataUpdateCoordinator):
             else:
                 target = self.fallback_target(room)
                 fallback.append(room['name'])
+            solar = solar_sessions.get(room['id'])
+            if solar:
+                target = max(target, solar['target'])
+                if room['name'] in fallback:
+                    fallback.remove(room['name'])
             manual = self.manual_sessions.get(room['id'])
             if manual and self.value(room['temperature_entity']) is not None:
                 if uses_water:

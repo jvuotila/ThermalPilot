@@ -30,6 +30,10 @@ const settingHelp = {
   nordpool_area:'Automatic requires one integration and one price area.',
   nordpool_vat:'Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.',
   tibber_price_entity:'Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.',
+  solar_power_entity:'Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.',
+  solar_start_kw:'Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.',
+  solar_stop_kw:'After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.',
+  solar_minimum_run_minutes:'Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.',
   shared_air_rooms:'Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.',
   heating_enabled: 'Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.',
   climate_mode:'Heating only operates in winter. Cooling only operates in summer. Both heats in winter and cools in summer. Automatic season changes must persist for 24 hours. Reversing between heating and cooling requires confirmed fan-only standby for ten minutes; automatic Heat/Cool mode is never used.',
@@ -95,6 +99,7 @@ const sourceSettingGroups = [
   ['Electricity price settings',['price_entity','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode']],
   ['Weather and forecast settings',['weather_entity','outdoor_entity','wind_entity','summer_minimum_temperature']],
   ['Heating settings',['minimum_run_minutes','fireplace_entity','fireplace_active_state']],
+  ['Solar power heating settings',['solar_power_entity','solar_start_kw','solar_stop_kw','solar_minimum_run_minutes']],
   ['Notifications',['manual_notification_target']],
   ['Miscellaneous',['sensor_warning_hours']],
 ];
@@ -114,7 +119,7 @@ function fireplaceStateOptions(sensor,saved){
   if(usable(saved)&&!values.includes(saved))values.push(saved);
   return [...new Set(values)].map(value=>({value,label:binary?(value==='on'?(contact?'Open':'On'):value==='off'?(contact?'Closed':'Off'):value):value}));
 }
-const sourceReadingKeys=['price_entity','weather_entity','outdoor_entity','wind_entity','water_entity'];
+const sourceReadingKeys=['price_entity','weather_entity','outdoor_entity','wind_entity','water_entity','solar_power_entity'];
 function sourceReading(key,entity,sensor){
   if(key==='price_entity'&&entity==='static')return 'Static price';
   if(key==='price_entity'&&entity==='nordpool')return 'Nord Pool (Home Assistant)';
@@ -552,6 +557,10 @@ class ThermalPilotPanel extends HTMLElement {
     }
     else if(type.startsWith('select:'))input=`<select data-field="${name}">${type.slice(7).split(',').map(v=>`<option ${v===value?'selected':''} value="${escapeHTML(v)}">${escapeHTML(key==='language'?({'en':'🇬🇧 English','fi':'🇫🇮 Finnish'}[v]||v):['heat_control','garage_strategy','temperature_policy','air_zone_temperature','source_type','climate_mode','heating_strategy'].includes(key)?controlOptionLabels[v]||v:key==='transfer_tariff'?({included:'Already included / no addition',fixed:'Fixed transfer price',day_night:'Day/night transfer prices'}[v]):key==='pricing_mode'?schedulingLabels[v]||v:(key.startsWith('house_')||key==='garage_construction')?houseOptionLabels[v]||v:key==='solar_direction'&&v==='disabled'?'Solar heating off':['solar_direction','solar_exposure'].includes(key)?v.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase()):v)}</option>`).join('')}</select>`;
     else if(type==='time')input=`<input type="time" step="60" data-field="${name}" value="${escapeHTML(value)}">`;
+    else if(['solar_start_kw','solar_stop_kw'].includes(key)){
+      const sliderMax=Math.max(20,Math.ceil(Number(value||0)/10)*10);
+      input=`<span class="solar-threshold"><input type="range" min="${min}" max="${sliderMax}" step="${step}" value="${escapeHTML(value)}" data-solar-range="${name}" aria-label="${escapeHTML(this.t(label))}"><input type="number" min="${min}" max="${max}" step="${step}" data-field="${name}" value="${escapeHTML(value)}" aria-label="${escapeHTML(this.t(label))}"></span>`;
+    }
     else if(type==='number')input=`<input type="number" step="${step}" min="${min}" max="${max}" data-field="${name}" value="${escapeHTML(value)}">`;
     else if(type==='text')input=`<input data-field="${name}" value="${escapeHTML(value)}">`;
     else{
@@ -850,7 +859,9 @@ class ThermalPilotPanel extends HTMLElement {
     const unit=thermostat?.attributes?.temperature_unit||this._hass?.config?.unit_system?.temperature||'°C';
     const targetValue=validTarget?`${new Intl.NumberFormat(this.settings?.language||'en',{maximumFractionDigits:2}).format(Number(target))} ${unit}`:this.t('Unavailable');
     const targetDetail=`${this.t('Current thermostat target')}: ${targetValue}`;
-    const detail=`${this.t(`${label}. Current relay or thermostat demand; On does not guarantee water flow.`)}\n${targetDetail}`;
+    const solar=room?.solar_heating;
+    const solarDetail=solar?`\n${this.t('Solar heating session')} · ${this.t('Minimum solar heating until')}: ${new Intl.DateTimeFormat(this.settings?.language||'en',{hour:'2-digit',minute:'2-digit'}).format(solar.minimum_until*1000)}`:'';
+    const detail=`${this.t(`${label}. Current relay or thermostat demand; On does not guarantee water flow.`)}\n${targetDetail}${solarDetail}`;
     const icon=status==='unknown'?'<span aria-hidden="true">?</span>':HEATING_FLAME;
     return `<span class="room-heating ${status}" role="img" aria-label="${escapeHTML(this.t(label)+'. '+targetDetail)}" title="${escapeHTML(detail)}" tabindex="0">${icon}</span>`;
   }
@@ -1760,6 +1771,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
 #settings h2{margin:0 0 12px}
 #settings p{margin:0 0 14px;line-height:1.45}
 #settings .settings-group{margin-top:16px}
+.solar-threshold{display:flex;align-items:center;gap:12px}.solar-threshold input[type=range]{flex:1;min-width:0;accent-color:var(--primary-color,#087c85)}.solar-threshold input[type=number]{width:100px;flex:none}
 .source-checks{margin-top:18px}.source-checks summary{margin-bottom:8px}.source-checks h4{margin:16px 0 6px}.source-checks p{margin:6px 0;overflow-wrap:anywhere}
 #settings .settings-group+.settings-group{padding-top:12px}
 #settings .settings-group h3{margin:0 0 12px}
@@ -2168,6 +2180,14 @@ details{scroll-margin-block:16px}
     const settingsForm=this.shadowRoot.querySelector('#settings');
     const clearSaveMessage=()=>{clearTimeout(this.saveMessageTimer);this.saveConfirmation=false;this.message='';this.shadowRoot.querySelector('.message')?.remove();};
     settingsForm?.addEventListener('input',event=>{
+      const rangeField=event.target?.dataset?.solarRange;
+      if(rangeField){
+        const number=event.target.closest('.solar-threshold')?.querySelector('[data-field]');
+        if(number)number.value=event.target.value;
+      }else if(['source.solar_start_kw','source.solar_stop_kw'].includes(event.target?.dataset?.field)){
+        const slider=event.target.closest('.solar-threshold')?.querySelector('[data-solar-range]');
+        if(slider){slider.max=Math.max(20,Math.ceil(Number(event.target.value||0)/10)*10);slider.value=event.target.value;}
+      }
       clearSaveMessage();this.sourceCheck=null;this.sourceCheckError='';this.shadowRoot.querySelector('[data-source-check-results]')?.replaceChildren();this.updateUnsavedNotice();
       const field=event.target?.dataset?.field;
       if(field?.startsWith('room')&&field.endsWith('.baseline')){

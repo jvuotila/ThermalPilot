@@ -572,7 +572,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Añada IVA a los precios spot. El margen del proveedor incluye IVA. Añada los cargos de red por separado.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Seleccione el sensor EUR/kWh de su hogar Tibber. Los impuestos energéticos ya están incluidos.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Calefacción con energía solar",
+    "Solar production power sensor": "Sensor de potencia solar",
+    "Start solar heating above (kW)": "Iniciar calefacción solar por encima de (kW)",
+    "Stop solar heating below (kW)": "Detener calefacción solar por debajo de (kW)",
+    "Minimum solar heating session (minutes)": "Duración mínima de calefacción solar (minutos)",
+    "Solar heating session": "Periodo de calefacción solar",
+    "Minimum solar heating until": "Calefacción solar mínima hasta",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Calefacción solar: el umbral de parada debe ser menor que el de inicio.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "El sensor solar no está disponible, está obsoleto o tiene una unidad no compatible; la calefacción solar está pausada.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Seleccione la producción solar actual en W o kW. Déjelo vacío para desactivar. La producción no es excedente: otros consumos pueden requerir electricidad de la red.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Inicie tras cinco minutos por encima del umbral. Las habitaciones deben poder almacenar calor útil dentro del aumento y los límites de temperatura existentes.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Tras cinco minutos por debajo de este umbral inferior, la calefacción solar termina cuando cumple su duración mínima. Entre los umbrales continúan los periodos activos.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "La duración mínima solicitada se conserva tras reiniciar. Puede consumir electricidad de la red. El control manual, los datos ausentes, la refrigeración y las protecciones de temperatura o puertas tienen prioridad."
   },
   "legacy": {},
   "cardMessages": {

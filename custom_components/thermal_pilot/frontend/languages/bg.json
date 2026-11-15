@@ -572,7 +572,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Добавете ДДС към спот цените. Надценката на доставчика включва ДДС. Добавете мрежовите такси отделно.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Изберете EUR/kWh сензора за вашия дом в Tibber. Енергийните данъци вече са включени.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Отопление със слънчева електроенергия",
+    "Solar production power sensor": "Сензор за мощност на слънчевото производство",
+    "Start solar heating above (kW)": "Старт на слънчево отопление над (kW)",
+    "Stop solar heating below (kW)": "Стоп на слънчево отопление под (kW)",
+    "Minimum solar heating session (minutes)": "Минимална продължителност на слънчево отопление (минути)",
+    "Solar heating session": "Период на слънчево отопление",
+    "Minimum solar heating until": "Минимално слънчево отопление до",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Слънчево отопление: прагът за спиране трябва да е под прага за стартиране.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "Слънчевият сензор е недостъпен, остарял или с неподдържана единица; слънчевото отопление е спряно.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Изберете текущата слънчева мощност във W или kW. Оставете празно за изключване. Производството не е излишък: други товари може да изискват ток от мрежата.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Старт след пет минути над прага. Стаите трябва да могат да съхраняват полезна топлина в съществуващите граници за повишение и температура.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "След пет минути под долния праг отоплението спира при изпълнена минимална продължителност. Между праговете текущите периоди продължават.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Минималната заявена продължителност се запазва при рестарт. Може да използва мрежов ток. Ръчно управление, липсващи данни, охлаждане и температурни или дверни защити имат предимство."
   },
   "legacy": {},
   "cardMessages": {

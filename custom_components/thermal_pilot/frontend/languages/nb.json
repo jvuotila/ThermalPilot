@@ -572,7 +572,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Legg til mva. på spotpriser. Leverandørpåslaget inkluderer mva. Legg til nettleie separat.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Velg EUR/kWh-sensoren for Tibber-hjemmet ditt. Energiavgifter er allerede inkludert.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Oppvarming med solkraft",
+    "Solar production power sensor": "Sensor for solproduksjonseffekt",
+    "Start solar heating above (kW)": "Start soloppvarming over (kW)",
+    "Stop solar heating below (kW)": "Stopp soloppvarming under (kW)",
+    "Minimum solar heating session (minutes)": "Minste soloppvarmingsperiode (minutter)",
+    "Solar heating session": "Soloppvarmingsperiode",
+    "Minimum solar heating until": "Minste soloppvarming til",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Soloppvarming: stoppgrensen må være lavere enn startgrensen.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "Soleffektsensoren er utilgjengelig, utdatert eller har en enhet som ikke støttes; soloppvarming er satt på pause.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Velg aktuell solproduksjon i W eller kW. La stå tomt for å deaktivere. Produksjon er ikke overskudd: annet forbruk i huset kan kreve nettstrøm.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Start etter fem minutter over grensen. Rommene må ha plass til nyttig varme innenfor eksisterende temperaturøkning og grenser.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Etter fem minutter under denne nedre grensen avsluttes soloppvarmingen når minstetiden er nådd. Mellom grensene fortsetter eksisterende perioder.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minstetiden for ønsket soloppvarming bevares ved omstart. Den kan bruke nettstrøm. Manuell styring, manglende inndata, kjøling og temperatur- eller dørvern har prioritet."
   },
   "legacy": {},
   "cardMessages": {

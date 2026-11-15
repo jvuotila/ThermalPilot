@@ -572,7 +572,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Προσθέστε ΦΠΑ στις τιμές αγοράς. Το περιθώριο προμηθευτή περιλαμβάνει ΦΠΑ. Προσθέστε χωριστά τις χρεώσεις δικτύου.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Επιλέξτε τον αισθητήρα EUR/kWh του σπιτιού σας στο Tibber. Οι φόροι ενέργειας περιλαμβάνονται ήδη.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Θέρμανση με ηλιακό ρεύμα",
+    "Solar production power sensor": "Αισθητήρας ισχύος ηλιακής παραγωγής",
+    "Start solar heating above (kW)": "Έναρξη ηλιακής θέρμανσης πάνω από (kW)",
+    "Stop solar heating below (kW)": "Διακοπή ηλιακής θέρμανσης κάτω από (kW)",
+    "Minimum solar heating session (minutes)": "Ελάχιστη διάρκεια ηλιακής θέρμανσης (λεπτά)",
+    "Solar heating session": "Περίοδος ηλιακής θέρμανσης",
+    "Minimum solar heating until": "Ελάχιστη ηλιακή θέρμανση έως",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Ηλιακή θέρμανση: το όριο διακοπής πρέπει να είναι χαμηλότερο από το όριο έναρξης.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "Ο ηλιακός αισθητήρας δεν είναι διαθέσιμος, είναι παλιός ή έχει μη υποστηριζόμενη μονάδα· η ηλιακή θέρμανση διακόπτεται.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Επιλέξτε την τρέχουσα ηλιακή ισχύ σε W ή kW. Αφήστε κενό για απενεργοποίηση. Η παραγωγή δεν είναι πλεόνασμα: άλλα φορτία μπορεί να απαιτούν ρεύμα δικτύου.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Έναρξη μετά από πέντε λεπτά πάνω από το όριο. Τα δωμάτια πρέπει να μπορούν να αποθηκεύσουν χρήσιμη θερμότητα μέσα στα υπάρχοντα όρια ενίσχυσης και θερμοκρασίας.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Μετά από πέντε λεπτά κάτω από το χαμηλότερο όριο, η θέρμανση σταματά όταν συμπληρωθεί η ελάχιστη διάρκεια. Μεταξύ των ορίων οι υπάρχουσες περίοδοι συνεχίζονται.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Η ελάχιστη ζητούμενη διάρκεια διατηρείται στις επανεκκινήσεις. Μπορεί να χρησιμοποιεί ρεύμα δικτύου. Χειροκίνητος έλεγχος, ελλιπή δεδομένα, ψύξη και προστασίες θερμοκρασίας ή πόρτας έχουν προτεραιότητα."
   },
   "legacy": {},
   "cardMessages": {

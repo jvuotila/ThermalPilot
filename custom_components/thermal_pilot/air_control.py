@@ -124,7 +124,7 @@ class AirHeatPumpControl:
         else:
             heating = bool(state and state.state == 'heat')
 
-        if room.get('manual_session_ended'):
+        if room.get('manual_session_ended') or room.get('solar_session_ended'):
             heating = False
         door_entities = room.get('garage_door_entities', []) if garage else []
         door_states = {entity: binary(self.hass, entity) for entity in door_entities}
@@ -169,6 +169,9 @@ class AirHeatPumpControl:
             mode = manual['mode']
             target = manual['target']
             reason = 'Manual heating' if heating else 'Manual cooling'
+        elif room.get('solar_session') and not too_warm:
+            heating = True
+            reason = 'Solar heating session'
         elif garage:
             if outdoor > lower_limit:
                 heating = False

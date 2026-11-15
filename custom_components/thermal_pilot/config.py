@@ -55,6 +55,10 @@ SOURCE_FIELDS = [
  ('transfer_night_price','Night transfer price (c/kWh)','number',0,10000,.01),
  ('pricing_mode','Scheduling mode','select:hourly,quarterly,flexible'),
  ('minimum_run_minutes','Minimum flexible heating run (minutes)','number',15,360,15),
+ ('solar_power_entity','Solar production power sensor','sensor',{'kind':'power'}),
+ ('solar_start_kw','Start solar heating above (kW)','number',0.1,1000,0.1),
+ ('solar_stop_kw','Stop solar heating below (kW)','number',0,1000,0.1),
+ ('solar_minimum_run_minutes','Minimum solar heating session (minutes)','number',15,360,15),
  ('weather_entity','Weather forecast source','weather'),
  ('outdoor_entity','Outdoor temperature','sensor',{'kind':'temperature'}),
  ('wind_entity','Wind speed (optional)','sensor',{'kind':'wind'}),
@@ -458,6 +462,8 @@ def validate(payload, hass=None, *, require_outdoor=True):
         else:
             fields.append(field)
     check(result,fields)
+    if result['solar_stop_kw'] >= result['solar_start_kw']:
+        raise ValueError('Solar heating: the stop threshold must be lower than the start threshold.')
     if result['transfer_tariff'] == 'day_night' and result['transfer_day_start'] == result['transfer_night_start']:
         raise ValueError('Day and night start times must differ.')
     if hass is not None and result['fireplace_entity']:

@@ -1,6 +1,6 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.86'
+VERSION = '0.9.87'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
@@ -18,6 +18,8 @@ DEFAULTS = {
     'transfer_day_price': 0.0, 'transfer_night_price': 0.0,
     'transfer_day_start': '07:00', 'transfer_night_start': '22:00',
     'pricing_mode': 'flexible', 'minimum_run_minutes': 60,
+    'solar_power_entity': '', 'solar_start_kw': 4.0, 'solar_stop_kw': 1.0,
+    'solar_minimum_run_minutes': 30,
     'weather_entity': '', 'outdoor_entity': '', 'wind_entity': '',
     'water_entity': '', 'fireplace_entity': '',
     'fireplace_active_state': 'on',

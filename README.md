@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.86 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.87 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -239,6 +239,54 @@ A fixed energy price with day/night transfer rates still has different total
 costs at different hours. With an entirely fixed total price, there is no cheaper
 hour to favour. In both cases ThermalPilot uses room measurements, comfort limits
 and weather; the tariff does not make thermal predictions inherently more accurate.
+
+## Heating with solar production
+
+Under **Settings → Solar power heating settings** (Finnish:
+**Aurinkovoimalan lämmitysasetukset**), select an instantaneous solar production
+sensor in **W or kW**. Leave the sensor empty to disable this optional feature.
+It is disabled for existing installations until a sensor is selected.
+
+- **Start solar heating above (kW)**: default **4 kW**. Production must stay
+  above this limit for five minutes before a new solar request can start.
+- **Stop solar heating below (kW)**: default **1 kW**. Five minutes at or below this
+  limit ends the production cycle. Between the limits, existing requests continue.
+  The stop limit must be lower than the start limit.
+- **Minimum solar heating session (minutes)**: default **30 minutes**, separate
+  from the normal flexible heating minimum. A request continues until its own
+  minimum has elapsed, even if the production cycle has ended. If production
+  remains sufficient, the request can continue beyond that minimum.
+
+Solar heating uses existing room boosts, thermostat controllers and heat-pump
+settings. It can request heating without an electricity-price source. Ordinary
+rooms stop their solar request at target plus boost, bounded by the configured
+maximum; garages use their own upper temperature limit. A completed room is
+not repeatedly restarted during the same production cycle. Automatic solar
+heating is limited to winter operation and does not reverse active cooling.
+
+Manual sessions, disabled control, missing required inputs and temperature/door
+protections take priority over the solar minimum. Missing, invalid or stale
+production readings cancel solar requests; readings older than 15 minutes are
+unusable. Existing normal heating remains independent and may continue after a
+solar request ends. Solar sessions preserve their original minimum deadline
+across Home Assistant restarts. Threshold confirmation restarts after downtime.
+Restoring a backup clears active solar requests and retains simulation-first
+behavior.
+
+**Production is not surplus power.** The selected reading is total generation,
+not generation minus household loads. Several eligible controllers may request
+heat together; this version does not allocate a measured power budget between
+rooms. Other appliances, clouds or completion of a minimum run can require grid
+electricity. Select thresholds appropriate to your installation.
+
+Simulation shows solar requests without controlling devices; confirmed live
+control is required to apply them. The room flame tooltip identifies a solar
+request and its minimum deadline. Actual heating still comes from observed
+relay/thermostat activity, so a request never creates fictitious heating hours.
+Tariff charts and temperature forecasts remain the price-based plan; they do not
+predict future PV production. Actual solar-driven heating appears in the observed
+heating history and influences subsequent learning and replanning. This feature
+uses a live production sensor, not Solcast or another PV forecast.
 
 ## Source compatibility and checks
 

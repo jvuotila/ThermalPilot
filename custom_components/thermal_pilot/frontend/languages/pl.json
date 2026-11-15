@@ -572,7 +572,20 @@
     "Add VAT to spot prices. The retailer margin includes VAT. Add transfer charges separately.": "Dodaj VAT do cen spot. Marża sprzedawcy zawiera VAT. Opłaty sieciowe dodaj osobno.",
     "Select the EUR/kWh sensor for your Tibber home. Energy taxes are already included.": "Wybierz czujnik EUR/kWh swojego domu Tibber. Podatki od energii są już uwzględnione.",
     "Nord Pool (Home Assistant)": "Nord Pool (Home Assistant)",
-    "Tibber (Home Assistant)": "Tibber (Home Assistant)"
+    "Tibber (Home Assistant)": "Tibber (Home Assistant)",
+    "Solar power heating settings": "Ogrzewanie energią słoneczną",
+    "Solar production power sensor": "Czujnik mocy produkcji słonecznej",
+    "Start solar heating above (kW)": "Rozpocznij ogrzewanie słoneczne powyżej (kW)",
+    "Stop solar heating below (kW)": "Zatrzymaj ogrzewanie słoneczne poniżej (kW)",
+    "Minimum solar heating session (minutes)": "Minimalny czas ogrzewania słonecznego (minuty)",
+    "Solar heating session": "Okres ogrzewania słonecznego",
+    "Minimum solar heating until": "Minimalne ogrzewanie słoneczne do",
+    "Solar heating: the stop threshold must be lower than the start threshold.": "Ogrzewanie słoneczne: próg zatrzymania musi być niższy od progu uruchomienia.",
+    "Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.": "Czujnik słoneczny jest niedostępny, nieaktualny lub ma nieobsługiwaną jednostkę; ogrzewanie słoneczne wstrzymane.",
+    "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Wybierz bieżącą moc produkcji w W lub kW. Puste pole wyłącza funkcję. Produkcja nie jest nadwyżką: inne odbiorniki mogą wymagać energii z sieci.",
+    "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Uruchom po pięciu minutach powyżej progu. Pomieszczenia muszą móc zgromadzić użyteczne ciepło w istniejących granicach podbicia i temperatury.",
+    "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Po pięciu minutach poniżej dolnego progu ogrzewanie kończy się po upływie minimalnego czasu. Między progami trwające okresy są kontynuowane.",
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimalny żądany czas jest zachowywany po restartach. Może wymagać energii sieciowej. Sterowanie ręczne, brak danych, chłodzenie oraz ochrona temperatury i drzwi mają pierwszeństwo."
   },
   "legacy": {},
   "cardMessages": {
