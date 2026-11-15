@@ -27,6 +27,25 @@ handlers.input({target:{dataset:{solarRange:'source.solar_start_kw'},value:'6.2'
 assert.equal(numeric.value,'6.2');
 handlers.input({target:{dataset:{field:'source.solar_start_kw'},value:'25',closest:()=>group}});
 assert.equal(slider.value,'25');assert.equal(slider.max,30);assert.equal(changed,2);
+// Sensor selection rerenders immediately and retains unsaved thresholds even
+// after the numeric controls disappear from the form.
+const sensor={dataset:{field:'source.solar_power_entity'},type:'select-one',value:'',hasAttribute:()=>false};
+let fields=[sensor,{dataset:{field:'source.solar_start_kw'},type:'number',value:'6.2'},
+ {dataset:{field:'source.solar_stop_kw'},type:'number',value:'2'},
+ {dataset:{field:'source.solar_minimum_run_minutes'},type:'number',value:'45'}];
+panel.shadowRoot.querySelectorAll=selector=>selector==='[data-field]'?fields:[];
+panel.render=()=>{
+ markup=panel.settingsView();
+ fields=panel.settings.solar_power_entity?[sensor,
+  ...['solar_start_kw','solar_stop_kw','solar_minimum_run_minutes'].map(key=>({dataset:{field:`source.${key}`},type:'number',value:String(panel.settings[key])}))]:[sensor];
+};
+handlers.change({target:sensor});
+assert.match(markup,/data-field="source.solar_power_entity"/);
+for(const key of ['solar_start_kw','solar_stop_kw','solar_minimum_run_minutes'])assert.ok(!markup.includes(`data-field="source.${key}"`),key+' hidden without sensor');
+assert.equal(panel.settings.solar_start_kw,6.2);assert.equal(panel.settings.solar_stop_kw,2);assert.equal(panel.settings.solar_minimum_run_minutes,45);
+sensor.value='sensor.demo_solar_production';handlers.change({target:sensor});
+for(const key of ['solar_start_kw','solar_stop_kw','solar_minimum_run_minutes'])assert.ok(markup.includes(`data-field="source.${key}"`),key+' restored with sensor');
+assert.equal(panel.settings.solar_start_kw,6.2);assert.equal(panel.settings.solar_stop_kw,2);assert.equal(panel.settings.solar_minimum_run_minutes,45);
 panel.settings.language='fi';
 assert.equal(panel.t('Solar power heating settings'),'Aurinkovoimalan lämmitysasetukset');
 const room=panel.settings.rooms[0];
