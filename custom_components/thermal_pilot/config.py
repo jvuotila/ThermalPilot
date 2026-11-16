@@ -258,7 +258,7 @@ def garage_sensor_lists(room):
 
 
 def resolved_rooms(settings):
-    """Zone membership never replaces the room's primary heating controller."""
+    """Keep separate primary heaters; a zone owns its shared physical pump."""
     zones = {z['id']: z for z in settings.get('heating_zones', []) if isinstance(z, dict) and 'id' in z}
     rooms = []
     for original in settings.get('rooms',[]):
@@ -272,10 +272,15 @@ def resolved_rooms(settings):
                 zone_fireplace_active_state=zone.get('fireplace_active_state','on')
             )
             if zone.get('source_type', 'air_to_air') == 'air_to_air':
-                room['secondary_pump_entity'] = zone.get('thermostat', '')
+                if room['thermostat'] == zone.get('thermostat') and not room.get('is_garage'):
+                    # This sensor belongs to the zone's pump, not another heater.
+                    # Only the virtual zone controller may issue device commands.
+                    room['heat_control'] = 'zone_member'
+                else:
+                    room['secondary_pump_entity'] = zone.get('thermostat', '')
         rooms.append(room)
     by_id = {room['id']: room for room in rooms}
-    eligible = [room for room in rooms if not air_room(room, settings)]
+    eligible = [room for room in rooms if not air_room(room, settings) and room.get('heat_control') != 'zone_member']
     connections = room_connections(eligible)
     for room in eligible:
         room['shared_air_rooms'] = connections[room['id']]
@@ -586,10 +591,9 @@ def validate(payload, hass=None, *, require_outdoor=True):
         check(room, ROOM_FIELDS)
         if not room['name'] or not room['thermostat'] or (not room['temperature_entity']):
             raise ValueError('Each room needs a name, thermostat and temperature sensor.')
-        if room['id'] in ids or room['thermostat'] in thermostats:
+        if room['id'] in ids:
             raise ValueError('Room identifier or thermostat is already in use.')
         ids.add(room['id'])
-        thermostats.add(room['thermostat'])
         if room['is_garage'] and room['heating_zone_id']:
             raise ValueError('A garage must have its own heat pump controller.')
         if room['garage_minimum'] >= room['garage_maximum']:
@@ -620,6 +624,17 @@ def validate(payload, hass=None, *, require_outdoor=True):
                 if selected and selected not in attrs.get(attribute, []):
                     raise ValueError(f"{room['name']}: selected {suffix.replace('_', ' ')} is not supported by this heat pump.")
         rooms.append(room)
+    # Validate physical owners after membership is known. Multiple linked room
+    # sensors may name their zone pump; independent controllers must stay unique.
+    for room in rooms:
+        zone = next((item for item in zones if item['id'] == room['heating_zone_id']), None)
+        zone_owns_pump = (zone and zone['source_type'] == 'air_to_air'
+                          and room['thermostat'] == zone['thermostat'] and not room['is_garage'])
+        if zone_owns_pump:
+            continue
+        if room['thermostat'] in thermostats:
+            raise ValueError('Room identifier or thermostat is already in use.')
+        thermostats.add(room['thermostat'])
     for zone in zones:
         if zone['source_type'] == 'fireplace':
             continue

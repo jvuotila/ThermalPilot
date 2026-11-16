@@ -496,7 +496,12 @@
     "Keep normal heating and cooling, for example for aquariums. Shared heat-pump zones preserve all members’ normal targets if one is exempt.": "Säilytä normaali lämmitys ja jäähdytys esimerkiksi akvaarion vuoksi. Yhteinen ilmalämpöpumppuvyöhyke säilyttää kaikkien jäsentensä normaalit tavoitteet, jos yksikin huone on rajattu pois.",
     "Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.": "Tunnistus pois: jakso päättyy ajallaan tai peruutettaessa. Tunnistus käytössä: myös kotiinpaluu peruuttaa aktiivisen jakson. Ei ennakoivaa lämmitystä. Autotallit ja pois rajatut huoneet säilyttävät normaalit tavoitteensa.",
     "Cancels the booking only. Automatic away temperatures may remain active after the absence delay.": "Peruuttaa vain kalenterijakson. Automaattiset poissaololämpötilat voivat jäädä käyttöön poissaoloviiveen jälkeen.",
-    "Heat pump: Cooling": "Ilmalämpöpumppu: Jäähdytys"
+    "Heat pump: Cooling": "Ilmalämpöpumppu: Jäähdytys",
+    "Each zone needs a unique identifier, name and selected heat source.": "Jokainen vyöhyke tarvitsee yksilöllisen tunnisteen, nimen ja valitun lämmönlähteen.",
+    "A heat pump can have only one controller or zone.": "Ilmalämpöpumpulla voi olla vain yksi itsenäinen ohjain tai vyöhyke. Liitä samaa pumppua käyttävät huoneet sen vyöhykkeeseen.",
+    "Room identifier or thermostat is already in use.": "Huoneen tunniste tai itsenäinen termostaatti on jo käytössä.",
+    "This room uses its zone’s heat pump. The zone is the only pump controller; this room supplies a temperature reading. Configure pump operation under Zones.": "Huone käyttää vyöhykkeensä ilmalämpöpumppua. Vain vyöhyke ohjaa pumppua; huone antaa lämpötilahavainnon. Määritä pumpun toiminta Vyöhykkeet-osiossa.",
+    "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone.": "Vyöhykkeet jakavat yhden lämmitys- tai jäähdytyslähteen usean huoneen kesken. Erilliset huoneiden lämmittimet toimivat itsenäisesti; vyöhykkeen pumppua käyttävät huoneet ohjataan vyöhykkeestä."
   },
   "legacy": {
     "Plan": "Suunnitelma",

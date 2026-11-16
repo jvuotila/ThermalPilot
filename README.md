@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.90 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.91 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -180,6 +180,13 @@ leaves planning independent for that group, preserving manual-control priority.
 Ordinary independent planning remains available while transfer learning is
 incomplete. Changing direct connections or their sensor/controller sources starts
 a fresh transfer fit while retaining the existing room history and parameters.
+
+Rooms served directly by the same heat pump may select that pump as their
+thermostat and join its zone. The zone is then the only physical pump controller;
+room entries provide their individual temperature readings. This also applies
+when the zone controller is disabled: linked entries do not take over the pump.
+A different room thermostat, such as an electric floor heater, stays independent.
+Independent rooms and separate zones still cannot compete for the same pump.
 
 ## Heat pump with electric floor assistance
 

@@ -869,7 +869,12 @@
     "Keep normal heating and cooling, for example for aquariums. Shared heat-pump zones preserve all members’ normal targets if one is exempt.": "Keep normal heating and cooling, for example for aquariums. Shared heat-pump zones preserve all members’ normal targets if one is exempt.",
     "Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.": "Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.",
     "Cancels the booking only. Automatic away temperatures may remain active after the absence delay.": "Cancels the booking only. Automatic away temperatures may remain active after the absence delay.",
-    "Heat pump: Cooling": "Heat pump: Cooling"
+    "Heat pump: Cooling": "Heat pump: Cooling",
+    "Each zone needs a unique identifier, name and selected heat source.": "Each zone needs a unique identifier, name and selected heat source.",
+    "A heat pump can have only one controller or zone.": "A heat pump can have only one controller or zone.",
+    "Room identifier or thermostat is already in use.": "Room identifier or thermostat is already in use.",
+    "This room uses its zone’s heat pump. The zone is the only pump controller; this room supplies a temperature reading. Configure pump operation under Zones.": "This room uses its zone’s heat pump. The zone is the only pump controller; this room supplies a temperature reading. Configure pump operation under Zones.",
+    "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone.": "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone."
   },
   "legacy": {},
   "cardMessages": {

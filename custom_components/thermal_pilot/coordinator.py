@@ -908,7 +908,9 @@ class PilotCoordinator(DataUpdateCoordinator):
                     'solar': room_solar, 'excluded': excluded,
                 }
                 if room.get('secondary_zone'):
-                    members = [candidate_room for candidate_room in resolved_rooms(self.settings) if candidate_room.get('heating_zone_id') == room['heating_zone_id']]
+                    members = [candidate_room for candidate_room in resolved_rooms(self.settings)
+                               if candidate_room.get('heating_zone_id') == room['heating_zone_id']
+                               and candidate_room.get('heat_control') != 'zone_member']
                     current['excluded'] = current['excluded'] or any((self.activity(member) == 1 for member in members))
                     if any(preferred_zone(member, self.settings) for member in members):
                         current['excluded'] = current['excluded'] or any(
