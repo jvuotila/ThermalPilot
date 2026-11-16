@@ -3,7 +3,7 @@ const {readFrontendSource}=require('./frontend_source.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path'),assert=require('node:assert/strict');
 let Panel,currentDialog;
 class Node{
- constructor(value=''){this.value=value;this.hidden=true;this.dataset={};this.listeners={};this.classList={toggle:()=>{}};}
+ constructor(value=''){this.value=value;this.hidden=true;this.dataset={};this.listeners={};this.classList={toggle:(key,value)=>{if(key==='active')this.active=value;}};}
  addEventListener(name,fn){this.listeners[name]=fn;}
  setAttribute(){} focus(){this.focused=true;}
 }
@@ -54,8 +54,16 @@ const month=context.awayCalendarMonth(new Date(2026,10,1,12),{start:'2026-11-16'
 assert.equal((month.match(/data-calendar-date=/g)||[]).length,42);
 assert.match(month,/marraskuu/);assert.match(month,/aria-current="date"/);assert.match(month,/day range/);
 context.document={createElement:()=>currentDialog=new Dialog(),body:{append:()=>{}}};
+// Saving updates info.settings before the coordinator publishes its next snapshot.
+// The calendar must prefer that acknowledged configuration over stale away data.
+panel.info.settings.away_temperature=18;panel.info.settings.away_cooling_temperature=27;
+panel.settings.away_temperature=19;panel.settings.away_cooling_temperature=29;
 panel.settings.language='fi';panel.openAwayCalendar();
-assert.equal(currentDialog.open,true);assert.match(currentDialog.html,/Poissaolokalenteri/);assert.match(currentDialog.html,/Peruuta ajanjakso/);
+assert.match(currentDialog.html,/Lämmitys 18 °C/);assert.match(currentDialog.html,/Jäähdytys 27 °C/);
+assert.doesNotMatch(currentDialog.html,/Lämmitys 19 °C|Jäähdytys 29 °C/);
+assert.equal(currentDialog.open,true);
+assert.equal(currentDialog.nodes['[name="start-date"]'].value,'2026-11-16');assert.equal(currentDialog.nodes['[name="start-time"]'].value,'18:00');
+assert.equal(currentDialog.nodes['[name="end-date"]'].value,'2026-11-22');assert.equal(currentDialog.nodes['[name="end-time"]'].value,'22:00');assert.match(currentDialog.html,/Poissaolokalenteri/);assert.match(currentDialog.html,/Peruuta ajanjakso/);
 assert.match(currentDialog.html,/Tunnistus pois/);assert.match(currentDialog.html,/Automaattiset poissaololämpötilat voivat jäädä/);
 assert.match(currentDialog.html,/Europe\/Helsinki/);assert.match(currentDialog.html,/max-width:600px/);
 let requests=[];panel.call=async(type,payload)=>{requests.push({type,...payload});return {data:{...panel.info.data,away:{active:false,schedule:null}}};};
@@ -68,6 +76,17 @@ const draft=panel.settings;draft.away_temperature=17;
  assert.equal(currentDialog.removed,true);assert.equal(renders,1);
  panel.info.data.away={active:false,schedule:null,time_zone:'Europe/Helsinki'};
  panel.openAwayCalendar();assert.equal(currentDialog.nodes['.stop'],undefined);
+ for(const key of ['start-date','start-time','end-date','end-time'])assert.equal(currentDialog.nodes[`[name="${key}"]`].value,'',key+' starts empty');
+ assert.equal(currentDialog.groups['[data-date-card]'][0].dataset.dateCard,'start');
+ assert.equal(currentDialog.groups['[data-date-card]'][0].active,true);assert.equal(currentDialog.groups['[data-date-card]'][1].active,false);
+ const emptyMonth=context.awayCalendarMonth(new Date(2026,10,1,12),{start:'',end:''},'2026-11-16','fi');
+ assert.doesNotMatch(emptyMonth,/day selected|day range/);assert.match(emptyMonth,/aria-current="date"/);
+ const endOnly=context.awayCalendarMonth(new Date(2026,10,1,12),{start:'',end:'2026-11-22'},'2026-11-16','fi');
+ assert.doesNotMatch(endOnly,/day range/);
+ // Selecting just the start date does not invent an end date or either time.
+ currentDialog.listeners.click({target:{closest:selector=>selector==='[data-calendar-date]'?{dataset:{calendarDate:'2026-11-16'}}:null}});
+ assert.equal(currentDialog.nodes['[name="start-date"]'].value,'2026-11-16');
+ for(const key of ['start-time','end-date','end-time'])assert.equal(currentDialog.nodes[`[name="${key}"]`].value,'');
  currentDialog.nodes['[name="start-date"]'].value='2026-11-16';currentDialog.nodes['[name="start-time"]'].value='18:00';
  currentDialog.nodes['[name="end-date"]'].value='2026-11-22';currentDialog.nodes['[name="end-time"]'].value='22:00';
  currentDialog.nodes.form.listeners.submit({preventDefault:()=>{}});

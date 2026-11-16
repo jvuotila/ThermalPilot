@@ -11,7 +11,7 @@ function awayCalendarMonth(month,selected,today,locale){
  const days=Array.from({length:42},(_,index)=>{
   const date=new Date(year,number,1-offset+index,12),key=calendarDateKey(date);
   const chosen=key===selected.start||key===selected.end;
-  const range=key>selected.start&&key<selected.end;
+  const range=selected.start&&selected.end&&key>selected.start&&key<selected.end;
   const label=new Intl.DateTimeFormat(locale,{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(date);
   return `<button type="button" data-calendar-date="${key}" class="day${date.getMonth()!==number?' other':''}${chosen?' selected':range?' range':''}${key===today?' today':''}" aria-label="${escapeHTML(label)}" aria-pressed="${chosen}" ${key===today?'aria-current="date"':''}>${date.getDate()}</button>`;
  }).join('');
@@ -467,17 +467,19 @@ class ThermalPilotPanel extends HTMLElement {
     dialog.className='thermal-pilot-away-dialog';dialog.setAttribute('aria-labelledby','away-title');
     const locale=this.settings.language||'en';dialog.setAttribute('lang',locale);
     const away=this.info.data?.away||{};
+    const heatingTarget=this.info.settings?.away_temperature??away.temperature??16;
+    const coolingTarget=this.info.settings?.away_cooling_temperature??away.cooling_temperature??26;
     const timeZone=away.time_zone||this._hass.config?.time_zone||Intl.DateTimeFormat().resolvedOptions().timeZone;
     const parts=timestamp=>{
       const values=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(timestamp).map(part=>[part.type,part.value]));
       return {date:`${values.year}-${values.month}-${values.day}`,time:`${values.hour}:${values.minute}`};
     };
     const today=parts(Date.now());
-    const start=parts(away.schedule?away.schedule.start*1000:Date.now());
-    const end=parts(away.schedule?away.schedule.end*1000:Date.now()+7*86400000);
-    if(!away.schedule)end.time='22:00';
+    const start=away.schedule?parts(away.schedule.start*1000):{date:'',time:''};
+    const end=away.schedule?parts(away.schedule.end*1000):{date:'',time:''};
     const selected={start:start.date,end:end.date};
-    let month=new Date(Number(start.date.slice(0,4)),Number(start.date.slice(5,7))-1,1,12);
+    const initialDate=start.date||today.date;
+    let month=new Date(Number(initialDate.slice(0,4)),Number(initialDate.slice(5,7))-1,1,12);
     let picking='start';
     const title=this.t('Away calendar');
     const icon='<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle cx="10" cy="6" r=".7"/></svg>';
@@ -487,15 +489,15 @@ class ThermalPilotPanel extends HTMLElement {
     const status=away.active?this.t(away.source==='calendar'?'Calendar absence active':'Automatic absence active'):away.schedule?this.t('Scheduled absence'):this.t('No calendar absence');
     dialog.innerHTML=`<style>
       .thermal-pilot-away-dialog{color:var(--primary-text-color,#213547);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8e0e4);border-radius:20px;padding:24px;width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;box-shadow:0 20px 80px #142e4540;font:14px system-ui}.thermal-pilot-away-dialog::backdrop{background:#182b3c65}.thermal-pilot-away-dialog *{box-sizing:border-box}.thermal-pilot-away-dialog button,.thermal-pilot-away-dialog input{font:inherit;color:inherit}.thermal-pilot-away-dialog header,.thermal-pilot-away-dialog .month-nav{display:flex;align-items:center;justify-content:space-between;gap:12px}.thermal-pilot-away-dialog h2{font-size:22px;margin:0}.thermal-pilot-away-dialog .heading{display:flex;align-items:center;gap:10px}.thermal-pilot-away-dialog button{cursor:pointer}.thermal-pilot-away-dialog button:focus-visible,.thermal-pilot-away-dialog input:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}.thermal-pilot-away-dialog .close{border:0;background:transparent;font-size:26px;min-width:40px;min-height:40px}.thermal-pilot-away-dialog .status{color:var(--secondary-text-color,#526b75);margin:8px 0 18px}.thermal-pilot-away-dialog .targets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.thermal-pilot-away-dialog .targets span{padding:6px 10px;border-radius:8px;background:#829aa313;font-size:13px}.thermal-pilot-away-dialog .dates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.thermal-pilot-away-dialog .date-card{padding:12px;border:1px solid var(--divider-color,#d8e0e4);border-radius:12px;background:var(--secondary-background-color,#f5f8fa)}.thermal-pilot-away-dialog .date-card.active{border-color:var(--primary-color,#00838f);box-shadow:0 0 0 1px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .pick{font-weight:600;border:0;background:transparent;padding:0 0 8px;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog .date-inputs{display:grid;grid-template-columns:minmax(0,1fr) 94px;gap:8px}.thermal-pilot-away-dialog input{min-width:0;width:100%;border:1px solid #b6c8d0;border-radius:6px;background:var(--card-background-color,#fff);padding:8px;min-height:40px}.thermal-pilot-away-dialog .month-nav{margin:16px 0 8px}.thermal-pilot-away-dialog .month-nav button{border:0;border-radius:8px;background:#829aa310;font-size:24px;width:40px;height:40px}.thermal-pilot-away-dialog .month-nav span{font-size:13px;color:var(--secondary-text-color,#526b75)}.thermal-pilot-away-dialog .months{display:grid;grid-template-columns:1fr 1fr;gap:24px}.thermal-pilot-away-dialog .month h3{font-size:15px;text-align:center;margin:8px 0 12px}.thermal-pilot-away-dialog .days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.thermal-pilot-away-dialog .weekday{font-size:11px;color:var(--secondary-text-color,#526b75);text-align:center;padding:6px 0}.thermal-pilot-away-dialog .day{height:36px;min-width:0;border:0;border-radius:7px;background:transparent;padding:0}.thermal-pilot-away-dialog .day.other{opacity:.35}.thermal-pilot-away-dialog .day.range{background:#00838f12;border-radius:3px}.thermal-pilot-away-dialog .day.today{box-shadow:inset 0 0 0 1px #829aa370}.thermal-pilot-away-dialog .day.selected{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);font-weight:700;border-radius:8px}.thermal-pilot-away-dialog .day:hover{box-shadow:inset 0 0 0 2px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .zone{color:var(--secondary-text-color,#526b75);font-size:12px;line-height:1.6;margin:16px 0}.thermal-pilot-away-dialog footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--divider-color,#d8e0e4)}.thermal-pilot-away-dialog footer button{min-height:40px;border:0;border-radius:20px;padding:8px 14px;background:transparent;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog footer .save{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);margin-left:auto}.thermal-pilot-away-dialog footer .stop{color:var(--error-color,#ba4d43);border:1px solid #d2837b55}.thermal-pilot-away-dialog .help{position:relative;display:inline-flex;align-items:center}.thermal-pilot-away-dialog .help>button{display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--primary-color,#00838f);width:32px;min-height:32px;padding:6px}.thermal-pilot-away-dialog .help svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}.thermal-pilot-away-dialog .tip{position:absolute;z-index:10;top:100%;left:0;width:min(340px,calc(100vw - 72px));padding:12px 14px;border-radius:10px;background:#18282f;color:#fff;font-size:13px;line-height:1.6;box-shadow:0 6px 24px #0003}.thermal-pilot-away-dialog .heading .tip{left:0;right:auto}.thermal-pilot-away-dialog footer .tip{top:auto;bottom:100%}.thermal-pilot-away-dialog [hidden]{display:none!important}.thermal-pilot-away-dialog [role=alert]{color:var(--error-color,#b23b34);line-height:1.5}.thermal-pilot-away-dialog button:disabled{opacity:.5;cursor:default}@media(max-width:600px){.thermal-pilot-away-dialog{padding:18px}.thermal-pilot-away-dialog .months{grid-template-columns:1fr}.thermal-pilot-away-dialog .month:nth-child(2){display:none}.thermal-pilot-away-dialog .dates{gap:8px}.thermal-pilot-away-dialog .date-inputs{grid-template-columns:1fr}.thermal-pilot-away-dialog .day{height:40px}.thermal-pilot-away-dialog footer .tip{position:fixed;left:32px;bottom:90px;top:auto}.thermal-pilot-away-dialog .heading .tip{position:fixed;top:110px;left:32px;right:auto}}
-    </style><form novalidate><header><div class="heading"><h2 id="away-title">${escapeHTML(title)}</h2>${tooltip('calendar-help',help)}</div><button type="button" class="close" aria-label="${escapeHTML(this.t('Close'))}">×</button></header><p class="status">${escapeHTML(status)}</p><div class="targets"><span>${escapeHTML(this.t('Heating'))} ${escapeHTML(away.temperature??this.info.settings?.away_temperature??16)} °C</span><span>${escapeHTML(this.t('Cooling'))} ${escapeHTML(away.cooling_temperature??this.info.settings?.away_cooling_temperature??26)} °C</span></div><div class="dates">${['start','end'].map(key=>`<div class="date-card" data-date-card="${key}"><button type="button" class="pick" data-pick="${key}">${escapeHTML(this.t(key==='start'?'Start':'End'))}</button><div class="date-inputs"><input type="date" name="${key}-date" aria-label="${escapeHTML(this.t(key==='start'?'Start date':'End date'))}" value="${key==='start'?start.date:end.date}"><input type="time" name="${key}-time" aria-label="${escapeHTML(this.t(key==='start'?'Start time':'End time'))}" value="${key==='start'?start.time:end.time}" step="60"></div></div>`).join('')}</div><div class="month-nav"><button type="button" data-month="-1" aria-label="${escapeHTML(this.t('Previous month'))}">‹</button><span>${escapeHTML(this.t('Select the first and last day'))}</span><button type="button" data-month="1" aria-label="${escapeHTML(this.t('Next month'))}">›</button></div><div class="months"></div><p class="zone">${escapeHTML(this.t('Home Assistant time zone'))}: <span data-user-text>${escapeHTML(timeZone)}</span></p><p role="alert" hidden></p><footer>${away.schedule?`<button type="button" class="stop">${escapeHTML(this.t('Cancel period'))}</button>${tooltip('cancel-help',cancelHelp)}`:''}<button type="button" class="dismiss">${escapeHTML(this.t('Close'))}</button><button type="submit" class="save">${escapeHTML(this.t(away.schedule?'Update period':'Schedule absence'))}</button></footer></form>`;
+    </style><form novalidate><header><div class="heading"><h2 id="away-title">${escapeHTML(title)}</h2>${tooltip('calendar-help',help)}</div><button type="button" class="close" aria-label="${escapeHTML(this.t('Close'))}">×</button></header><p class="status">${escapeHTML(status)}</p><div class="targets"><span>${escapeHTML(this.t('Heating'))} ${escapeHTML(heatingTarget)} °C</span><span>${escapeHTML(this.t('Cooling'))} ${escapeHTML(coolingTarget)} °C</span></div><div class="dates">${['start','end'].map(key=>`<div class="date-card" data-date-card="${key}"><button type="button" class="pick" data-pick="${key}">${escapeHTML(this.t(key==='start'?'Start':'End'))}</button><div class="date-inputs"><input type="date" name="${key}-date" aria-label="${escapeHTML(this.t(key==='start'?'Start date':'End date'))}" value="${key==='start'?start.date:end.date}"><input type="time" name="${key}-time" aria-label="${escapeHTML(this.t(key==='start'?'Start time':'End time'))}" value="${key==='start'?start.time:end.time}" step="60"></div></div>`).join('')}</div><div class="month-nav"><button type="button" data-month="-1" aria-label="${escapeHTML(this.t('Previous month'))}">‹</button><span>${escapeHTML(this.t('Select the first and last day'))}</span><button type="button" data-month="1" aria-label="${escapeHTML(this.t('Next month'))}">›</button></div><div class="months"></div><p class="zone">${escapeHTML(this.t('Home Assistant time zone'))}: <span data-user-text>${escapeHTML(timeZone)}</span></p><p role="alert" hidden></p><footer>${away.schedule?`<button type="button" class="stop">${escapeHTML(this.t('Cancel period'))}</button>${tooltip('cancel-help',cancelHelp)}`:''}<button type="button" class="dismiss">${escapeHTML(this.t('Close'))}</button><button type="submit" class="save">${escapeHTML(this.t(away.schedule?'Update period':'Schedule absence'))}</button></footer></form>`;
     const draw=()=>{
       dialog.querySelector('.months').innerHTML=[0,1].map(offset=>awayCalendarMonth(new Date(month.getFullYear(),month.getMonth()+offset,1,12),selected,today.date,locale)).join('');
       dialog.querySelectorAll('[data-date-card]').forEach(card=>card.classList.toggle('active',card.dataset.dateCard===picking));
     };
     const select=date=>{
       selected[picking]=date;
-      if(picking==='start'&&selected.end<date)selected.end=date;
-      if(picking==='end'&&selected.start>date)selected.start=date;
+      if(picking==='start'&&selected.end&&selected.end<date)selected.end=date;
+      if(picking==='end'&&selected.start&&selected.start>date)selected.start=date;
       for(const key of ['start','end'])dialog.querySelector(`[name="${key}-date"]`).value=selected[key];
       picking=picking==='start'?'end':'start';draw();
     };
@@ -515,14 +517,18 @@ class ThermalPilotPanel extends HTMLElement {
       if(![...dialog.querySelectorAll(`[data-calendar-date="${key}"]`)].some(day=>day.getClientRects().length)){month=new Date(date.getFullYear(),date.getMonth(),1,12);draw();}
       dialog.querySelector(`[data-calendar-date="${key}"]`)?.focus();
     });
-    for(const key of ['start','end'])dialog.querySelector(`[name="${key}-date"]`).addEventListener('change',event=>{if(event.target.value){selected[key]=event.target.value;picking=key;month=new Date(event.target.value+'T12:00:00');draw();}});
+    for(const key of ['start','end'])dialog.querySelector(`[name="${key}-date"]`).addEventListener('change',event=>{selected[key]=event.target.value;picking=key;if(event.target.value)month=new Date(event.target.value+'T12:00:00');draw();});
     const submit=async cancel=>{
       const alert=dialog.querySelector('[role=alert]');alert.hidden=true;
       const startValue=dialog.querySelector('[name="start-date"]').value+'T'+dialog.querySelector('[name="start-time"]').value;
       const endValue=dialog.querySelector('[name="end-date"]').value+'T'+dialog.querySelector('[name="end-time"]').value;
-      if(!cancel&&(!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(startValue)||!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(endValue)||endValue<=startValue)){
-        alert.textContent=this.t('The end must be after the start and in the future.');alert.hidden=false;return;
+      let validationError='';
+      if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(startValue)||!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(endValue)){
+        validationError='Choose valid start and end dates and times.';
+      }else if(endValue<=startValue){
+        validationError='The end must be after the start and in the future.';
       }
+      if(!cancel&&validationError){alert.textContent=this.t(validationError);alert.hidden=false;return;}
       dialog.querySelectorAll('button').forEach(button=>button.disabled=true);
       try{
         const result=await this.call('away',{action:cancel?'cancel':'set',...(cancel?{}:{start:startValue,end:endValue})});
@@ -1400,9 +1406,13 @@ class ThermalPilotPanel extends HTMLElement {
       box.textContent=this.tDetails(mark.dataset.chartDetail);box.hidden=false;
       const rect=mark.getBoundingClientRect();
       const x=event.clientX??rect.left+rect.width/2,y=event.clientY??rect.top;
+      const area=this.tooltipBounds();
+      box.style.maxWidth=Math.max(0,area.width-16)+'px';
+      box.style.maxHeight=Math.max(0,area.height-16)+'px';
+      box.style.overflow='auto';
       const bounds=box.getBoundingClientRect();
-      box.style.left=Math.max(8,Math.min(x+12,window.innerWidth-bounds.width-8))+'px';
-      box.style.top=Math.max(8,Math.min(y+16,window.innerHeight-bounds.height-8))+'px';
+      box.style.left=Math.max(area.left+8,Math.min(x+12,area.right-bounds.width-8))+'px';
+      box.style.top=Math.max(area.top+8,Math.min(y+16,area.bottom-bounds.height-8))+'px';
     };
     const openTemperature=event=>{const opened=this.openTemperatureHistory(event);if(opened)hide();return opened;};
     viewport.addEventListener('pointermove',event=>{if(event.pointerType!=='touch')show(event);});
@@ -1413,12 +1423,20 @@ class ThermalPilotPanel extends HTMLElement {
     viewport.addEventListener('scroll',hide);
     viewport.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){openTemperature(event);}else if(event.key==='Escape')hide();});
   }
+  tooltipBounds(){
+    // The browser viewport includes HA's sidebar. Our host bounds identify the
+    // content area actually available to this panel, including docked layouts.
+    const panel=this.getBoundingClientRect(),viewport=window.visualViewport;
+    const viewportLeft=viewport?.offsetLeft||0,viewportTop=viewport?.offsetTop||0;
+    const left=Math.max(panel.left,viewportLeft),top=Math.max(panel.top,viewportTop);
+    const right=Math.min(panel.right,viewportLeft+(viewport?.width||window.innerWidth));
+    const bottom=Math.min(panel.bottom,viewportTop+(viewport?.height||window.innerHeight));
+    return {left,top,right,bottom,width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
+  }
   positionSettingTooltip(help){
     const box=help.querySelector('.setting-tooltip'),anchor=help.querySelector('.setting-info,[data-tooltip-trigger]');
     if(!box||!anchor)return;
-    const viewport=window.visualViewport;
-    const left=viewport?.offsetLeft||0,top=viewport?.offsetTop||0;
-    const width=viewport?.width||window.innerWidth,height=viewport?.height||window.innerHeight;
+    const {left,top,width,height}=this.tooltipBounds();
     const margin=12,gap=8;
     const preferredWidth=width>600?440:304;
     Object.assign(box.style,{width:Math.min(preferredWidth,Math.max(0,width-2*margin))+'px',maxWidth:Math.max(0,width-2*margin)+'px',maxHeight:Math.max(0,height-2*margin)+'px',right:'auto',bottom:'auto'});
@@ -1495,6 +1513,11 @@ class ThermalPilotPanel extends HTMLElement {
     listen(window,'resize',reposition);listen(window,'scroll',reposition,true);
     if(window.visualViewport){
       listen(window.visualViewport,'resize',reposition);listen(window.visualViewport,'scroll',reposition);
+    }
+    if(typeof ResizeObserver!=='undefined'){
+      const observer=new ResizeObserver(reposition);
+      observer.observe(this);
+      removers.push(()=>observer.disconnect());
     }
     this.settingTooltipCleanup=()=>{
       hide();removers.forEach(remove=>remove());this.settingTooltipCleanup=null;

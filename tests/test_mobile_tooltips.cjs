@@ -50,7 +50,12 @@ nativeHelp.emit('click',event(badge));assert.equal(nativeHelp.classes.has('toolt
 help.emit('click',event(anchor));assert.equal(nativeHelp.classes.has('tooltip-open'),false);
 assert.equal(help.classes.has('tooltip-open'),true);
 document.emit('focusin',{composedPath:()=>[new Node()]});assert.equal(help.classes.has('tooltip-open'),false);
-assert(positioned>0);panel.settingTooltipCleanup();
+assert(positioned>0);
+let resize,observed,observerDisconnected=false;
+context.ResizeObserver=class{constructor(callback){resize=callback;}observe(target){observed=target;}disconnect(){observerDisconnected=true;}};
+panel.bindSettingTooltips();assert.equal(observed,panel);
+help.emit('click',event(anchor));const beforeResize=positioned;resize();assert.equal(positioned,beforeResize+1);
+panel.settingTooltipCleanup();assert.equal(observerDisconnected,true);
 for(const node of [document,window,help,nativeHelp])assert([...node.listeners.values()].every(list=>list.length===0));
 const cssSource=fs.readFileSync(path.join(__dirname,'../custom_components/thermal_pilot/frontend/panel.js'),'utf8');
 assert.match(cssSource,/@media\(max-width:600px\)\{\s*\.retention-card \.retention-numeric\{display:none\}/);

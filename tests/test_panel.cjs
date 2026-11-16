@@ -3,6 +3,7 @@ const {readFrontendSource}=require('./frontend_source.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 let Component;
 class Element {
+  getBoundingClientRect(){return {left:0,top:0,right:context.window?.innerWidth||1280,bottom:context.window?.innerHeight||800};}
   attachShadow(){this.shadowRoot={innerHTML:'',querySelectorAll:()=>[],querySelector:()=>null};}
 }
 const context={HTMLElement:Element,customElements:{get:()=>undefined,define:(name,value)=>{Component=value;}},
@@ -387,6 +388,13 @@ context.window={innerWidth:320,innerHeight:600};detailsPanel.bindChartDetails(to
 const mark={dataset:{chartDetail:'Study · Actual relay On\nStart: 12.10.2026 10:00\nStop: 12.10.2026 11:00'},getBoundingClientRect:()=>({left:20,top:30,width:60})};
 const ev={target:{closest:()=>mark},clientX:310,clientY:590};
 handlers.pointermove(ev);assert.equal(box.hidden,false);assert.equal(box.textContent,mark.dataset.chartDetail);assert.equal(box.style.left,'132px');assert.equal(box.style.top,'512px');
+// A docked panel is narrower than the browser; chart details use the same bounds.
+context.window={innerWidth:1280,innerHeight:800};
+detailsPanel.getBoundingClientRect=()=>({left:255,top:56,right:600,bottom:700});
+handlers.pointermove({...ev,clientX:590,clientY:690});
+assert.ok(parseFloat(box.style.left)>=263);assert.ok(parseFloat(box.style.left)+180<=592);
+assert.ok(parseFloat(box.style.top)>=64);assert.ok(parseFloat(box.style.top)+80<=692);
+detailsPanel.getBoundingClientRect=Element.prototype.getBoundingClientRect;
 handlers.keydown({key:'Escape'});assert.equal(box.hidden,true);
 handlers.click(ev);assert.equal(box.hidden,false);handlers.click(ev);assert.equal(box.hidden,true);
 handlers.focusin({target:ev.target});assert.equal(box.hidden,false);handlers.focusout({});assert.equal(box.hidden,true);
@@ -1278,6 +1286,23 @@ assert.doesNotMatch(forecastChart.priceChart(true),/Selected period:.*recorded a
  assert.equal(style.width,'440px');
  assert.ok(parseFloat(style.left)+440<=1268);
  assert.equal(style.top,'272px');
+ // A full browser viewport also contains the HA sidebar. Clamp to the panel.
+ context.window={innerWidth:1280,innerHeight:900};
+ tooltipPanel.getBoundingClientRect=()=>({left:255,top:56,right:1000,bottom:850});
+ trigger={left:347,top:600,bottom:620,width:20};
+ tooltipPanel.positionSettingTooltip(help);
+ assert.equal(style.left,'267px');assert.equal(style.width,'440px');
+ assert.ok(parseFloat(style.left)+440<=988);
+ // Narrow docked content shrinks the help instead of letting it under the sidebar.
+ tooltipPanel.getBoundingClientRect=()=>({left:255,top:56,right:500,bottom:850});
+ tooltipPanel.positionSettingTooltip(help);
+ assert.equal(style.width,'221px');assert.equal(style.left,'267px');
+ // Zoom/keyboard bounds intersect the panel and retain the top toolbar margin.
+ context.window.visualViewport={offsetLeft:300,offsetTop:100,width:180,height:200};
+ tooltipPanel.positionSettingTooltip(help);
+ assert.equal(style.width,'156px');assert.equal(style.left,'312px');assert.equal(style.maxHeight,'176px');
+ assert.ok(parseFloat(style.top)>=112);assert.ok(parseFloat(style.top)+120<=288);
+ tooltipPanel.getBoundingClientRect=Element.prototype.getBoundingClientRect;
  const handlers={},listeners=[],removed=[];
  help.addEventListener=(name,fn)=>handlers[name]=fn;help.removeEventListener=()=>{};
  const oldDocument=context.document;context.document={addEventListener(){},removeEventListener(){}};
