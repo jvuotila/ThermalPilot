@@ -501,7 +501,8 @@
     "A heat pump can have only one controller or zone.": "Ilmalämpöpumpulla voi olla vain yksi itsenäinen ohjain tai vyöhyke. Liitä samaa pumppua käyttävät huoneet sen vyöhykkeeseen.",
     "Room identifier or thermostat is already in use.": "Huoneen tunniste tai itsenäinen termostaatti on jo käytössä.",
     "This room uses its zone’s heat pump. The zone is the only pump controller; this room supplies a temperature reading. Configure pump operation under Zones.": "Huone käyttää vyöhykkeensä ilmalämpöpumppua. Vain vyöhyke ohjaa pumppua; huone antaa lämpötilahavainnon. Määritä pumpun toiminta Vyöhykkeet-osiossa.",
-    "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone.": "Vyöhykkeet jakavat yhden lämmitys- tai jäähdytyslähteen usean huoneen kesken. Erilliset huoneiden lämmittimet toimivat itsenäisesti; vyöhykkeen pumppua käyttävät huoneet ohjataan vyöhykkeestä."
+    "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone.": "Vyöhykkeet jakavat yhden lämmitys- tai jäähdytyslähteen usean huoneen kesken. Erilliset huoneiden lämmittimet toimivat itsenäisesti; vyöhykkeen pumppua käyttävät huoneet ohjataan vyöhykkeestä.",
+    "Add the rooms using this heat pump to the zone’s Rooms list, then save settings again.": "Lisää tätä ilmalämpöpumppua käyttävät huoneet vyöhykkeen Huoneet-listaan ja tallenna asetukset uudelleen."
   },
   "legacy": {
     "Plan": "Suunnitelma",

@@ -21,6 +21,12 @@ function runtime(fetch){
  assert.equal(i18n.message('Forecast: {assessment} · {error}',{assessment:'Hyvä',error:'0,21 °C'},'fi'),'Ennuste: Hyvä · 0,21 °C');
  assert.equal(i18n.message('About {setting}',{setting:'My room: History'},'fi'),'Tietoa asetuksesta: My room: History','Inserted user text is preserved');
  assert.equal(i18n.translateText('Unlisted complete sentence.','fi'),'Unlisted complete sentence.');
+ for(const error of ['Add the rooms using this heat pump to the zone’s Rooms list, then save settings again.','A heat pump can have only one controller or zone.','Each zone needs a unique identifier, name and selected heat source.','Room identifier or thermostat is already in use.']){
+  assert.equal(i18n.translateText('Settings were not saved: '+error,'fi'),'Asetuksia ei tallennettu: '+catalogs.fi.messages[error],'Translate the complete server error after its save prefix');
+  assert.equal(i18n.translateText('Settings were not saved: '+error,'en'),'Settings were not saved: '+error);
+ }
+ assert.equal(i18n.translateText('Settings were not saved: Unlisted complete sentence.','fi'),'Asetuksia ei tallennettu: Unlisted complete sentence.','Unknown errors remain readable');
+
  await i18n.load('fi');assert.equal(requests.length,1,'Loaded JSON is cached across the panel and cards');
  await i18n.load('de');assert.equal(i18n.translateText('Settings','de'),'Einstellungen');
  assert.equal(requests.length,2,'Only requested languages are fetched');

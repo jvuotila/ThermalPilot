@@ -55,6 +55,11 @@ function translateText(value,language){
     if(legacy)return message('{prefix}{name}: heat pump heating setpoint is outside device limits.',{prefix:legacy[1]?message('Settings were not saved: ',{},language):'',name:legacy[2]},language);
   }
 
+  // Save errors combine a fixed prefix with a complete server message. Translate
+  // each part separately so messages from the modern catalog are not skipped.
+  const saveErrorPrefix='Settings were not saved: ';
+  if(text.startsWith(saveErrorPrefix))return message(saveErrorPrefix,{},language)+translateText(text.slice(saveErrorPrefix.length),language);
+
   if(language==='fi'&&Object.hasOwn(heatingFinnishText,text.trim()))return text.replace(text.trim(),heatingFinnishText[text.trim()]);
   const catalog=languageText[language];
   if(catalog){

@@ -42,7 +42,7 @@ class SharedPumpTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_unlinked_controller_and_duplicate_zones_remain_rejected(self):
         self.room['heating_zone_id']='';self.zone['main_room_id']=''
-        with self.assertRaisesRegex(ValueError,'only one controller'):validate(self.c.settings,self.hass)
+        with self.assertRaisesRegex(ValueError,'Add the rooms using this heat pump'):validate(self.c.settings,self.hass)
         self.room['heating_zone_id']=self.zone['id'];self.zone['main_room_id']=self.room['id']
         self.c.settings['heating_zones'].append({**self.zone,'id':'44444444-4444-4444-8444-444444444444','main_room_id':''})
         with self.assertRaisesRegex(ValueError,'only one controller'):validate(self.c.settings,self.hass)

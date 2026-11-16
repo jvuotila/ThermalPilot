@@ -642,6 +642,13 @@ def validate(payload, hass=None, *, require_outdoor=True):
         if members and zone['main_room_id'] not in {r['id'] for r in members} or (not members and zone['main_room_id']):
             raise ValueError('Each zone needs linked rooms and a main room selected from them.')
         if zone['thermostat'] in thermostats:
+            # A room using this pump must join its zone before control can be shared.
+            unlinked_pump_rooms = [room for room in rooms
+                                   if room['thermostat'] == zone['thermostat']
+                                   and not room['is_garage']
+                                   and not room['heating_zone_id']]
+            if unlinked_pump_rooms:
+                raise ValueError('Add the rooms using this heat pump to the zone’s Rooms list, then save settings again.')
             raise ValueError('A heat pump can have only one controller or zone.')
         thermostats.add(zone['thermostat'])
         if hass is not None and zone['heating_enabled']:

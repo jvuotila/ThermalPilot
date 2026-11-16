@@ -874,7 +874,8 @@
     "A heat pump can have only one controller or zone.": "A heat pump can have only one controller or zone.",
     "Room identifier or thermostat is already in use.": "Room identifier or thermostat is already in use.",
     "This room uses its zone’s heat pump. The zone is the only pump controller; this room supplies a temperature reading. Configure pump operation under Zones.": "This room uses its zone’s heat pump. The zone is the only pump controller; this room supplies a temperature reading. Configure pump operation under Zones.",
-    "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone.": "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone."
+    "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone.": "Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone.",
+    "Add the rooms using this heat pump to the zone’s Rooms list, then save settings again.": "Add the rooms using this heat pump to the zone’s Rooms list, then save settings again."
   },
   "legacy": {},
   "cardMessages": {
