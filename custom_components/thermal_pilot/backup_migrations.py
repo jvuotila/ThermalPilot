@@ -86,6 +86,8 @@ def normalize_learning(raw, settings):
     state.pop('heating_sessions', None)
     state.pop('manual_sessions', None)
     state.pop('solar_heating', None)
+    state.pop('heating_assistance', None)
+    state.pop('away', None)
     for key,default in STATE_DEFAULTS.items():
         state.setdefault(key,deepcopy(default))
         if not isinstance(state[key], dict):

@@ -10,6 +10,11 @@ from .shared_air import room_connections, room_groups
 
 # key, label, input type, bounds/domain; used by the dedicated settings panel.
 SOURCE_FIELDS = [
+ ('away_temperature','Away heating temperature (°C)','number',5,25,.5),
+ ('away_cooling_temperature','Away cooling temperature (°C)','number',18,35,.5),
+ ('away_automatic','Automatic away detection','bool'),
+ ('away_zone','Home presence zone','zone'),
+ ('away_delay_hours','Absence delay (hours)','number',0,168,.5),
  ('air_fan_cool','Cooling fan speed','text'),
  ('air_swing_cool','Cooling swing mode','text'),
  ('air_heat_target','Heat pump heating setpoint (°C)','number',5,35,.5),
@@ -100,6 +105,9 @@ ROOM_FIELDS = [
  ('heating_zone_id', 'Zone (optional)', 'text'),
  ('heat_control', 'Room heating control', 'select:house,air_to_air'),
  ('baseline', 'Target temperature (°C)', 'number', 5, 30, 0.1),
+ ('heating_priority', 'Heating priority', 'select:independent,heat_pump_preferred'),
+ ('assist_below_target', 'Allow floor assistance below target by (°C)', 'number', 0.1, 3, 0.1),
+ ('away_exempt', 'Keep normal temperature during absences', 'bool'),
  ('shared_air_rooms', 'Shared air space', 'room_links'),
  (
      'garage_construction',
@@ -210,7 +218,22 @@ def room_electric(room, settings):
 
 
 def price_required(settings):
-    return any((room_electric(r, settings) and r.get('heat_control') != 'zone_member' and (r.get('zone_climate_mode') != 'cool') and (r.get('zone_heating_strategy', 'tariff') == 'tariff') and (not r.get('is_garage') or r.get('garage_strategy', 'temperature') == 'tariff') for r in resolved_rooms(settings) + zone_rooms(settings))) or (not settings.get('rooms') and settings.get('house_heat_source', 'air_to_water') in ('air_to_water', 'ground_source', 'air_to_air', 'electric_resistance'))
+    for room in resolved_rooms(settings) + zone_rooms(settings):
+        # Capacity-based floor assistance needs temperature evidence, not a
+        # tariff. Its pump zone may still require prices for its own scheduling.
+        if preferred_zone(room, settings):
+            continue
+        if not room_electric(room, settings) or room.get('heat_control') == 'zone_member':
+            continue
+        if room.get('zone_climate_mode') == 'cool':
+            continue
+        if room.get('zone_heating_strategy', 'tariff') != 'tariff':
+            continue
+        if room.get('is_garage') and room.get('garage_strategy', 'temperature') != 'tariff':
+            continue
+        return True
+    return not settings.get('rooms') and settings.get('house_heat_source', 'air_to_water') in (
+        'air_to_water', 'ground_source', 'air_to_air', 'electric_resistance')
 
 
 def garage_sensor_lists(room):
@@ -301,6 +324,24 @@ def zone_rooms(settings):
 
 def air_room(room, settings):
     return room.get('heat_control') != 'zone_member' and (room.get('is_garage', False) or room.get('heat_control') == 'air_to_air' or (room.get('heat_control', 'house') == 'house' and settings.get('house_heat_source') == 'air_to_air'))
+
+
+def preferred_zone(room: dict, settings: dict) -> dict | None:
+    """Return an enabled heating zone without replacing the floor controller.
+
+    Retain inactive preferences when users unlink a zone or change systems.
+    They must always fall back to independent floor control, not block saving.
+    """
+    if (room.get('heating_priority') != 'heat_pump_preferred' or room.get('is_garage')
+            or room.get('secondary_zone') or room.get('heat_control', 'house') != 'house'
+            or settings['house_heat_source'] != 'electric_resistance'
+            or settings['house_distribution'] != 'electric_floor'):
+        return None
+    for zone in settings.get('heating_zones', []):
+        if (zone['id'] == room.get('heating_zone_id') and zone.get('source_type', 'air_to_air') == 'air_to_air'
+                and zone.get('heating_enabled', True) and zone.get('climate_mode', 'heat') in ('heat', 'both')):
+            return zone
+    return None
 
 
 def room_settings(room, settings):
@@ -457,11 +498,13 @@ def validate(payload, hass=None, *, require_outdoor=True):
         )
         # Built-in sources are not sensor entity IDs. An unused forecast choice
         # is retained so switching back from static prices stays reversible.
-        if unused_water or unused_price_sensor or (key == 'tibber_price_entity' and result['price_entity'] != 'tibber'):
+        if unused_water or unused_price_sensor or (key == 'away_zone' and not result['away_automatic']) or (key == 'tibber_price_entity' and result['price_entity'] != 'tibber'):
             fields.append((key, field[1], 'text'))
         else:
             fields.append(field)
     check(result,fields)
+    if result['away_automatic'] and not result['away_zone']:
+        raise ValueError('Select a home presence zone for automatic away detection.')
     if result['solar_stop_kw'] >= result['solar_start_kw']:
         raise ValueError('Solar heating: the stop threshold must be lower than the start threshold.')
     if result['transfer_tariff'] == 'day_night' and result['transfer_day_start'] == result['transfer_night_start']:

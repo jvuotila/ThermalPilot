@@ -879,7 +879,8 @@ def thermostat_state(timing, now):
     target = {
         'boost': timing['boosted_setpoint'],
         'reduced': timing['reduced_setpoint'],
-        'normal': timing['normal_setpoint']
+        'normal': timing['normal_setpoint'],
+        'away': timing.get('away_setpoint', timing['normal_setpoint'])
     }[mode]
     return {'heat': mode == 'boost', 'mode': mode, 'setpoint': round(target, 2)}
 

@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Kies de huidige zonneproductie in W of kW. Laat leeg om uit te schakelen. Productie is geen overschot: andere verbruikers kunnen nog netstroom vereisen.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Start na vijf minuten boven de grens. Kamers moeten nuttige warmte kunnen opslaan binnen de bestaande verhoging en temperatuurgrenzen.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Na vijf minuten onder deze lagere grens stopt zonneverwarming zodra de minimumduur is bereikt. Tussen de grenzen lopen bestaande perioden door.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "De minimale aangevraagde duur blijft behouden bij herstarts. Netstroom kan nodig zijn. Handmatige bediening, ontbrekende gegevens, koeling en temperatuur- of deurbeveiliging hebben voorrang."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "De minimale aangevraagde duur blijft behouden bij herstarts. Netstroom kan nodig zijn. Handmatige bediening, ontbrekende gegevens, koeling en temperatuur- of deurbeveiliging hebben voorrang.",
+    "Heating priority": "Verwarmingsprioriteit",
+    "Allow floor assistance below target by (°C)": "Vloerondersteuning bij onderschrijding doel met (°C)",
+    "Independent": "Onafhankelijk",
+    "Heat pump preferred": "Warmtepomp heeft voorkeur",
+    "Floor heating backup": "Vloerverwarming als reserve",
+    "Floor heating assists": "Vloerverwarming ondersteunt",
+    "Cooling or manual zone priority": "Koeling of handmatige zoneregeling heeft voorrang",
+    "Predicted temperature after floor response lag": "Voorspelde temperatuur na vloervertraging",
+    "Heat pump preferred; floor heating assists when needed.": "Warmtepomp heeft voorkeur; vloerverwarming ondersteunt waar nodig.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Koppel de pomp onder Zones en behoud hier de vloerthermostaat. Voorkeur gebruikt de kamerrespons, niet COP. Zonder actieve zone keert de vloer terug naar onafhankelijke regeling.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Ondersteuning start bij dit tekort of eerder als de gemeten trend dit binnen de vloervertraging voorspelt. De pomp blijft verwarmen. Bestaande minimumduur en temperatuurgrenzen gelden."
   },
   "legacy": {},
   "cardMessages": {

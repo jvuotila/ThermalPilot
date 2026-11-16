@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Veldu núverandi sólarframleiðslu í W eða kW. Skildu eftir autt til að slökkva. Framleiðsla er ekki afgangur: önnur notkun getur enn krafist rafmagns úr kerfinu.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Byrja eftir fimm mínútur yfir mörkunum. Herbergin verða að geta geymt gagnlegan hita innan núverandi hækkunar og hitamarka.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Eftir fimm mínútur undir lægri mörkunum lýkur sólarhitun þegar lágmarkslengd er náð. Milli markanna halda núverandi tímabil áfram.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Lágmarkslengd umbeðinnar hitunar varðveitist við endurræsingu. Hún getur notað rafmagn úr kerfinu. Handstýring, vantar gögn, kæling og hita- eða hurðavarnir hafa forgang."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Lágmarkslengd umbeðinnar hitunar varðveitist við endurræsingu. Hún getur notað rafmagn úr kerfinu. Handstýring, vantar gögn, kæling og hita- eða hurðavarnir hafa forgang.",
+    "Heating priority": "Forgangur hitunar",
+    "Allow floor assistance below target by (°C)": "Leyfa gólfstuðning undir markhita um (°C)",
+    "Independent": "Óháð",
+    "Heat pump preferred": "Varmadæla í forgangi",
+    "Floor heating backup": "Gólfhiti til vara",
+    "Floor heating assists": "Gólfhiti styður hitun",
+    "Cooling or manual zone priority": "Kæling eða handstýring svæðis í forgangi",
+    "Predicted temperature after floor response lag": "Áætlaður hiti eftir viðbragðstöf gólfs",
+    "Heat pump preferred; floor heating assists when needed.": "Varmadæla í forgangi; gólfhiti styður eftir þörfum.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Tengdu dæluna undir Svæði og haltu gólfhitastillinum hér. Forgangurinn notar svörun herbergis, ekki COP. Án virks svæðis fer gólfhitinn aftur í óháða stýringu.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Stuðningur hefst við þennan mun eða fyrr ef mæld þróun spáir honum innan viðbragðstafar gólfs. Dælan heldur áfram að hita. Núverandi lágmarkstími og hitamörk gilda."
   },
   "legacy": {},
   "cardMessages": {

@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Изаберите тренутну соларну снагу у W или kW. Оставите празно за искључивање. Производња није вишак: други потрошачи могу захтевати струју из мреже.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Покрените после пет минута изнад прага. Просторије морају моћи да сачувају корисну топлоту у постојећим границама повећања и температуре.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "После пет минута испод доњег прага грејање завршава када испуни минимално трајање. Између прагова постојећи периоди се настављају.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Минимално затражено трајање остаје после поновног покретања. Може трошити мрежну струју. Ручно управљање, недостајући подаци, хлађење те температурна заштита и заштита врата имају предност."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Минимално затражено трајање остаје после поновног покретања. Може трошити мрежну струју. Ручно управљање, недостајући подаци, хлађење те температурна заштита и заштита врата имају предност.",
+    "Heating priority": "Приоритет грејања",
+    "Allow floor assistance below target by (°C)": "Дозволи помоћ пода испод циља за (°C)",
+    "Independent": "Независно",
+    "Heat pump preferred": "Топлотна пумпа има предност",
+    "Floor heating backup": "Подно грејање као резерва",
+    "Floor heating assists": "Подно грејање помаже",
+    "Cooling or manual zone priority": "Хлађење или ручно управљање зоном има предност",
+    "Predicted temperature after floor response lag": "Предвиђена температура после кашњења пода",
+    "Heat pump preferred; floor heating assists when needed.": "Топлотна пумпа има предност; под помаже по потреби.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Повежите пумпу у Зонама и овде задржите подни термостат. Приоритет користи одзив собе, не COP. Без активне зоне враћа се независна контрола пода.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Помоћ почиње при овом мањку или раније ако посматрани тренд то предвиђа у кашњењу пода. Пумпа наставља да греје. Важе постојеће минимално трајање и температурне границе."
   },
   "legacy": {},
   "cardMessages": {

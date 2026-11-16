@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Odaberite trenutačnu solarnu snagu u W ili kW. Ostavite prazno za isključivanje. Proizvodnja nije višak: drugi potrošači mogu zahtijevati struju iz mreže.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Pokrenite nakon pet minuta iznad praga. Prostorije moraju moći pohraniti korisnu toplinu unutar postojećeg povećanja i temperaturnih granica.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Nakon pet minuta ispod donjeg praga grijanje završava kada ispuni minimalno trajanje. Između pragova postojeća razdoblja nastavljaju se.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimalno zatraženo trajanje ostaje nakon ponovnog pokretanja. Može trošiti mrežnu struju. Ručno upravljanje, nedostajući podaci, hlađenje te temperaturna zaštita i zaštita vrata imaju prednost."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimalno zatraženo trajanje ostaje nakon ponovnog pokretanja. Može trošiti mrežnu struju. Ručno upravljanje, nedostajući podaci, hlađenje te temperaturna zaštita i zaštita vrata imaju prednost.",
+    "Heating priority": "Prioritet grijanja",
+    "Allow floor assistance below target by (°C)": "Dopusti pomoć poda ispod cilja za (°C)",
+    "Independent": "Neovisno",
+    "Heat pump preferred": "Dizalica topline ima prednost",
+    "Floor heating backup": "Podno grijanje kao pričuva",
+    "Floor heating assists": "Podno grijanje pomaže",
+    "Cooling or manual zone priority": "Hlađenje ili ručno upravljanje zonom ima prednost",
+    "Predicted temperature after floor response lag": "Predviđena temperatura nakon kašnjenja poda",
+    "Heat pump preferred; floor heating assists when needed.": "Dizalica topline ima prednost; pod pomaže po potrebi.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Povežite dizalicu u Zonama i ovdje zadržite podni termostat. Prioritet koristi odziv prostorije, ne COP. Bez aktivne zone vraća se neovisno upravljanje podom.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Pomoć počinje pri ovom manjku ili ranije ako opaženi trend to predviđa unutar kašnjenja poda. Dizalica nastavlja grijati. Vrijede postojeće minimalno trajanje i temperaturne granice."
   },
   "legacy": {},
   "cardMessages": {

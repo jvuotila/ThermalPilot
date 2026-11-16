@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Zgjidhni fuqinë aktuale diellore në W ose kW. Lëreni bosh për çaktivizim. Prodhimi nuk është tepricë: ngarkesa të tjera mund të kërkojnë energji nga rrjeti.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Nisni pas pesë minutash mbi prag. Dhomat duhet të mund të ruajnë nxehtësi të dobishme brenda rritjes dhe kufijve ekzistues të temperaturës.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Pas pesë minutash nën pragun e ulët, ngrohja përfundon pasi plotëson kohëzgjatjen minimale. Mes pragjeve periudhat ekzistuese vazhdojnë.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Kohëzgjatja minimale e kërkuar ruhet pas rinisjes. Mund të përdorë energji nga rrjeti. Kontrolli manual, të dhënat që mungojnë, ftohja dhe mbrojtja e temperaturës ose dyerve kanë përparësi."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Kohëzgjatja minimale e kërkuar ruhet pas rinisjes. Mund të përdorë energji nga rrjeti. Kontrolli manual, të dhënat që mungojnë, ftohja dhe mbrojtja e temperaturës ose dyerve kanë përparësi.",
+    "Heating priority": "Përparësia e ngrohjes",
+    "Allow floor assistance below target by (°C)": "Lejo ndihmën e dyshemesë nën synim me (°C)",
+    "Independent": "E pavarur",
+    "Heat pump preferred": "Pompë nxehtësie me përparësi",
+    "Floor heating backup": "Ngrohje dyshemeje rezervë",
+    "Floor heating assists": "Dyshemeja ndihmon ngrohjen",
+    "Cooling or manual zone priority": "Ftohja ose kontrolli manual i zonës ka përparësi",
+    "Predicted temperature after floor response lag": "Temperatura e parashikuar pas vonesës së dyshemesë",
+    "Heat pump preferred; floor heating assists when needed.": "Pompa e nxehtësisë me përparësi; dyshemeja ndihmon kur nevojitet.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Lidhni pompën te Zonat dhe mbani këtu termostatin e dyshemesë. Përparësia përdor reagimin e dhomës, jo COP. Pa zonë aktive rikthehet kontrolli i pavarur i dyshemesë.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Ndihma nis në këtë mungesë ose më herët kur prirja e vëzhguar e parashikon brenda vonesës së dyshemesë. Pompa vazhdon ngrohjen. Zbatohen kohëzgjatja minimale dhe kufijtë ekzistues të temperaturës."
   },
   "legacy": {},
   "cardMessages": {

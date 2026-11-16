@@ -39,7 +39,7 @@ async def async_setup_entry(hass, entry):
                 str(Path(__file__).parent/'brand'/'icon.png'), False),
             StaticPathConfig('/thermal_pilot/rooms-floor-plan.png',
                 str(Path(__file__).parent/'frontend'/'rooms-floor-plan.png'), False)])
-        for handler in (ws_get, ws_retention, ws_plan_chart, ws_save, ws_history, ws_reset, ws_manual, ws_test_sources):
+        for handler in (ws_get, ws_retention, ws_plan_chart, ws_save, ws_history, ws_reset, ws_manual, ws_away, ws_test_sources):
             websocket_api.async_register_command(hass, handler)
         frontend.add_extra_js_url(hass, f'/thermal_pilot/heat-retention-card.js?v={VERSION}')
         frontend.add_extra_js_url(hass, f'/thermal_pilot/plan-chart-card.js?v={VERSION}')
@@ -347,3 +347,26 @@ async def ws_manual(hass, connection, msg):
         connection.send_error(msg['id'], 'invalid_manual_session', str(error))
         return
     connection.send_result(msg['id'], {'manual_controls': controls})
+
+
+@websocket_api.websocket_command({
+    vol.Required('type'): 'thermal_pilot/away',
+    vol.Required('entry_id'): str,
+    vol.Required('action'): vol.In(('set', 'cancel')),
+    vol.Optional('start'): str,
+    vol.Optional('end'): str,
+})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def ws_away(hass, connection, msg):
+    """Administrators can book/cancel an absence in HA's local time zone."""
+    if (coordinator := get_coordinator(hass, connection, msg)) is None:
+        return
+    try:
+        async with coordinator.backup_lock:
+            result = await coordinator.set_away_schedule(
+                msg['action'], msg.get('start'), msg.get('end'), dt_util.utcnow())
+    except ValueError as error:
+        connection.send_error(msg['id'], 'invalid_away_schedule', str(error))
+        return
+    connection.send_result(msg['id'], result)

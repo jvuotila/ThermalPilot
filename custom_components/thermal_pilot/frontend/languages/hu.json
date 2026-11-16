@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Válassza az aktuális napelemes teljesítményt W vagy kW egységben. Üresen hagyva kikapcsolható. A termelés nem többlet: más fogyasztók miatt hálózati áramra is szükség lehet.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Indítás a küszöb felett töltött öt perc után. A szobáknak hasznos hőt kell tudniuk tárolni a meglévő emelési és hőmérsékleti határokon belül.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Az alsó küszöb alatt töltött öt perc után a fűtés a minimális időtartam teljesülésekor áll le. A küszöbök között a folyamatban lévő időszakok folytatódnak.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "A kért minimális időtartam újraindításkor megmarad. Hálózati áramot is használhat. A kézi vezérlés, hiányzó adatok, hűtés, valamint hőmérséklet- és ajtóvédelem elsőbbséget élvez."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "A kért minimális időtartam újraindításkor megmarad. Hálózati áramot is használhat. A kézi vezérlés, hiányzó adatok, hűtés, valamint hőmérséklet- és ajtóvédelem elsőbbséget élvez.",
+    "Heating priority": "Fűtési prioritás",
+    "Allow floor assistance below target by (°C)": "Padlósegítség engedélyezése a cél alatt (°C)",
+    "Independent": "Független",
+    "Heat pump preferred": "Hőszivattyú előnyben",
+    "Floor heating backup": "Padlófűtés tartalékként",
+    "Floor heating assists": "Padlófűtés rásegít",
+    "Cooling or manual zone priority": "Hűtés vagy kézi zónavezérlés elsőbbsége",
+    "Predicted temperature after floor response lag": "Várható hőmérséklet a padló késése után",
+    "Heat pump preferred; floor heating assists when needed.": "Hőszivattyú előnyben; padlófűtés szükség szerinti rásegítéssel.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Kapcsolja a szivattyút a Zónák alatt, itt tartsa meg a padló termosztátját. Az elsőbbség a szoba reakcióját használja, nem a COP-t. Aktív zóna nélkül visszatér a független padlóvezérlés.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "A rásegítés ennél az eltérésnél indul, vagy korábban, ha a mért trend ezt jelzi a padló késési idején belül. A szivattyú tovább fűt. A meglévő minimális idő és hőmérsékleti korlátok érvényesek."
   },
   "legacy": {},
   "cardMessages": {

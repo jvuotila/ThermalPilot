@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.88 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.89 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -181,6 +181,40 @@ Ordinary independent planning remains available while transfer learning is
 incomplete. Changing direct connections or their sensor/controller sources starts
 a fresh transfer fit while retaining the existing room history and parameters.
 
+## Heat pump with electric floor assistance
+
+For a room heated by both an air-to-air heat pump and an electric floor, keep
+both controllers configured. Under **Rooms and zones**, choose **Electric
+resistance** as the house heat source and **Electric floor heating** as the
+heat distribution. Keep each room’s floor thermostat as its **Thermostat**.
+Add the pump under **Zones**, link the rooms it serves, and enable zone control.
+
+In each participating room, set **Heating priority → Heat pump preferred**.
+Then choose **Allow floor assistance below target by (°C)**, initially **0.5 °C**.
+For a 20 °C room target, the floor stays at a 19.5 °C reserve target while the
+pump maintains comfort. If the room reaches that reserve, the floor assists
+and the pump continues heating. After observing the pump’s room-temperature
+response for 30 minutes, a falling trend can request floor assistance earlier
+to account for the configured floor response lag. This needs no outdoor
+cutoff or pump COP curve. A price source is needed only if another room or
+zone still uses tariff scheduling.
+
+The existing **Minimum flexible heating run (minutes)** protects the assistance
+request, including across Home Assistant restarts. After that minimum, as the
+room recovers, the floor request returns toward its normal target and then reserve; its own
+thermostat still decides actual relay demand. Temperature protections, manual
+sessions, cooling and solar heating keep their precedence. An unavailable pump
+allows floor backup. Unlinking or disabling the pump zone restores independent
+floor control. **Independent** is the default for existing installations.
+
+This is capacity-based assistance, not measured efficiency or COP optimization.
+The combined forecast is conditional on an observed pump-on temperature trend;
+it remains unavailable until there is enough evidence. Mixed-source periods
+and residual heat are excluded from individual source fitting so the floor is
+not credited with the pump’s heat or vice versa. Existing learned parameters
+are retained. The room flame tooltip shows the current assistance decision;
+actual heating indicators continue to describe observed device activity.
+
 ## Electricity tariffs
 
 The price source starts as **Not configured**. You can save settings in that
@@ -287,6 +321,49 @@ Tariff charts and temperature forecasts remain the price-based plan; they do not
 predict future PV production. Actual solar-driven heating appears in the observed
 heating history and influences subsequent learning and replanning. This feature
 uses a live production sensor, not Solcast or another PV forecast.
+
+## Away heating and cooling
+
+Under **Settings → Away heating and cooling**, immediately below solar heating,
+set the **Away heating temperature** (initially 16 °C) and **Away cooling
+temperature** (initially 26 °C). These are fixed room targets: heating never
+raises an already lower normal target, and cooling never lowers an already
+higher normal cooling target. Automatic detection starts disabled.
+
+Enable **Automatic away detection**, select the Home Assistant home zone, and
+choose an **Absence delay** (initially 24 hours). ThermalPilot reads the zone’s
+tracked-person count, not individual phone states. Everyone must remain away
+continuously for the entire delay; a return resets it. Configure people and
+location tracking correctly in Home Assistant first. Unknown or unavailable
+counts pause automatic absence detection and restore normal automatic targets.
+The confirmed absence timer survives restarts.
+
+The header calendar icon opens a date-range calendar with start and end times.
+Calendar bookings work with automatic detection disabled. In that mode, they
+end only at the selected time or through **Cancel period** in the popup. With
+automatic detection enabled, a detected return also cancels an active booking;
+a future booking made while home waits for departure. Dates use Home Assistant’s
+time zone, even when the browser is travelling. Normal targets resume at the
+end or on return; there is no advance warm-up, so room recovery takes time.
+Cancelling a booking does not disable automatic detection: its away targets
+can remain active if the absence delay has already elapsed.
+
+For aquariums or other sensitive rooms, enable **Keep normal temperature during
+absences** in that room’s settings. This exempts heating and cooling. A shared
+heat-pump zone preserves all its members’ normal targets if any member is
+exempt; a single pump cannot maintain separate room targets. Garages always
+retain their own limits. Tooltips beside the settings and in the calendar
+explain these rules without adding permanent text to the main views.
+
+Away targets override planned and solar heating boosts and temporarily pause
+floor-assistance boosts. Explicit manual heating/cooling sessions keep their
+priority. Normal control resumes afterwards. Confirmed live control and the
+master switch still govern device commands; simulation sends no commands.
+Away heating can intentionally be below the normal comfort minimum, but device
+limits still apply. Existing cooling controls use the warmer away target; no
+active cooling model or new cooling-capable heating system is inferred.
+Calendar bookings and timers persist across ordinary restarts. Importing a
+backup clears bookings and runtime absence state, preserving learned models.
 
 ## Source compatibility and checks
 

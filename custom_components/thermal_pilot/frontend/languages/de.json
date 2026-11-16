@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Aktuelle Solarproduktion in W oder kW auswählen. Leer lassen zum Deaktivieren. Produktion ist kein Überschuss: Andere Verbraucher können weiterhin Netzstrom benötigen.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Nach fünf Minuten oberhalb der Grenze starten. Räume müssen innerhalb der bestehenden Anhebung und Temperaturgrenzen nutzbare Wärme aufnehmen können.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Nach fünf Minuten unter dieser unteren Grenze endet die Solarheizung, sobald ihre Mindestdauer erreicht ist. Zwischen den Grenzen laufen bestehende Perioden weiter.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Die Mindestdauer der angeforderten Solarheizung bleibt bei Neustarts erhalten. Netzstrom kann verbraucht werden. Manuelle Steuerung, fehlende Eingaben, Kühlung sowie Temperatur- und Türschutz haben Vorrang."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Die Mindestdauer der angeforderten Solarheizung bleibt bei Neustarts erhalten. Netzstrom kann verbraucht werden. Manuelle Steuerung, fehlende Eingaben, Kühlung sowie Temperatur- und Türschutz haben Vorrang.",
+    "Heating priority": "Heizpriorität",
+    "Allow floor assistance below target by (°C)": "Bodenunterstützung bei Sollwertunterschreitung um (°C)",
+    "Independent": "Unabhängig",
+    "Heat pump preferred": "Wärmepumpe bevorzugt",
+    "Floor heating backup": "Fußbodenheizung als Reserve",
+    "Floor heating assists": "Fußbodenheizung unterstützt",
+    "Cooling or manual zone priority": "Kühlung oder manuelle Zonensteuerung hat Vorrang",
+    "Predicted temperature after floor response lag": "Prognosetemperatur nach der Bodenverzögerung",
+    "Heat pump preferred; floor heating assists when needed.": "Wärmepumpe bevorzugt; Fußbodenheizung unterstützt bei Bedarf.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Pumpe unter Zonen zuordnen und hier den Bodenthermostat behalten. Die Priorität nutzt die Raumreaktion, nicht den COP. Ohne aktive Zone wird der Boden wieder unabhängig geregelt.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Die Unterstützung beginnt bei dieser Unterschreitung oder früher, wenn der beobachtete Trend sie innerhalb der Bodenverzögerung vorhersagt. Die Pumpe heizt weiter. Bestehende Mindestlaufzeit und Temperaturgrenzen gelten."
   },
   "legacy": {},
   "cardMessages": {

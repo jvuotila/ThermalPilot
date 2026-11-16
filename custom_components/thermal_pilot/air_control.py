@@ -169,9 +169,21 @@ class AirHeatPumpControl:
             mode = manual['mode']
             target = manual['target']
             reason = 'Manual heating' if heating else 'Manual cooling'
+        elif room.get('away_target') is not None and not garage:
+            away_target = room['away_target']
+            if summer or too_warm:
+                heating = False
+            elif temperature <= away_target - .2:
+                heating = True
+            elif temperature >= away_target + .2:
+                heating = False
+            reason = 'Away temperature schedule'
         elif room.get('solar_session') and not too_warm:
             heating = True
             reason = 'Solar heating session'
+        elif room.get('preferred_heat_request') and not garage:
+            heating = not too_warm
+            reason = 'Heat pump preferred' if heating else 'Zone upper limit reached'
         elif garage:
             if outdoor > lower_limit:
                 heating = False
@@ -251,6 +263,8 @@ class AirHeatPumpControl:
         temperature, _ = zone_temperature(self.hass, room, settings)
         state = self.hass.states.get(room['thermostat'])
         target = room.get('zone_cooling_target', 24.0)
+        if room.get('away_cooling_target') is not None:
+            target = max(target, room['away_cooling_target'])
         signature = ('cool', room['thermostat'], target, room.get('zone_policy', 'main'))
         old_cycle = self.cycles.get(room['id'], {})
         if old_cycle.get('signature') == signature:
@@ -284,6 +298,8 @@ class AirHeatPumpControl:
         errors = []
         if not valid:
             errors.append(f"{room['name']}: zone temperature unavailable; using fan-only standby.")
+        if room.get('away_cooling_target') is not None and reason in ('Zone cooling', 'Cooling standby'):
+            reason = 'Away cooling temperature'
         return {
             'mode': 'cool' if cooling else standby, 'target': target if cooling else None,
             'fan': settings.get('air_fan_cool' if cooling else 'air_fan_idle', ''),

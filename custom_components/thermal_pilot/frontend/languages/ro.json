@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Selectați puterea solară actuală în W sau kW. Lăsați gol pentru dezactivare. Producția nu este surplus: alți consumatori pot necesita energie din rețea.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Porniți după cinci minute peste prag. Camerele trebuie să poată stoca căldură utilă în limitele existente de creștere și temperatură.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "După cinci minute sub pragul inferior, încălzirea se oprește la îndeplinirea duratei minime. Între praguri, perioadele existente continuă.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Durata minimă solicitată se păstrează la repornire. Poate utiliza energie din rețea. Controlul manual, datele lipsă, răcirea și protecțiile de temperatură sau uși au prioritate."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Durata minimă solicitată se păstrează la repornire. Poate utiliza energie din rețea. Controlul manual, datele lipsă, răcirea și protecțiile de temperatură sau uși au prioritate.",
+    "Heating priority": "Prioritate încălzire",
+    "Allow floor assistance below target by (°C)": "Permite sprijinul pardoselii sub țintă cu (°C)",
+    "Independent": "Independentă",
+    "Heat pump preferred": "Pompa de căldură preferată",
+    "Floor heating backup": "Pardoseală ca rezervă",
+    "Floor heating assists": "Pardoseala sprijină încălzirea",
+    "Cooling or manual zone priority": "Răcirea sau controlul manual al zonei are prioritate",
+    "Predicted temperature after floor response lag": "Temperatura estimată după întârzierea pardoselii",
+    "Heat pump preferred; floor heating assists when needed.": "Pompa de căldură preferată; pardoseala ajută la nevoie.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Asociați pompa în Zone și păstrați aici termostatul pardoselii. Prioritatea folosește răspunsul camerei, nu COP. Fără zonă activă revine controlul independent al pardoselii.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Sprijinul începe la acest deficit sau mai devreme dacă tendința observată îl prevede în timpul de răspuns al pardoselii. Pompa continuă încălzirea. Se aplică durata minimă și limitele de temperatură existente."
   },
   "legacy": {},
   "cardMessages": {

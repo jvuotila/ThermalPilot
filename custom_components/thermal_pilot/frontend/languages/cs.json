@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Vyberte aktuální solární výkon ve W nebo kW. Prázdné pole funkci vypne. Výroba není přebytek: další spotřebiče mohou vyžadovat elektřinu ze sítě.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Spusťte po pěti minutách nad mezí. Místnosti musí mít prostor pro užitečné teplo v rámci stávajícího zvýšení a teplotních mezí.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Po pěti minutách pod dolní mezí vytápění skončí po dosažení minimální doby. Mezi mezemi běžící období pokračují.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimální požadovaná doba se zachová při restartu. Může využít elektřinu ze sítě. Ruční ovládání, chybějící vstupy, chlazení a teplotní či dveřní ochrany mají přednost."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimální požadovaná doba se zachová při restartu. Může využít elektřinu ze sítě. Ruční ovládání, chybějící vstupy, chlazení a teplotní či dveřní ochrany mají přednost.",
+    "Heating priority": "Priorita vytápění",
+    "Allow floor assistance below target by (°C)": "Povolit podporu podlahy pod cílem o (°C)",
+    "Independent": "Nezávislé",
+    "Heat pump preferred": "Tepelné čerpadlo přednostně",
+    "Floor heating backup": "Podlahové vytápění jako záloha",
+    "Floor heating assists": "Podlahové vytápění pomáhá",
+    "Cooling or manual zone priority": "Chlazení nebo ruční ovládání zóny má přednost",
+    "Predicted temperature after floor response lag": "Předpokládaná teplota po zpoždění podlahy",
+    "Heat pump preferred; floor heating assists when needed.": "Tepelné čerpadlo přednostně; podlaha pomáhá podle potřeby.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Přiřaďte čerpadlo v Zónách a ponechte zde termostat podlahy. Priorita využívá odezvu místnosti, nikoli COP. Bez aktivní zóny se obnoví nezávislé ovládání podlahy.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Podpora začne při tomto poklesu nebo dříve, pokud ho pozorovaný trend předpoví během zpoždění podlahy. Čerpadlo dále topí. Platí stávající minimální doba a teplotní meze."
   },
   "legacy": {},
   "cardMessages": {

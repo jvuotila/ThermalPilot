@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Pasirinkite dabartinę saulės gamybos galią W arba kW. Palikite tuščią, kad išjungtumėte. Gamyba nėra perteklius: kitas vartojimas gali reikalauti elektros iš tinklo.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Pradėkite po penkių minučių virš ribos. Kambariai turi galėti kaupti naudingą šilumą esamo padidinimo ir temperatūros ribose.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Po penkių minučių žemiau apatinės ribos šildymas baigiasi pasiekus mažiausią trukmę. Tarp ribų esami laikotarpiai tęsiasi.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Mažiausia prašoma trukmė išlieka po paleidimo iš naujo. Gali būti naudojama tinklo elektra. Rankinis valdymas, trūkstami duomenys, vėsinimas ir temperatūros ar durų apsauga turi pirmenybę."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Mažiausia prašoma trukmė išlieka po paleidimo iš naujo. Gali būti naudojama tinklo elektra. Rankinis valdymas, trūkstami duomenys, vėsinimas ir temperatūros ar durų apsauga turi pirmenybę.",
+    "Heating priority": "Šildymo prioritetas",
+    "Allow floor assistance below target by (°C)": "Leisti grindų pagalbą žemiau tikslo per (°C)",
+    "Independent": "Nepriklausomas",
+    "Heat pump preferred": "Šilumos siurblys pirmiausia",
+    "Floor heating backup": "Grindinis šildymas atsargai",
+    "Floor heating assists": "Grindinis šildymas padeda",
+    "Cooling or manual zone priority": "Vėsinimas arba rankinis zonos valdymas pirmiau",
+    "Predicted temperature after floor response lag": "Numatoma temperatūra po grindų delsos",
+    "Heat pump preferred; floor heating assists when needed.": "Šilumos siurblys pirmiausia; grindys padeda pagal poreikį.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Susiekite siurblį skiltyje Zonos, o čia palikite grindų termostatą. Prioritetas remiasi kambario reakcija, ne COP. Be aktyvios zonos grįžta nepriklausomas grindų valdymas.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Pagalba prasideda pasiekus šį nuokrypį arba anksčiau, jei stebima tendencija jį numato per grindų delsą. Siurblys šildo toliau. Galioja esama minimali trukmė ir temperatūros ribos."
   },
   "legacy": {},
   "cardMessages": {

@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Atlasiet pašreizējo saules ražošanas jaudu W vai kW. Atstājiet tukšu, lai atspējotu. Ražošana nav pārpalikums: cits patēriņš var prasīt elektrību no tīkla.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Sāciet pēc piecām minūtēm virs sliekšņa. Telpās jābūt vietai noderīgam siltumam esošā paaugstinājuma un temperatūras robežās.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Pēc piecām minūtēm zem šī zemākā sliekšņa apkure beidzas, kad sasniegts minimālais ilgums. Starp sliekšņiem esošie periodi turpinās.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimālais pieprasītais ilgums saglabājas pēc restartēšanas. Tas var izmantot tīkla elektrību. Manuālai vadībai, trūkstošiem datiem, dzesēšanai un temperatūras vai durvju aizsardzībai ir prioritāte."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimālais pieprasītais ilgums saglabājas pēc restartēšanas. Tas var izmantot tīkla elektrību. Manuālai vadībai, trūkstošiem datiem, dzesēšanai un temperatūras vai durvju aizsardzībai ir prioritāte.",
+    "Heating priority": "Apkures prioritāte",
+    "Allow floor assistance below target by (°C)": "Atļaut grīdas atbalstu zem mērķa par (°C)",
+    "Independent": "Neatkarīga",
+    "Heat pump preferred": "Siltumsūknim priekšroka",
+    "Floor heating backup": "Grīdas apkure rezervē",
+    "Floor heating assists": "Grīdas apkure palīdz",
+    "Cooling or manual zone priority": "Dzesēšanai vai zonas manuālai vadībai priekšroka",
+    "Predicted temperature after floor response lag": "Prognozētā temperatūra pēc grīdas aiztures",
+    "Heat pump preferred; floor heating assists when needed.": "Siltumsūknim priekšroka; grīdas apkure palīdz pēc vajadzības.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Piesaistiet sūkni sadaļā Zonas un šeit saglabājiet grīdas termostatu. Prioritāte izmanto telpas reakciju, nevis COP. Bez aktīvas zonas atjaunojas neatkarīga grīdas vadība.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Atbalsts sākas pie šīs starpības vai agrāk, ja novērotā tendence to paredz grīdas aiztures laikā. Sūknis turpina sildīt. Spēkā esošais minimālais ilgums un temperatūras robežas saglabājas."
   },
   "legacy": {},
   "cardMessages": {

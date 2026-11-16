@@ -1,6 +1,22 @@
 await import(new URL(`./localization.js${new URL(import.meta.url).search}`, import.meta.url));
 /* Native custom panel. All data is escaped; settings are validated server-side. */
 const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Calendar dates are wall-clock days. Only the backend converts them to HA's time zone.
+function calendarDateKey(date){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
+function awayCalendarMonth(month,selected,today,locale){
+ const year=month.getFullYear(),number=month.getMonth();
+ const title=new Intl.DateTimeFormat(locale,{month:'long',year:'numeric'}).format(month);
+ const first=new Date(year,number,1,12);const offset=(first.getDay()+6)%7;
+ const weekdays=Array.from({length:7},(_,index)=>`<span class="weekday" aria-hidden="true">${escapeHTML(new Intl.DateTimeFormat(locale,{weekday:'short'}).format(new Date(2026,5,1+index,12)))}</span>`).join('');
+ const days=Array.from({length:42},(_,index)=>{
+  const date=new Date(year,number,1-offset+index,12),key=calendarDateKey(date);
+  const chosen=key===selected.start||key===selected.end;
+  const range=key>selected.start&&key<selected.end;
+  const label=new Intl.DateTimeFormat(locale,{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(date);
+  return `<button type="button" data-calendar-date="${key}" class="day${date.getMonth()!==number?' other':''}${chosen?' selected':range?' range':''}${key===today?' today':''}" aria-label="${escapeHTML(label)}" aria-pressed="${chosen}" ${key===today?'aria-current="date"':''}>${date.getDate()}</button>`;
+ }).join('');
+ return `<section class="month" aria-label="${escapeHTML(title)}"><h3>${escapeHTML(title)}</h3><div class="days">${weekdays}${days}</div></section>`;
+}
 const tooltipInfoIcon='<svg class="status-info" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle class="status-info-dot" cx="10" cy="6" r="1"/></svg>';
 const roomFloorPlanAsset=typeof location!=='undefined'&&/\/PREVIEW\.html$/.test(location.pathname)?'./custom_components/thermal_pilot/frontend/rooms-floor-plan.png':'/thermal_pilot/rooms-floor-plan.png';
 const dateLabel = value => new Date(value).toLocaleDateString('fi-FI',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -24,7 +40,7 @@ function retentionRating(value){
  if(Number.isFinite(value.reference_hours)&&value.reference_hours>0){const ratio=value.hours_per_degree/value.reference_hours;return {...relativeRetentionBands.find(band=>ratio<band.below),relative:true,ratio};}
  return retentionBands.find(band=>value.hours_per_degree<band.below);
 }
-const controlOptionLabels={house:'House heating system',air_to_air:'Air-to-air heat pump',temperature:'Temperature limits only',tariff:'Electricity tariff optimization',heat:'Heating only',cool:'Cooling only',both:'Heating in winter / cooling in summer',main:'Main room sensor',average:'Average of room sensors',coldest:'Coldest room sensor',fireplace:'Fireplace'};
+const controlOptionLabels={independent:'Independent',heat_pump_preferred:'Heat pump preferred',house:'House heating system',air_to_air:'Air-to-air heat pump',temperature:'Temperature limits only',tariff:'Electricity tariff optimization',heat:'Heating only',cool:'Cooling only',both:'Heating in winter / cooling in summer',main:'Main room sensor',average:'Average of room sensors',coldest:'Coldest room sensor',fireplace:'Fireplace'};
 const settingHelp = {
   nordpool_entry:'Read EUR prices through Home Assistant. For community Nord Pool, select its sensor instead.',
   nordpool_area:'Automatic requires one integration and one price area.',
@@ -33,6 +49,12 @@ const settingHelp = {
   solar_power_entity:'Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.',
   solar_start_kw:'Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.',
   solar_stop_kw:'After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.',
+  away_temperature:'Fixed away heating target. Planned and solar boosts yield to it; manual heating can override it.',
+  away_cooling_temperature:'Warmer away cooling target. Applies only to systems already configured for automatic cooling.',
+  away_automatic:'Everyone must be away for the delay. A return restores normal targets and cancels active bookings.',
+  away_zone:'Uses the zone’s tracked-person count. Zero means empty; unknown pauses automatic absence detection.',
+  away_delay_hours:'Continuous absence required before changing targets. A return resets this timer; restarts preserve it.',
+  away_exempt:'Keep normal heating and cooling, for example for aquariums. Shared heat-pump zones preserve all members’ normal targets if one is exempt.',
   solar_minimum_run_minutes:'Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.',
   shared_air_rooms:'Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.',
   heating_enabled: 'Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.',
@@ -52,6 +74,8 @@ const settingHelp = {
   air_swing:'Options are those supported by every selected ordinary air-to-air heat pump. Leave unchanged sends no swing command.',
   air_heat_target:'Device setpoint used in Heat mode. External room sensors and the heating plan decide when to switch between Heat and Fan only. This is separate from each room’s comfort target.',
   heat_control:'Use the house heating system, or choose a separate air-to-air heat pump. Rooms linked to a zone share that zone’s pump; only the zone’s main room issues commands.',
+  heating_priority:'Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.',
+  assist_below_target:'Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.',
   heating_zone_id:'Link rooms served by one air-to-air heat pump. The zone has one controller and a choice of main-room, average or coldest-room temperature. Any linked room at the shared upper limit pauses zone heating.',
   temperature_policy:'Choose the main room sensor, the average of all linked sensors, or the coldest room. All linked sensors must be available. Heating pauses if any linked room reaches the shared upper limit.',
   garage_door_entities:'Door contact sensors pause garage heating when any selected door stays open longer than Pause heating after door opens. The pump switches to fan-only. One shared timer starts when the first selected door opens and keeps running while any selected door remains open. It resets when all selected doors are closed.',
@@ -100,6 +124,7 @@ const sourceSettingGroups = [
   ['Weather and forecast settings',['weather_entity','outdoor_entity','wind_entity','summer_minimum_temperature']],
   ['Heating settings',['minimum_run_minutes','fireplace_entity','fireplace_active_state']],
   ['Solar power heating settings',['solar_power_entity','solar_start_kw','solar_stop_kw','solar_minimum_run_minutes']],
+  ['Away heating and cooling',['away_automatic','away_zone','away_delay_hours','away_temperature','away_cooling_temperature']],
   ['Notifications',['manual_notification_target']],
   ['Miscellaneous',['sensor_warning_hours']],
 ];
@@ -119,7 +144,7 @@ function fireplaceStateOptions(sensor,saved){
   if(usable(saved)&&!values.includes(saved))values.push(saved);
   return [...new Set(values)].map(value=>({value,label:binary?(value==='on'?(contact?'Open':'On'):value==='off'?(contact?'Closed':'Off'):value):value}));
 }
-const sourceReadingKeys=['price_entity','weather_entity','outdoor_entity','wind_entity','water_entity','solar_power_entity'];
+const sourceReadingKeys=['price_entity','weather_entity','outdoor_entity','wind_entity','water_entity','solar_power_entity','away_zone'];
 function sourceReading(key,entity,sensor){
   if(key==='price_entity'&&entity==='static')return 'Static price';
   if(key==='price_entity'&&entity==='nordpool')return 'Nord Pool (Home Assistant)';
@@ -375,7 +400,7 @@ class ThermalPilotPanel extends HTMLElement {
   set hass(value){this._hass=value;this.updateFireplaceReading();this.updateSourceReadings();if(this.isConnected && !this.loaded && !this.loading)this.load();}
   set panel(value){this._panel=value;if(this.isConnected && this._hass && !this.loaded)this.load();}
   connectedCallback(){if(this._hass)this.load();this.timer=setInterval(()=>{if(!['settings','rooms'].includes(this.tab))this.load();},60000);}
-  disconnectedCallback(){this.manualDialog?.close();this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearTimeout(this.manualSessionTimer);clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
+  disconnectedCallback(){this.awayDialog?.close();this.manualDialog?.close();this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearTimeout(this.manualSessionTimer);clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
   get entry(){return this._panel?.config?.entry_id;}
   manualControlStatus(id){
     const control=this.info?.manual_controls?.[id];
@@ -428,6 +453,87 @@ class ThermalPilotPanel extends HTMLElement {
       return `<span class="manual-slot"><button type="button" class="manual-icon${active?' active':''}${manual?' manual-session':''}" data-manual-id="${escapeHTML(id)}" data-manual-mode="${mode}" aria-pressed="${manual}" aria-label="${escapeHTML(title+': '+name)}" title="${escapeHTML(title)}" ${!control.enabled&&!session?'disabled':''}>${mode==='heat'?HEATING_FLAME:COOLING_SNOWFLAKE}</button></span>`;
     }).join('');
     return `<div xmlns="http://www.w3.org/1999/xhtml" class="manual-name" style="color:${color}">${buttons}<span data-user-text class="manual-label" title="${escapeHTML(name)}">${escapeHTML(name)}</span></div>`;
+  }
+  awayCalendarButton(){
+    const away=this.info?.data?.away;
+    const active=away?.active;
+    const scheduled=Boolean(away?.schedule);
+    const title=this.t(active?'Away temperatures active':scheduled?'Scheduled absence':'Away calendar');
+    return `<button type="button" id="away-calendar" data-away-calendar class="away-calendar-button${active?' active':scheduled?' scheduled':''}" aria-label="${escapeHTML(title)}" title="${escapeHTML(title)}" ${this.info?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18M8 14h2M14 14h2M8 17h2"/></svg></button>`;
+  }
+  openAwayCalendar(){
+    this.awayDialog?.close();
+    const dialog=document.createElement('dialog');this.awayDialog=dialog;
+    dialog.className='thermal-pilot-away-dialog';dialog.setAttribute('aria-labelledby','away-title');
+    const locale=this.settings.language||'en';dialog.setAttribute('lang',locale);
+    const away=this.info.data?.away||{};
+    const timeZone=away.time_zone||this._hass.config?.time_zone||Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const parts=timestamp=>{
+      const values=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(timestamp).map(part=>[part.type,part.value]));
+      return {date:`${values.year}-${values.month}-${values.day}`,time:`${values.hour}:${values.minute}`};
+    };
+    const today=parts(Date.now());
+    const start=parts(away.schedule?away.schedule.start*1000:Date.now());
+    const end=parts(away.schedule?away.schedule.end*1000:Date.now()+7*86400000);
+    if(!away.schedule)end.time='22:00';
+    const selected={start:start.date,end:end.date};
+    let month=new Date(Number(start.date.slice(0,4)),Number(start.date.slice(5,7))-1,1,12);
+    let picking='start';
+    const title=this.t('Away calendar');
+    const icon='<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle cx="10" cy="6" r=".7"/></svg>';
+    const tooltip=(id,text)=>`<span class="help"><button type="button" data-help="${id}" aria-label="${escapeHTML(this.t('How this works'))}" aria-expanded="false" aria-describedby="${id}">${icon}</button><span id="${id}" class="tip" role="tooltip" hidden>${escapeHTML(this.t(text))}</span></span>`;
+    const help='Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.';
+    const cancelHelp='Cancels the booking only. Automatic away temperatures may remain active after the absence delay.';
+    const status=away.active?this.t(away.source==='calendar'?'Calendar absence active':'Automatic absence active'):away.schedule?this.t('Scheduled absence'):this.t('No calendar absence');
+    dialog.innerHTML=`<style>
+      .thermal-pilot-away-dialog{color:var(--primary-text-color,#213547);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8e0e4);border-radius:20px;padding:24px;width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;box-shadow:0 20px 80px #142e4540;font:14px system-ui}.thermal-pilot-away-dialog::backdrop{background:#182b3c65}.thermal-pilot-away-dialog *{box-sizing:border-box}.thermal-pilot-away-dialog button,.thermal-pilot-away-dialog input{font:inherit;color:inherit}.thermal-pilot-away-dialog header,.thermal-pilot-away-dialog .month-nav{display:flex;align-items:center;justify-content:space-between;gap:12px}.thermal-pilot-away-dialog h2{font-size:22px;margin:0}.thermal-pilot-away-dialog .heading{display:flex;align-items:center;gap:10px}.thermal-pilot-away-dialog button{cursor:pointer}.thermal-pilot-away-dialog button:focus-visible,.thermal-pilot-away-dialog input:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}.thermal-pilot-away-dialog .close{border:0;background:transparent;font-size:26px;min-width:40px;min-height:40px}.thermal-pilot-away-dialog .status{color:var(--secondary-text-color,#526b75);margin:8px 0 18px}.thermal-pilot-away-dialog .targets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.thermal-pilot-away-dialog .targets span{padding:6px 10px;border-radius:8px;background:#829aa313;font-size:13px}.thermal-pilot-away-dialog .dates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.thermal-pilot-away-dialog .date-card{padding:12px;border:1px solid var(--divider-color,#d8e0e4);border-radius:12px;background:var(--secondary-background-color,#f5f8fa)}.thermal-pilot-away-dialog .date-card.active{border-color:var(--primary-color,#00838f);box-shadow:0 0 0 1px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .pick{font-weight:600;border:0;background:transparent;padding:0 0 8px;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog .date-inputs{display:grid;grid-template-columns:minmax(0,1fr) 94px;gap:8px}.thermal-pilot-away-dialog input{min-width:0;width:100%;border:1px solid #b6c8d0;border-radius:6px;background:var(--card-background-color,#fff);padding:8px;min-height:40px}.thermal-pilot-away-dialog .month-nav{margin:16px 0 8px}.thermal-pilot-away-dialog .month-nav button{border:0;border-radius:8px;background:#829aa310;font-size:24px;width:40px;height:40px}.thermal-pilot-away-dialog .month-nav span{font-size:13px;color:var(--secondary-text-color,#526b75)}.thermal-pilot-away-dialog .months{display:grid;grid-template-columns:1fr 1fr;gap:24px}.thermal-pilot-away-dialog .month h3{font-size:15px;text-align:center;margin:8px 0 12px}.thermal-pilot-away-dialog .days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.thermal-pilot-away-dialog .weekday{font-size:11px;color:var(--secondary-text-color,#526b75);text-align:center;padding:6px 0}.thermal-pilot-away-dialog .day{height:36px;min-width:0;border:0;border-radius:7px;background:transparent;padding:0}.thermal-pilot-away-dialog .day.other{opacity:.35}.thermal-pilot-away-dialog .day.range{background:#00838f12;border-radius:3px}.thermal-pilot-away-dialog .day.today{box-shadow:inset 0 0 0 1px #829aa370}.thermal-pilot-away-dialog .day.selected{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);font-weight:700;border-radius:8px}.thermal-pilot-away-dialog .day:hover{box-shadow:inset 0 0 0 2px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .zone{color:var(--secondary-text-color,#526b75);font-size:12px;line-height:1.6;margin:16px 0}.thermal-pilot-away-dialog footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--divider-color,#d8e0e4)}.thermal-pilot-away-dialog footer button{min-height:40px;border:0;border-radius:20px;padding:8px 14px;background:transparent;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog footer .save{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);margin-left:auto}.thermal-pilot-away-dialog footer .stop{color:var(--error-color,#ba4d43);border:1px solid #d2837b55}.thermal-pilot-away-dialog .help{position:relative;display:inline-flex;align-items:center}.thermal-pilot-away-dialog .help>button{display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--primary-color,#00838f);width:32px;min-height:32px;padding:6px}.thermal-pilot-away-dialog .help svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}.thermal-pilot-away-dialog .tip{position:absolute;z-index:10;top:100%;left:0;width:min(340px,calc(100vw - 72px));padding:12px 14px;border-radius:10px;background:#18282f;color:#fff;font-size:13px;line-height:1.6;box-shadow:0 6px 24px #0003}.thermal-pilot-away-dialog .heading .tip{left:0;right:auto}.thermal-pilot-away-dialog footer .tip{top:auto;bottom:100%}.thermal-pilot-away-dialog [hidden]{display:none!important}.thermal-pilot-away-dialog [role=alert]{color:var(--error-color,#b23b34);line-height:1.5}.thermal-pilot-away-dialog button:disabled{opacity:.5;cursor:default}@media(max-width:600px){.thermal-pilot-away-dialog{padding:18px}.thermal-pilot-away-dialog .months{grid-template-columns:1fr}.thermal-pilot-away-dialog .month:nth-child(2){display:none}.thermal-pilot-away-dialog .dates{gap:8px}.thermal-pilot-away-dialog .date-inputs{grid-template-columns:1fr}.thermal-pilot-away-dialog .day{height:40px}.thermal-pilot-away-dialog footer .tip{position:fixed;left:32px;bottom:90px;top:auto}.thermal-pilot-away-dialog .heading .tip{position:fixed;top:110px;left:32px;right:auto}}
+    </style><form novalidate><header><div class="heading"><h2 id="away-title">${escapeHTML(title)}</h2>${tooltip('calendar-help',help)}</div><button type="button" class="close" aria-label="${escapeHTML(this.t('Close'))}">×</button></header><p class="status">${escapeHTML(status)}</p><div class="targets"><span>${escapeHTML(this.t('Heating'))} ${escapeHTML(away.temperature??this.info.settings?.away_temperature??16)} °C</span><span>${escapeHTML(this.t('Cooling'))} ${escapeHTML(away.cooling_temperature??this.info.settings?.away_cooling_temperature??26)} °C</span></div><div class="dates">${['start','end'].map(key=>`<div class="date-card" data-date-card="${key}"><button type="button" class="pick" data-pick="${key}">${escapeHTML(this.t(key==='start'?'Start':'End'))}</button><div class="date-inputs"><input type="date" name="${key}-date" aria-label="${escapeHTML(this.t(key==='start'?'Start date':'End date'))}" value="${key==='start'?start.date:end.date}"><input type="time" name="${key}-time" aria-label="${escapeHTML(this.t(key==='start'?'Start time':'End time'))}" value="${key==='start'?start.time:end.time}" step="60"></div></div>`).join('')}</div><div class="month-nav"><button type="button" data-month="-1" aria-label="${escapeHTML(this.t('Previous month'))}">‹</button><span>${escapeHTML(this.t('Select the first and last day'))}</span><button type="button" data-month="1" aria-label="${escapeHTML(this.t('Next month'))}">›</button></div><div class="months"></div><p class="zone">${escapeHTML(this.t('Home Assistant time zone'))}: <span data-user-text>${escapeHTML(timeZone)}</span></p><p role="alert" hidden></p><footer>${away.schedule?`<button type="button" class="stop">${escapeHTML(this.t('Cancel period'))}</button>${tooltip('cancel-help',cancelHelp)}`:''}<button type="button" class="dismiss">${escapeHTML(this.t('Close'))}</button><button type="submit" class="save">${escapeHTML(this.t(away.schedule?'Update period':'Schedule absence'))}</button></footer></form>`;
+    const draw=()=>{
+      dialog.querySelector('.months').innerHTML=[0,1].map(offset=>awayCalendarMonth(new Date(month.getFullYear(),month.getMonth()+offset,1,12),selected,today.date,locale)).join('');
+      dialog.querySelectorAll('[data-date-card]').forEach(card=>card.classList.toggle('active',card.dataset.dateCard===picking));
+    };
+    const select=date=>{
+      selected[picking]=date;
+      if(picking==='start'&&selected.end<date)selected.end=date;
+      if(picking==='end'&&selected.start>date)selected.start=date;
+      for(const key of ['start','end'])dialog.querySelector(`[name="${key}-date"]`).value=selected[key];
+      picking=picking==='start'?'end':'start';draw();
+    };
+    dialog.addEventListener('click',event=>{
+      const day=event.target.closest('[data-calendar-date]');if(day)select(day.dataset.calendarDate);
+      const picker=event.target.closest('[data-pick]');if(picker){picking=picker.dataset.pick;draw();}
+      const navigation=event.target.closest('[data-month]');if(navigation){month=new Date(month.getFullYear(),month.getMonth()+Number(navigation.dataset.month),1,12);draw();}
+      const help=event.target.closest('[data-help]');if(!help&&!event.target.closest('.tip'))dialog.querySelectorAll('[data-help]').forEach(button=>{button.setAttribute('aria-expanded','false');dialog.querySelector('#'+button.dataset.help).hidden=true;});if(help){const tip=dialog.querySelector('#'+help.dataset.help);tip.hidden=!tip.hidden;help.setAttribute('aria-expanded',String(!tip.hidden));}
+    });
+    dialog.addEventListener('keydown',event=>{
+      if(event.key==='Escape'&&dialog.querySelector('.tip:not([hidden])')){event.preventDefault();event.stopPropagation();dialog.querySelectorAll('[data-help]').forEach(button=>{button.setAttribute('aria-expanded','false');dialog.querySelector('#'+button.dataset.help).hidden=true;});return;}
+      const button=event.target.closest('[data-calendar-date]');
+      const shift={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7};
+      if(!button||!Object.hasOwn(shift,event.key))return;
+      event.preventDefault();const date=new Date(button.dataset.calendarDate+'T12:00:00');date.setDate(date.getDate()+shift[event.key]);
+      const key=calendarDateKey(date);
+      if(![...dialog.querySelectorAll(`[data-calendar-date="${key}"]`)].some(day=>day.getClientRects().length)){month=new Date(date.getFullYear(),date.getMonth(),1,12);draw();}
+      dialog.querySelector(`[data-calendar-date="${key}"]`)?.focus();
+    });
+    for(const key of ['start','end'])dialog.querySelector(`[name="${key}-date"]`).addEventListener('change',event=>{if(event.target.value){selected[key]=event.target.value;picking=key;month=new Date(event.target.value+'T12:00:00');draw();}});
+    const submit=async cancel=>{
+      const alert=dialog.querySelector('[role=alert]');alert.hidden=true;
+      const startValue=dialog.querySelector('[name="start-date"]').value+'T'+dialog.querySelector('[name="start-time"]').value;
+      const endValue=dialog.querySelector('[name="end-date"]').value+'T'+dialog.querySelector('[name="end-time"]').value;
+      if(!cancel&&(!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(startValue)||!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(endValue)||endValue<=startValue)){
+        alert.textContent=this.t('The end must be after the start and in the future.');alert.hidden=false;return;
+      }
+      dialog.querySelectorAll('button').forEach(button=>button.disabled=true);
+      try{
+        const result=await this.call('away',{action:cancel?'cancel':'set',...(cancel?{}:{start:startValue,end:endValue})});
+        this.info.data=result.data;dialog.close();this.render();
+      }catch(error){alert.textContent=this.t(error.message||'Unable to save the absence period.');alert.hidden=false;dialog.querySelectorAll('button').forEach(button=>button.disabled=false);}
+    };
+    dialog.querySelector('form').addEventListener('submit',event=>{event.preventDefault();submit(false);});
+    dialog.querySelector('.stop')?.addEventListener('click',()=>submit(true));
+    dialog.querySelectorAll('.close,.dismiss').forEach(button=>button.addEventListener('click',()=>dialog.close()));
+    dialog.addEventListener('close',()=>{dialog.remove();if(this.awayDialog===dialog)this.awayDialog=null;[...this.shadowRoot.querySelectorAll('[data-away-calendar]')].find(button=>button.getClientRects().length)?.focus();},{once:true});
+    document.body.append(dialog);draw();dialog.showModal();
   }
   openManualSession(id,mode,trigger){
     const control=this.info?.manual_controls?.[id];if(!control)return;
@@ -555,7 +661,7 @@ class ThermalPilotPanel extends HTMLElement {
       const options=key==='heating_zone_id'?(this.settings.heating_zones||[]):this.settings.rooms.filter(r=>r.heating_zone_id===obj.id);
       input=`<select data-field="${name}"><option value="">— Select / not used —</option>${options.map(v=>`<option data-user-text value="${escapeHTML(v.id)}" ${v.id===value?'selected':''}>${escapeHTML(v.name||'New room')}</option>`).join('')}</select>`;
     }
-    else if(type.startsWith('select:'))input=`<select data-field="${name}">${type.slice(7).split(',').map(v=>`<option ${v===value?'selected':''} value="${escapeHTML(v)}">${escapeHTML(key==='language'?({'en':'🇬🇧 English','fi':'🇫🇮 Finnish'}[v]||v):['heat_control','garage_strategy','temperature_policy','air_zone_temperature','source_type','climate_mode','heating_strategy'].includes(key)?controlOptionLabels[v]||v:key==='transfer_tariff'?({included:'Already included / no addition',fixed:'Fixed transfer price',day_night:'Day/night transfer prices'}[v]):key==='pricing_mode'?schedulingLabels[v]||v:(key.startsWith('house_')||key==='garage_construction')?houseOptionLabels[v]||v:key==='solar_direction'&&v==='disabled'?'Solar heating off':['solar_direction','solar_exposure'].includes(key)?v.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase()):v)}</option>`).join('')}</select>`;
+    else if(type.startsWith('select:'))input=`<select data-field="${name}">${type.slice(7).split(',').map(v=>`<option ${v===value?'selected':''} value="${escapeHTML(v)}">${escapeHTML(key==='language'?({'en':'🇬🇧 English','fi':'🇫🇮 Finnish'}[v]||v):['heating_priority','heat_control','garage_strategy','temperature_policy','air_zone_temperature','source_type','climate_mode','heating_strategy'].includes(key)?controlOptionLabels[v]||v:key==='transfer_tariff'?({included:'Already included / no addition',fixed:'Fixed transfer price',day_night:'Day/night transfer prices'}[v]):key==='pricing_mode'?schedulingLabels[v]||v:(key.startsWith('house_')||key==='garage_construction')?houseOptionLabels[v]||v:key==='solar_direction'&&v==='disabled'?'Solar heating off':['solar_direction','solar_exposure'].includes(key)?v.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase()):v)}</option>`).join('')}</select>`;
     else if(type==='time')input=`<input type="time" step="60" data-field="${name}" value="${escapeHTML(value)}">`;
     else if(['solar_start_kw','solar_stop_kw'].includes(key)){
       const sliderMax=Math.max(20,Math.ceil(Number(value||0)/10)*10);
@@ -584,6 +690,7 @@ class ThermalPilotPanel extends HTMLElement {
       const staticPrice=this.settings.price_entity==='static';
       const nativePrice=['nordpool','tibber'].includes(this.settings.price_entity);
       const available=keys.filter(key=>{
+        if(['away_zone','away_delay_hours'].includes(key)&&!this.settings.away_automatic)return false;
         if(['solar_start_kw','solar_stop_kw','solar_minimum_run_minutes'].includes(key)&&!this.settings.solar_power_entity)return false;
         if(key==='static_price')return staticPrice;
         if(key.startsWith('nordpool_'))return this.settings.price_entity==='nordpool';
@@ -595,6 +702,13 @@ class ThermalPilotPanel extends HTMLElement {
         return true;
       }).map(key=>fields.get(key)).filter(Boolean);
       let fieldMarkup=`<div class="grid">${available.map(field=>this.field(field,this.settings,'source')).join('')}</div>`;
+      if(title==='Away heating and cooling'){
+        const rows=[['away_automatic','away_zone','away_delay_hours'],['away_temperature','away_cooling_temperature']];
+        fieldMarkup='<div class="away-settings-fields">'+rows.map(keys=>{
+          const selected=keys.map(key=>available.find(field=>field[0]===key)).filter(Boolean);
+          return `<div class="grid">${selected.map(field=>this.field(field,this.settings,'source')).join('')}</div>`;
+        }).join('')+'</div>';
+      }
       if(title==='Electricity price settings'){
         const row=keys=>{
           const selected=keys.map(key=>available.find(field=>field[0]===key)).filter(Boolean);
@@ -681,7 +795,17 @@ class ThermalPilotPanel extends HTMLElement {
     }
   }
   roomSettingsFields(r,index){
-    const visible=this.info.room_fields.filter(f=>f[0]==='shared_air_rooms'?this.sharedAirEligible(r):f[0].startsWith('garage_')?r.is_garage:f[0]==='baseline'?!r.is_garage:f[0]==='fireplace_reduction'?!r.is_garage:['heat_control','thermostat','activity_entity'].includes(f[0])?(!r.is_garage||f[0]==='thermostat'):f[0]==='heating_zone_id'?false:true);
+    const electricFloor=!r.is_garage&&(r.heat_control||'house')==='house'&&this.settings.house_heat_source==='electric_resistance'&&this.settings.house_distribution==='electric_floor';
+    const visible=this.info.room_fields.filter(field=>{
+      const key=field[0];
+      if(key==='heating_priority')return electricFloor;
+      if(key==='assist_below_target')return electricFloor&&r.heating_priority==='heat_pump_preferred';
+      if(key==='shared_air_rooms')return this.sharedAirEligible(r);
+      if(key.startsWith('garage_'))return r.is_garage;
+      if(['baseline','fireplace_reduction','away_exempt'].includes(key))return !r.is_garage;
+      if(['heat_control','thermostat','activity_entity'].includes(key))return !r.is_garage||key==='thermostat';
+      return key!=='heating_zone_id';
+    });
     const render=fields=>fields.map(field=>this.field(field,r,`room${index}`)).join('');
     const general=visible.filter(field=>!field[0].startsWith('garage_'));
     const garage=visible.filter(field=>field[0].startsWith('garage_'));
@@ -862,7 +986,13 @@ class ThermalPilotPanel extends HTMLElement {
     const targetDetail=`${this.t('Current thermostat target')}: ${targetValue}`;
     const solar=room?.solar_heating;
     const solarDetail=solar?`\n${this.t('Solar heating session')} · ${this.t('Minimum solar heating until')}: ${new Intl.DateTimeFormat(this.settings?.language||'en',{hour:'2-digit',minute:'2-digit'}).format(solar.minimum_until*1000)}`:'';
-    const detail=`${this.t(`${label}. Current relay or thermostat demand; On does not guarantee water flow.`)}\n${targetDetail}${solarDetail}`;
+    const assistance=room?.heating_assistance;
+    let assistanceDetail='';
+    if(assistance){
+      assistanceDetail=`\n${this.t(assistance.reason)}`;
+      if(assistance.predicted_temperature!=null)assistanceDetail+=`\n${this.t('Predicted temperature after floor response lag')}: ${new Intl.NumberFormat(this.settings?.language||'en',{maximumFractionDigits:1}).format(assistance.predicted_temperature)} °C`;
+    }
+    const detail=`${this.t(`${label}. Current relay or thermostat demand; On does not guarantee water flow.`)}\n${targetDetail}${solarDetail}${assistanceDetail}`;
     const icon=status==='unknown'?'<span aria-hidden="true">?</span>':HEATING_FLAME;
     return `<span class="room-heating ${status}" role="img" aria-label="${escapeHTML(this.t(label)+'. '+targetDetail)}" title="${escapeHTML(detail)}" tabindex="0">${icon}</span>`;
   }
@@ -1052,12 +1182,19 @@ class ThermalPilotPanel extends HTMLElement {
    const entity=this.info.data?.temperature_history_entities?.[zone?'zones':'rooms']?.[item.id];
    const historyAction=entity?` data-temperature-history-entity="${escapeHTML(entity)}" role="button" tabindex="0" aria-label="${escapeHTML(this.t('History')+': '+item.name+' '+value)}"`:'';
    let targetArrow = '';
-   const plan = this.info.data?.rooms?.[item.id]?.plan;
+   const roomData=this.info.data?.rooms?.[item.id];
+   let plan=roomData?.plan;
+   const assistanceTarget=roomData?.heating_assistance?.floor_target;
+   if(assistanceTarget!=null){
+    plan={setpoint:assistanceTarget,mode:'normal'};
+    if(assistanceTarget>item.baseline)plan.mode='boost';
+    else if(assistanceTarget<item.baseline)plan.mode='reduced';
+   }
    // This is the current planned thermostat adjustment, not a measured temperature trend.
    // Heat-pump device targets and garage limits have different meanings.
    if (!history && !zone && !isAirRoom(item) && plan) {
     const boosted = plan.mode === 'boost' || plan.heat === true;
-    const reduced = plan.mode === 'reduced';
+    const reduced = plan.mode === 'reduced' || plan.mode === 'away';
     if (boosted || reduced) {
      const label = this.t(boosted ? 'Boosted thermostat target' : 'Reduced thermostat target temperature');
      let detail = label;
@@ -1530,6 +1667,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     if (room.pump_suggestion) {
       const pumpMode = room.pump_suggestion.mode;
       if (pumpMode === 'heat') status = 'Heat pump: Heating';
+      else if (pumpMode === 'cool') status = 'Heat pump: Cooling';
       else if (pumpMode === 'off') status = 'Heat pump: Off';
       else status = 'Heat pump: Fan only';
     } else if (room.zone_monitor) {
@@ -1540,7 +1678,13 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
       else status = 'Reduced thermostat target temperature';
     }
 
+    if(room.heating_assistance?.floor_target!=null)status=this.t(room.heating_assistance.reason);
+
+    if(room.away&&!room.pump_suggestion)status=this.t('Away temperatures active');
+
     const routineReasons = [
+      'Away temperature schedule',
+      'Heat pump preferred; floor heating assists when needed.',
       'Heat storage or a bridging run ahead of predicted cooling.',
       'Heating is planned later; no boost is suggested now.',
       'Garage temperature cycle: heat below the lower limit; fan-only after the upper limit. Warm weather turns the pump off.',
@@ -1571,7 +1715,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     const targetLabel = room.air_control
       ? 'Heat pump heating setpoint' : 'Suggested thermostat target';
     const target = room.air_control
-      ? room.pump_suggestion?.target : plan?.setpoint;
+      ? room.pump_suggestion?.target : room.away?.heating_target ?? room.heating_assistance?.floor_target ?? plan?.setpoint;
     const garageClass = this.isGarageRoom(roomId, room) ? ' garage-observation-card' : '';
     return `<section class="observation-card${garageClass}">
       <details class="observation-accordion" data-room-accordion="${escapeHTML(roomId)}" ${this.roomDisclosureOpen(roomId) ? 'open' : ''}>
@@ -2008,8 +2152,10 @@ details{scroll-margin-block:16px}
 
 /* Keep navigation reachable and card content inside the phone viewport. */
 :host{min-width:0;max-width:100%}
-.page-title{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.header-tools{position:absolute;top:24px;right:24px;display:flex;align-items:center;gap:16px}.page-title{padding-right:56px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .page-title h1{margin:0;min-width:0}
+.away-calendar-button{position:relative;z-index:30;display:inline-flex;align-items:center;justify-content:center;flex:none;width:40px;height:40px;padding:8px;border:1px solid var(--divider-color,#c6d2d8);border-radius:10px;background:transparent;color:var(--secondary-text-color,#526b75);cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s}.away-calendar-button:hover:not(:disabled){background:#00838f14;border-color:var(--primary-color,#00838f);color:var(--primary-color,#00838f);box-shadow:0 3px 12px #00838f26}.away-calendar-button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.away-calendar-button.active{color:var(--primary-color,#00838f);background:#00838f15;border-color:var(--primary-color,#00838f)}.away-calendar-button.scheduled{color:var(--primary-color,#00838f);border-style:dashed}.away-calendar-button:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}
+@media(max-width:360px){.page-title h1{font-size:22px}}
 .header-logo{display:block;width:36px;height:36px;object-fit:contain;flex:none}
 .menu-button{display:none;align-items:center;justify-content:center;flex:none;width:44px;height:44px;margin:0;padding:10px;border:0;background:transparent}
 .menu-button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
@@ -2019,6 +2165,7 @@ details{scroll-margin-block:16px}
  .menu-button{display:inline-flex}
  header.page-layout{padding:12px 10px 0}
  .page-title h1{font-size:25px}
+ .header-tools{top:12px;right:12px}
  .header-logo{width:28px;height:28px}
  .badge{font-size:13px;line-height:1.45;overflow-wrap:anywhere}
  .tab-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(48px,auto);align-items:stretch;gap:6px;margin:16px 0 12px;padding:6px;border-radius:12px;background:var(--secondary-background-color,#eaf0f4)}
@@ -2090,8 +2237,11 @@ details{scroll-margin-block:16px}
 .compact-status{display:none;position:relative;z-index:20}
 
  @media(min-width:1200px){
- header.page-layout{display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,1279px);align-items:center;gap:0 32px;padding-top:20px;grid-template-rows:minmax(100px,auto) auto}
- header.page-layout .page-title{grid-column:1;grid-row:1;margin:0;padding-top:0}
+ header.page-layout{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,1279px);align-items:center;gap:0 32px;padding-top:20px;grid-template-rows:minmax(100px,auto) auto}
+ header.page-layout .page-title{grid-column:1;grid-row:1;margin:0;padding:0}
+ header.page-layout .header-tools{position:static;grid-column:2;grid-row:1;width:100%;min-width:0}
+ .header-tools>.away-calendar-button{position:absolute;top:16px;right:24px}
+ .header-tools .compact-status{padding-right:56px;box-sizing:border-box}
  header.page-layout .page-title h1{font-size:30px}
  header.page-layout .header-status{display:none}
  .plan-layout .status-card{display:none}
@@ -2136,8 +2286,12 @@ details{scroll-margin-block:16px}
 @media(max-width:600px){
  #settings .price-settings-fields .grid.price-fields{grid-template-columns:minmax(0,1fr)}
 }
+
+#settings .away-settings-fields{display:grid;gap:20px}
+#settings .away-settings-fields>.grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media(max-width:600px){#settings .away-settings-fields>.grid{grid-template-columns:minmax(0,1fr)}}
 </style>
-    <header class="page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}"><div class="page-title"><button type="button" class="menu-button" id="ha-menu" aria-label="Open Home Assistant menu" title="Open Home Assistant menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><img class="header-logo" src="/thermal_pilot/icon.png" width="36" height="36" alt="" aria-hidden="true"><h1>ThermalPilot</h1></div>${this.headerStatus()}${this.compactStatusView()}<nav class="tab-list" role="tablist" aria-label="ThermalPilot pages">${[['overview','Plan'],['history','History'],['rooms','Rooms and zones'],['settings','Settings']].map(([id,label])=>`<button id="tab-${id}" role="tab" aria-selected="${this.tab===id}" aria-controls="thermal-pilot-tab-panel" tabindex="${this.tab===id?0:-1}" data-tab="${id}" class="${this.tab===id?'active':''}">${label}</button>`).join('')}</nav>${this.message&&!this.saveConfirmation&&!(['settings','rooms'].includes(this.tab)&&this.messageLevel==='error')?`${statusNotice(this.message,this.messageLevel||'info','message')}`:''}</header><main id="thermal-pilot-tab-panel" role="tabpanel" aria-labelledby="tab-${this.tab}" class="tab-panel page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}">${!this.info?'Loading…':['settings','rooms'].includes(this.tab)?this.settingsView(this.tab):this.tab==='history'?this.historyView():this.overview()}</main>${this.message&&this.saveConfirmation?`<div class="message save-toast notice-info" role="status" aria-live="polite">${statusIcon('info')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span></div>`:''}${this.message&&!this.saveConfirmation&&['settings','rooms'].includes(this.tab)&&this.messageLevel==='error'?`<div class="message save-toast notice-error save-error" role="alert" aria-live="assertive" tabindex="-1">${statusIcon('error')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span><button type="button" id="dismiss-save-error" aria-label="Dismiss error notification" title="Dismiss error notification">×</button></div>`:''}`;
+    <header class="page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}"><div class="page-title"><button type="button" class="menu-button" id="ha-menu" aria-label="Open Home Assistant menu" title="Open Home Assistant menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><img class="header-logo" src="/thermal_pilot/icon.png" width="36" height="36" alt="" aria-hidden="true"><h1>ThermalPilot</h1></div>${this.headerStatus()}<div class="header-tools">${this.awayCalendarButton()}${this.compactStatusView()}</div><nav class="tab-list" role="tablist" aria-label="ThermalPilot pages">${[['overview','Plan'],['history','History'],['rooms','Rooms and zones'],['settings','Settings']].map(([id,label])=>`<button id="tab-${id}" role="tab" aria-selected="${this.tab===id}" aria-controls="thermal-pilot-tab-panel" tabindex="${this.tab===id?0:-1}" data-tab="${id}" class="${this.tab===id?'active':''}">${label}</button>`).join('')}</nav>${this.message&&!this.saveConfirmation&&!(['settings','rooms'].includes(this.tab)&&this.messageLevel==='error')?`${statusNotice(this.message,this.messageLevel||'info','message')}`:''}</header><main id="thermal-pilot-tab-panel" role="tabpanel" aria-labelledby="tab-${this.tab}" class="tab-panel page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}">${!this.info?'Loading…':['settings','rooms'].includes(this.tab)?this.settingsView(this.tab):this.tab==='history'?this.historyView():this.overview()}</main>${this.message&&this.saveConfirmation?`<div class="message save-toast notice-info" role="status" aria-live="polite">${statusIcon('info')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span></div>`:''}${this.message&&!this.saveConfirmation&&['settings','rooms'].includes(this.tab)&&this.messageLevel==='error'?`<div class="message save-toast notice-error save-error" role="alert" aria-live="assertive" tabindex="-1">${statusIcon('error')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span><button type="button" id="dismiss-save-error" aria-label="Dismiss error notification" title="Dismiss error notification">×</button></div>`:''}`;
     this.shadowRoot.querySelector('#dismiss-save-error')?.addEventListener('click',()=>{this.message='';this.saveConfirmation=false;this.shadowRoot.querySelector('.save-error')?.remove();});
     this.shadowRoot.querySelector('.save-error')?.focus?.({preventScroll:true});
     this.shadowRoot.querySelector('#ha-menu')?.addEventListener('click',()=>this.openSidebar());
@@ -2149,6 +2303,7 @@ details{scroll-margin-block:16px}
     const retention=this.shadowRoot.querySelector('#retention-accordion');if(retention)retention.addEventListener('toggle',()=>{this.retentionOpen=retention.open;});
     const retentionHelp=this.shadowRoot.querySelector('#retention-help');retentionHelp?.addEventListener('toggle',()=>{this.retentionHelpOpen=retentionHelp.open;});
     const priceAccordion=this.shadowRoot.querySelector('#price-accordion');if(priceAccordion){const tab=this.tab;priceAccordion.addEventListener('toggle',()=>{this.priceAccordionState??={};this.priceAccordionState[tab]=priceAccordion.open;});}
+    this.shadowRoot.querySelectorAll('[data-away-calendar]').forEach(button=>button.addEventListener('click',event=>this.openAwayCalendar(event.currentTarget)));
     this.shadowRoot.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>this.switchTab(b.dataset.tab));
     this.shadowRoot.querySelector('.tab-list')?.addEventListener('keydown',event=>{
       const tabs=['overview','history','rooms','settings'],index=tabs.indexOf(event.target.dataset.tab);
@@ -2207,7 +2362,7 @@ details{scroll-margin-block:16px}
       if(key==='zone_rooms'){const selected=new Set(values.filter(Boolean));this.settings.rooms.forEach(room=>{if(room.heating_zone_id===obj.id&&!selected.has(room.id))room.heating_zone_id='';});if(!selected.has(obj.main_room_id))obj.main_room_id=this.settings.rooms.find(room=>selected.has(room.id))?.id||'';}
       clearSaveMessage();this.render();
     });
-    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','heat_control','thermostat','heating_zone_id','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff','source.nordpool_entry','source.solar_power_entity'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.shadowRoot.querySelectorAll('[data-water-group]').forEach(group=>group.hidden=!waterDistribution({house_distribution:event.target.value}));}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
+    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','heat_control','thermostat','heating_zone_id','heating_priority','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff','source.nordpool_entry','source.solar_power_entity','source.away_automatic'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.capture();this.render();return;}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
     settingsForm?.addEventListener('submit',async e=>{
       e.preventDefault();if(this.saving||this.backupBusy)return;this.capture();
       const enableLive=electricHeating(this.settings)&&this.settings.simulation_enabled===false&&!this.info.settings?.live_control_confirmed;

@@ -217,7 +217,7 @@ const previewInfo=JSON.parse(preview.match(/const demo=([\s\S]*?);const states=/
 const previewPanel=new Component();previewPanel._hass={states:{}};previewPanel.settings=previewInfo.settings;previewPanel.info=previewInfo;
 const previewSettings=previewPanel.settingsView();
 for(const field of previewInfo.source_fields){
- assert.equal(previewSettings.split(`data-field="source.${field[0]}"`).length-1,['static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price'].includes(field[0])?0:1,`${field[0]} must follow the selected price source`);
+ assert.equal(previewSettings.split(`data-field="source.${field[0]}"`).length-1,['away_zone','away_delay_hours','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price'].includes(field[0])?0:1,`${field[0]} must follow the selected price source`);
 }
 assert.match(previewSettings,/<h3>Electricity price settings<\/h3>/);
 assert.match(previewSettings,/<h3>Integration settings<\/h3>/);

@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Välj aktuell soleffekt i W eller kW. Lämna tomt för att inaktivera. Produktion är inte överskott: annan förbrukning i huset kan kräva el från nätet.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Starta efter fem minuter över gränsen. Rummen måste kunna lagra användbar värme inom befintlig höjning och temperaturgränser.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Efter fem minuter under denna lägre gräns avslutas soluppvärmningen när minimitiden har uppnåtts. Mellan gränserna fortsätter befintliga perioder.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimitiden för begärd soluppvärmning bevaras vid omstart. Den kan använda nätel. Manuell styrning, saknade indata, kylning samt temperatur- och dörrskydd har företräde."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Minimitiden för begärd soluppvärmning bevaras vid omstart. Den kan använda nätel. Manuell styrning, saknade indata, kylning samt temperatur- och dörrskydd har företräde.",
+    "Heating priority": "Värmeprioritet",
+    "Allow floor assistance below target by (°C)": "Tillåt golvstöd under måltemperaturen med (°C)",
+    "Independent": "Oberoende",
+    "Heat pump preferred": "Värmepump prioriterad",
+    "Floor heating backup": "Golvvärme som reserv",
+    "Floor heating assists": "Golvvärme hjälper pumpen",
+    "Cooling or manual zone priority": "Kyla eller manuell zonstyrning prioriteras",
+    "Predicted temperature after floor response lag": "Prognostemperatur efter golvets fördröjning",
+    "Heat pump preferred; floor heating assists when needed.": "Värmepump prioriterad; golvvärme hjälper vid behov.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Koppla pumpen under Zoner och behåll golvtermostaten här. Prioriteten använder rummets respons, inte COP. Utan aktiv zon återgår golvet till oberoende styrning.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Golvstödet startar vid denna avvikelse eller tidigare om trenden förutser den under golvets fördröjning. Pumpen fortsätter värma. Befintlig minimitid och temperaturgränser gäller."
   },
   "legacy": {},
   "cardMessages": {

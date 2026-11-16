@@ -585,7 +585,18 @@
     "Select current solar production in W or kW. Leave empty to disable. Production is not surplus: other household loads may still require grid electricity.": "Επιλέξτε την τρέχουσα ηλιακή ισχύ σε W ή kW. Αφήστε κενό για απενεργοποίηση. Η παραγωγή δεν είναι πλεόνασμα: άλλα φορτία μπορεί να απαιτούν ρεύμα δικτύου.",
     "Start after five minutes above this limit. Rooms must have room for useful heat within their existing boost and temperature limits.": "Έναρξη μετά από πέντε λεπτά πάνω από το όριο. Τα δωμάτια πρέπει να μπορούν να αποθηκεύσουν χρήσιμη θερμότητα μέσα στα υπάρχοντα όρια ενίσχυσης και θερμοκρασίας.",
     "After five minutes below this lower limit, end solar heating once its minimum session is complete. Between the limits, existing sessions continue.": "Μετά από πέντε λεπτά κάτω από το χαμηλότερο όριο, η θέρμανση σταματά όταν συμπληρωθεί η ελάχιστη διάρκεια. Μεταξύ των ορίων οι υπάρχουσες περίοδοι συνεχίζονται.",
-    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Η ελάχιστη ζητούμενη διάρκεια διατηρείται στις επανεκκινήσεις. Μπορεί να χρησιμοποιεί ρεύμα δικτύου. Χειροκίνητος έλεγχος, ελλιπή δεδομένα, ψύξη και προστασίες θερμοκρασίας ή πόρτας έχουν προτεραιότητα."
+    "Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.": "Η ελάχιστη ζητούμενη διάρκεια διατηρείται στις επανεκκινήσεις. Μπορεί να χρησιμοποιεί ρεύμα δικτύου. Χειροκίνητος έλεγχος, ελλιπή δεδομένα, ψύξη και προστασίες θερμοκρασίας ή πόρτας έχουν προτεραιότητα.",
+    "Heating priority": "Προτεραιότητα θέρμανσης",
+    "Allow floor assistance below target by (°C)": "Βοήθεια δαπέδου κάτω από τον στόχο κατά (°C)",
+    "Independent": "Ανεξάρτητη",
+    "Heat pump preferred": "Προτιμώμενη αντλία θερμότητας",
+    "Floor heating backup": "Εφεδρική ενδοδαπέδια θέρμανση",
+    "Floor heating assists": "Η ενδοδαπέδια υποβοηθά",
+    "Cooling or manual zone priority": "Προτεραιότητα ψύξης ή χειροκίνητου ελέγχου ζώνης",
+    "Predicted temperature after floor response lag": "Προβλεπόμενη θερμοκρασία μετά την καθυστέρηση δαπέδου",
+    "Heat pump preferred; floor heating assists when needed.": "Προτιμώμενη αντλία θερμότητας· το δάπεδο βοηθά όταν χρειάζεται.",
+    "Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.": "Συνδέστε την αντλία στις Ζώνες και κρατήστε εδώ τον θερμοστάτη δαπέδου. Η προτεραιότητα χρησιμοποιεί την απόκριση δωματίου, όχι COP. Χωρίς ενεργή ζώνη επανέρχεται ο ανεξάρτητος έλεγχος δαπέδου.",
+    "Floor assistance starts at this shortfall, or earlier when the observed trend predicts it within the floor response lag. The pump continues heating. Existing minimum run and temperature limits apply.": "Η βοήθεια αρχίζει σε αυτό το έλλειμμα ή νωρίτερα αν η παρατηρούμενη τάση το προβλέπει μέσα στην καθυστέρηση δαπέδου. Η αντλία συνεχίζει να θερμαίνει. Ισχύουν η υπάρχουσα ελάχιστη διάρκεια και τα όρια θερμοκρασίας."
   },
   "legacy": {},
   "cardMessages": {
