@@ -837,7 +837,7 @@ for(const zone of zoneChartPanel.settings.heating_zones)for(const [minutes,mode]
 zoneChartPanel.statusHistory=zoneChartPanel.history;
 const zoneHistorySVG=zoneChartPanel.priceChart(true),zonePlanSVG=zoneChartPanel.priceChart(false);
 assert.ok(zoneHistorySVG.indexOf('data-zone-timeline="z-first"')<zoneHistorySVG.indexOf('data-zone-timeline="z-cool"'));assert.ok(zoneHistorySVG.indexOf('data-zone-timeline="z-cool"')<zoneHistorySVG.indexOf('data-zone-timeline="z-last"'));
-assert.match(zoneHistorySVG,/fill="#f5f0e8"/);assert.match(zoneHistorySVG,/data-zone-period="heat"/);assert.match(zoneHistorySVG,/data-zone-period="cool"/);assert.doesNotMatch(zoneHistorySVG,/data-zone-period="plan"/);
+assert.match(zoneHistorySVG,/fill="var\(--tp-zone,#f5f0e8\)"/);assert.match(zoneHistorySVG,/data-zone-period="heat"/);assert.match(zoneHistorySVG,/data-zone-period="cool"/);assert.doesNotMatch(zoneHistorySVG,/data-zone-period="plan"/);
 const zoneGroup=(html,id)=>html.match(new RegExp('<g[^>]* data-zone-timeline="'+id+'"[^>]*>[\\s\\S]*?<\\/g>'))[0];
 assert.doesNotMatch(zoneGroup(zonePlanSVG,'z-first'),/data-zone-period="plan"/);assert.doesNotMatch(zoneGroup(zonePlanSVG,'z-cool'),/data-zone-period="plan"/);assert.match(zoneGroup(zonePlanSVG,'z-last'),/data-zone-period="plan"/);
 assert.doesNotMatch(zoneGroup(zoneHistorySVG,'z-first'),/>Off<|mode Off|data-zone-period="off"/);
@@ -878,7 +878,7 @@ garageChartPanel.info={data:{price_chart:zoneChartPanel.info.data.price_chart,ro
 for(const history of [true,false]){
  const html=garageChartPanel.priceChart(history);
  assert.match(html,/font-size:18px;font-weight:600">Garages<\/text>/);
- assert.match(html,/fill="#eee8e1"/);assert.match(html,/fill="#e9e1d8"/);
+ assert.match(html,/fill="var\(--tp-garage,#eee8e1\)"/);assert.match(html,/fill="var\(--tp-garage-alt,#e9e1d8\)"/);
  const names=[...html.matchAll(/data-user-text title="([^"]+)"/g)].map(match=>match[1]);assert.deepEqual(names,['House room','A garage','Z garage']);
 }
 garageChartPanel.settings.rooms=garageChartPanel.settings.rooms.filter(room=>room.is_garage);
@@ -1944,3 +1944,12 @@ console.log('Companion recipient selector passed: explicit selection, legacy act
  }
  console.log('Heating keys sit between price bars and timelines, with no combined price key or temperature legend.');
 }
+
+// Follow Home Assistant's effective mode even when it differs from the OS.
+const themedPanel=new Component(),themeProperties=new Map();
+themedPanel.style={setProperty:(name,value)=>themeProperties.set(name,value)};
+themedPanel.hass={themes:{darkMode:true},states:{}};
+assert.equal(themeProperties.get('color-scheme'),'dark');
+themedPanel.hass={themes:{darkMode:false},states:{}};
+assert.equal(themeProperties.get('color-scheme'),'light');
+console.log('Theme mode follows Home Assistant and updates without reloading.');
