@@ -12,6 +12,13 @@ panel._hass={states:{'climate.test':{entity_id:'climate.test',state:'heat',attri
 const room={...info.room_defaults,id:'garage',name:'Garage',thermostat:'climate.test',is_garage:true,garage_fan_heat:'high',garage_swing:'both',garage_door_entities:['binary_sensor.door']};
 panel.settings.rooms=[room];
 const houseSources=info.source_fields.find(field=>field[0]==='house_heat_source')[2].slice(7).split(',');
+for(const garage of [false,true,false]){
+ room.is_garage=garage;
+ const fields=[...panel.roomSettingsFields(room,0).matchAll(/data-field="room0\.([^" ]+)"/g)].map(match=>match[1]);
+ assert.deepEqual(fields.slice(0,2),['name','is_garage'],'Garage toggle stays beside the name in both room types');
+}
+room.is_garage=true;
+
 for(const heatSource of houseSources){
  for(const selection of ['house','air_to_air']){
   panel.settings.house_heat_source=heatSource;
@@ -56,3 +63,21 @@ assert.equal(panel.t('Heat source'),'Lämmönlähde');
 assert.match(panel.t(vm.runInContext('settingHelp.garage_heat_source',context)),/Talon lämmitysjärjestelmä/);
 assert.match(panel.t(vm.runInContext('settingHelp.garage_door_warning_minutes',context)),/Lähetä ilmoitus/);
 console.log('Garage form: every heat source, pump-only settings and door protection, relay visibility, legacy selection, Finnish help and live source changes passed.');
+
+// Settings drafts stay put; successful save replaces the saved snapshot.
+const ordering=new Panel();ordering._hass={states:{}};ordering.info=structuredClone(info);
+const saved=[{...info.room_defaults,id:'room',name:'Zulu'},
+ {...info.room_defaults,id:'old-garage',name:'Garage',is_garage:true}];
+ordering.info.settings={...structuredClone(info.settings),rooms:structuredClone(saved)};
+ordering.settings=structuredClone(ordering.info.settings);
+ordering.settings.rooms.push({...info.room_defaults,id:'new-one',name:'Alpha'},
+ {...info.room_defaults,id:'new-two',name:'Beta'});
+const order=()=>[...ordering.settingsView('rooms').matchAll(/data-settings-disclosure="([^" ]+)"/g)].map(match=>match[1]).filter(id=>ordering.settings.rooms.some(room=>room.id===id));
+assert.deepEqual(order(),['room','old-garage','new-one','new-two']);
+ordering.settings.rooms[2].is_garage=true;
+ordering.settings.rooms[0].name='A renamed room';
+assert.deepEqual(order(),['room','old-garage','new-one','new-two']);
+assert.equal(ordering.settings.rooms[2].id,'new-one','visual order never changes form-array indices');
+ordering.info.settings=structuredClone(ordering.settings);
+assert.deepEqual(order(),['room','new-two','new-one','old-garage']);
+console.log('New rooms append after garages, retain their position during edits, and sort after successful save.');

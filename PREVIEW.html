@@ -930,13 +930,23 @@ class ThermalPilotPanel extends HTMLElement {
       return key!=='heating_zone_id';
     });
     const render=fields=>fields.map(field=>this.field(field,r,`room${index}`)).join('');
-    const general=visible.filter(field=>!field[0].startsWith('garage_'));
+    // These fields stay first even when garage-specific fields appear or disappear.
+    const identity=visible.filter(field=>['name','is_garage'].includes(field[0]));
+    const general=visible.filter(field=>!field[0].startsWith('garage_')&&!['name','is_garage'].includes(field[0]));
     const garage=visible.filter(field=>field[0].startsWith('garage_')).sort((a,b)=>Number(b[0]==='garage_heat_source')-Number(a[0]==='garage_heat_source'));
-    return render(general)+(r.is_garage?`<div class="garage-settings-divider" role="separator" aria-label="${escapeHTML(this.t('Garage'))}"></div><h3 class="garage-settings-heading">Garage heating settings</h3>`+render(garage):'');
+    return render(identity)+render(general)+(r.is_garage?`<div class="garage-settings-divider" role="separator" aria-label="${escapeHTML(this.t('Garage'))}"></div><h3 class="garage-settings-heading">Garage heating settings</h3>`+render(garage):'');
   }
   settingsView(page='all'){
     const i=this.info;
-    const rooms=this.settings.rooms.map((room,index)=>({room,index})).sort((a,b)=>Number(Boolean(a.room.is_garage))-Number(Boolean(b.room.is_garage))||compareRoomNames(a.room,b.room));
+    // Sort the saved snapshot, not the draft. Editing a name or room type must
+    // not move the card under the user's pointer. New cards follow in add order.
+    const savedRooms=[...(i.settings?.rooms||this.settings.rooms)].sort((a,b)=>Number(Boolean(a.is_garage))-Number(Boolean(b.is_garage))||compareRoomNames(a,b));
+    const savedOrder=new Map(savedRooms.map((room,index)=>[room.id,index]));
+    const rooms=this.settings.rooms.map((room,index)=>({room,index})).sort((a,b)=>{
+      const first=savedOrder.get(a.room.id)??savedOrder.size+a.index;
+      const second=savedOrder.get(b.room.id)??savedOrder.size+b.index;
+      return first-second;
+    });
     const html=`<form id="settings" data-settings-page="${page}"><section class="settings-sources"><h2>ThermalPilot settings</h2>${this.settingsGroups(sourceSettingGroups)}</section>
     <section class="settings-house"><h2>House heating settings</h2><p>Choose your heating system and house details. Heat distribution determines which sensor inputs are needed.</p>${this.settingsGroups([['House and heating',['house_construction','house_heat_source','house_distribution','house_heated_floor','house_foundation']],['Water heating',['water_entity','start_offset_minutes','stop_offset_minutes']],['Heating response',['lag_hours','curve_warm_temp','curve_cold_temp']]])}${statusNotice('Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.','info')}</section>
     <section class="settings-shared"><h2>Shared room and zone settings</h2><p>Shared settings apply to ordinary rooms and zones. Garages use their own room settings.</p>${this.settingsGroups(sharedSettingGroups)}</section>
