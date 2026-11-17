@@ -39,7 +39,7 @@ class AirResponseTests(unittest.TestCase):
         previous={'time':0,'temperature':20,'outdoor':-5,'activity':1,'water_factor':1};current={**previous,'time':300,'temperature':20.01}
         learn(model,room,previous,current);self.assertNotIn('air_lag_learning',model)
     def test_garage_forecast_uses_learned_response(self):
-        room={**DEFAULTS,**ROOM_DEFAULTS,'is_garage':True,'air_control':True,'minimum':5,'maximum':9,'boost':4,'garage_heat_target':16};model=initial_model(room)
+        room={**DEFAULTS,**ROOM_DEFAULTS,'is_garage':True,'garage_heat_source':'air_to_air','air_control':True,'minimum':5,'maximum':9,'boost':4,'garage_heat_target':16};model=initial_model(room)
         now=datetime(2026,10,14,tzinfo=timezone.utc);slots=[Slot(now,now+timedelta(minutes=15),0)]
         initial=garage_cycle_plan(room,model,4,[-5],slots,now,False)
         model['air_response_lag_hours']=45/60

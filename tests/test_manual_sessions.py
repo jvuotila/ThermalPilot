@@ -23,7 +23,7 @@ class ManualSessionTests(unittest.IsolatedAsyncioTestCase):
                       'thermostat': 'climate.room', 'temperature_entity': 'sensor.room'}
         self.garage = {**ROOM_DEFAULTS, 'id': 'garage', 'name': 'Garage',
                        'thermostat': 'climate.garage', 'temperature_entity': 'sensor.garage',
-                       'is_garage': True}
+                       'is_garage': True, 'garage_heat_source': 'air_to_air'}
         self.hass.states.update({
             'sensor.garage': State('7'),
             'climate.garage': State('fan_only', {

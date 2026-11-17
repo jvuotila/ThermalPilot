@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.93 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.94 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -568,7 +568,34 @@ Controls are available in the integration's Plan tab; dashboard cards remain
 read-only.
 
 
+### Garage heat sources
+
+New garages default to **Use house heating system**, inheriting the house heat
+source and distribution. Select **Air-to-air heat pump** for a separate garage
+pump. Existing garages keep that pump selection. Pump setpoint, fan, swing,
+presence-fan and door-pause settings appear only when the effective source is
+an air-to-air pump. Door-open
+protection applies only to air-to-air heat pumps; floor heating and radiators
+continue heating when a garage door opens.
+
+Other electric sources use a thermostat supporting **Heat** and **Off**, with the
+garage’s own lower and upper temperature limits. The house heat-distribution
+setting still describes their heating response and whether manual sessions ask
+for a target or just a duration. Oil, gas, wood, pellet, district heating and
+**Other** retain observation and learning only, as for those house heat sources;
+they do not receive electricity-price schedules or thermostat commands.
+
 ### Garage door push alerts
+
+For garage heat sources other than an air-to-air pump, configure **Door sensors**
+in the garage settings; **Door-open warning delay (minutes)** appears after
+at least one door sensor is selected. The default is
+10 minutes. These are reminders only: floor heating and radiators continue
+heating. Select the Companion app device under **Settings → Notifications**.
+One warning is attempted per continuous opening, including across restarts.
+Closing all configured doors arms the next warning. This reminder also works in
+simulation and observation mode while ThermalPilot is active.
+
 
 In **Settings → Notifications**, select your Companion app phone under
 **Push notification device**. When an open configured door blocks a manual garage

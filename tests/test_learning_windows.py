@@ -13,7 +13,7 @@ from thermal_pilot.model import initial_model, learn
 class AirWarmupTests(unittest.TestCase):
     def test_fast_warmups_count_for_garages_and_air_to_air_rooms(self):
         cases = [
-            ({'is_garage': True}, 'air_to_water'),
+            ({'is_garage': True, 'garage_heat_source': 'air_to_air'}, 'air_to_water'),
             ({'heat_control': 'air_to_air'}, 'air_to_water'),
             ({'heat_control': 'house'}, 'air_to_air'),
         ]

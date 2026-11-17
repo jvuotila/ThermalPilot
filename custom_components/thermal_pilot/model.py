@@ -1294,6 +1294,8 @@ def fallback_season(
 
 def garage_cycle_plan(room, model, temperature, outdoors, slots, now, heating=False):
     """Temperature-only garage shadow forecast; no tariff decisions or valve offsets."""
+    pump = room.get('garage_heat_source', 'air_to_air') == 'air_to_air'
+    heat_target = room['garage_heat_target'] if pump else room['maximum']
     response = model['response']
     rows = []
     for slot,outdoor in zip(slots,outdoors):
@@ -1316,7 +1318,7 @@ def garage_cycle_plan(room, model, temperature, outdoors, slots, now, heating=Fa
             'mode':'boost' if heating else 'normal',
             'predicted_demand':heating,
             'temperature':round(temperature,3),
-            'setpoint':room['garage_heat_target'] if heating else room['minimum']
+            'setpoint':heat_target if heating else room['minimum']
         })
     if not rows:
         return None
@@ -1336,7 +1338,8 @@ def garage_cycle_plan(room, model, temperature, outdoors, slots, now, heating=Fa
         'forecast_maximum': max((r['temperature'] for r in rows)),
         'comfort_floor': room['minimum'],
         'comfort_target': room['minimum'],
-        'reason': 'Garage temperature cycle: heat below the lower limit; fan-only after the upper limit. Warm weather turns the pump off.',
+        'reason': ('Garage temperature cycle: heat below the lower limit; fan-only after the upper limit. Warm weather turns the pump off.'
+                   if pump else 'Garage temperature cycle: heat below the lower limit; stop at the upper limit.'),
         'comfort_risk': False,
         'predicted_demand_hours': sum(((stamp(r['end']) - stamp(r['start'])).total_seconds() / 3600 for r in rows if r['heat']))
     }

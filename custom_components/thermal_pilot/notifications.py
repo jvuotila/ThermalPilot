@@ -23,6 +23,20 @@ async def notify_manual_door_pause(hass, target, language, room, doors, mode, ta
                 'Close all configured doors to allow the active session to start.')
     title = messages[title_key]
     message = messages[body_key].format(room=room, doors=', '.join(doors))
+    await send_companion_notification(hass, target, title, message, tag)
+
+
+async def notify_garage_door_open(hass, target, language, room, doors, minutes, tag):
+    """Warn about heat loss without changing the garage thermostat."""
+    messages = await hass.async_add_executor_job(notification_messages, language)
+    title = messages['Garage door left open']
+    message = messages['{room}: a garage door has been open for at least {minutes} minutes: {doors}. Heating has not been paused.'].format(
+        room=room, minutes=minutes, doors=', '.join(doors))
+    await send_companion_notification(hass, target, title, message, tag)
+
+
+async def send_companion_notification(hass, target, title, message, tag):
+    """Deliver to the selected phone action or notify entity, never broadcast."""
     if target.startswith('notify.mobile_app_'):
         service = target.split('.', 1)[1]
         await hass.services.async_call('notify', service, {

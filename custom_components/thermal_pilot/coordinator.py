@@ -16,9 +16,9 @@ from .control import ThermostatControl
 from .air_control import AirHeatPumpControl, zone_temperature, binary
 from .heating_assistance import update_room as update_assistance_room, forecast as assistance_forecast
 from .solar_heating import SOLAR_THRESHOLD_SECONDS, production_kw, update_sessions
-from .notifications import notify_manual_door_pause
+from .notifications import notify_manual_door_pause, notify_garage_door_open
 from .away import person_count, parse_schedule, room_exempt, update as update_away, overlay_plan as away_plan
-from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone
+from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_water_distribution
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
@@ -46,6 +46,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.config_fingerprint = {}
         self.suggested_runs = {}
         self.session_plans = {}
+        self.garage_door_warnings = {}
+        self.garage_door_warning_deadlines = []
         self.manual_sessions = {}
         self.solar_heating = {}
         self.heating_assistance = {}
@@ -176,6 +178,9 @@ class PilotCoordinator(DataUpdateCoordinator):
         for deadline in (schedule.get('start'), schedule.get('end'), self.away_status.get('automatic_start')):
             if deadline is not None and deadline > now.timestamp():
                 future.append(datetime.fromtimestamp(deadline, now.tzinfo))
+        for deadline in self.garage_door_warning_deadlines:
+            if deadline > now.timestamp():
+                future.append(datetime.fromtimestamp(deadline, now.tzinfo))
         for deadline in self.air_control.deadlines:
             if deadline > now.timestamp():
                 future.append(datetime.fromtimestamp(deadline, now.tzinfo))
@@ -207,6 +212,7 @@ class PilotCoordinator(DataUpdateCoordinator):
 
     async def load(self):
         saved = await self.store.async_load() or {}
+        self.garage_door_warnings = saved.get('garage_door_warnings', {})
         self.models = saved.get('models', {})
         self.manual_sessions = saved.get('manual_sessions', {})
         self.away = saved.get('away', {})
@@ -346,7 +352,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         return 1.0 if value == 'on' else 0.0 if value == 'off' else None
 
     def storage_data(self):
-        return {'away':self.away,'heating_assistance':self.heating_assistance,'solar_heating':self.solar_heating,'manual_sessions':self.manual_sessions,'models':self.models,'season':self.season,'zone_seasons':self.air_control.zone_seasons,'pump_thermal_modes':self.air_control.thermal_modes,'pump_reversals':self.air_control.reversals,
+        return {'garage_door_warnings':self.garage_door_warnings,'away':self.away,'heating_assistance':self.heating_assistance,'solar_heating':self.solar_heating,'manual_sessions':self.manual_sessions,'models':self.models,'season':self.season,'zone_seasons':self.air_control.zone_seasons,'pump_thermal_modes':self.air_control.thermal_modes,'pump_reversals':self.air_control.reversals,
                 'applied_season_targets':self.applied_season_targets,
                 'fingerprints':self.config_fingerprint,'sensor_health':self.sensor_health,'managed_rooms':self.managed_rooms,'fallback_state':self.fallback_state,
                 'heating_sessions':self.session_plans}
@@ -499,7 +505,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         session_room.pop('shared_air_signature', None)
         return learning_fingerprint(session_room, self.settings) + [
             effective.get('heat_control'), effective.get('minimum'), effective.get('maximum'),
-            effective.get('boost'), effective.get('setback'), room.get('garage_strategy'),
+            effective.get('boost'), effective.get('setback'), room.get('garage_strategy'), room.get('garage_heat_source', 'air_to_air'),
             room.get('zone_control_enabled'), room.get('zone_climate_mode'),
             room.get('zone_heating_strategy'), room.get('zone_policy'),
             sorted(item['id'] for item in self.settings['rooms']
@@ -600,8 +606,8 @@ class PilotCoordinator(DataUpdateCoordinator):
                 (r for r in resolved_rooms(self.settings) + zone_rooms(self.settings) if r['id'] == rid),
                 {}
             )
-            opening = start - timedelta(minutes=self.settings['start_offset_minutes'] if water_distribution(self.settings) and (not air_room(configured, self.settings)) and (configured.get('heat_control') != 'zone_member') else 0)
-            water = water_distribution(self.settings) and (not air_room(configured, self.settings)) and (configured.get('heat_control') != 'zone_member')
+            opening = start - timedelta(minutes=self.settings['start_offset_minutes'] if room_water_distribution(configured, self.settings) else 0)
+            water = room_water_distribution(configured, self.settings)
             closing = end - timedelta(minutes=self.settings['stop_offset_minutes'] if water else 0)
             if opening <= now < closing:
                 return deepcopy(session)
@@ -758,7 +764,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             solar_forecast.append(solar_signal(midpoint,latitude,longitude,values))
         outdoors = [forecast_temperature(forecasts, self.forecast_type, slot.start,
                                          ZoneInfo(self.hass.config.time_zone), outdoor) for slot in slots]
-        uses_water = water_distribution(self.settings) and any((not air_room(candidate_room, self.settings) and candidate_room.get('heat_control') != 'zone_member' for candidate_room in resolved_rooms(self.settings)))
+        uses_water = any(room_water_distribution(candidate_room, self.settings) for candidate_room in resolved_rooms(self.settings))
         water_state = self.hass.states.get(self.settings['water_entity']) if uses_water and self.settings['water_entity'] else None
         water = None
         if water_state:
@@ -807,7 +813,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                 **room_settings(configured_room, self.settings),
                 'water_reference': WATER_REFERENCE
             }
-            room_water = uses_water and (not room.get('air_control'))
+            room_water = room_water_distribution(room, self.settings)
             zone_fire = self.hass.states.get(room.get('zone_fireplace_entity', '')) if room.get('zone_fireplace_entity') else None
             if room.get('is_garage'):
                 room_fireplace = False
@@ -1042,7 +1048,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                                     'baseline': baseline, 'outdoor': outdoors, 'slots': slots,
                                     'water_factor': water_factor, 'plan': result['plan'],
                                 }
-                if room.get('is_garage') and room['garage_strategy'] == 'temperature' and (not slots):
+                if room.get('is_garage') and room_electric(room, self.settings) and room['garage_strategy'] == 'temperature' and (not slots):
                     cycle_slots = [Slot(now + timedelta(minutes=15 * i), now + timedelta(minutes=15 * (i + 1)), 0) for i in range(96)]
                     result['plan'] = garage_cycle_plan(
                         room,
@@ -1077,6 +1083,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             else:
                 result['learning_note'] = 'Model adapting to observations; assess reliability from prediction error.'
             result['air_control'] = bool(room.get('air_control'))
+            result['garage_heat_source'] = room.get('garage_heat_source', 'air_to_air')
             result['activity_basis'] = 'heat_mode' if room.get('air_control') and (not room['activity_entity']) and thermostat_state and (thermostat_state.attributes.get('hvac_action') is None) else 'demand'
             result['is_garage'] = room.get('is_garage', False)
             result['heating_zone_id'] = room.get('heating_zone_id', '')
@@ -1188,17 +1195,17 @@ class PilotCoordinator(DataUpdateCoordinator):
                     maximum = min(maximum, self.settings['maximum'])
                 limits[mode] = {'minimum': minimum, 'maximum': maximum, 'step': step}
             if room.get('is_garage'):
-                target = room['garage_heat_target']
+                target = room['garage_maximum'] if garage_thermostat(room) else room['garage_heat_target']
             elif air:
                 target = self.settings['air_heat_target']
             else:
                 target = room['baseline'] + self.settings['boost']
             heat_limits = limits.get('heat', limits[modes[0]])
             cool_limits = limits.get('cool', heat_limits)
-            target_required = air or not water_distribution(self.settings)
+            target_required = air or not room_water_distribution(room, self.settings)
             session = self.manual_sessions.get(room['id'])
             if session and not target_required:
-                session = {**session, 'target': min(self.settings['maximum'], room['baseline'] + self.settings['boost'])}
+                session = {**session, 'target': room['garage_maximum'] if garage_thermostat(room) else min(self.settings['maximum'], room['baseline'] + self.settings['boost'])}
             # Flat bounds remain a compatibility envelope for an older frontend;
             # current clients choose the requested mode's individual bounds.
             controls[room['id']] = {
@@ -1261,8 +1268,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         snapshot = deepcopy(self.settings)
         configured = {r['thermostat']: r for r in resolved_rooms(snapshot) + [r for r in zone_rooms(snapshot) if r['heat_control'] != 'zone_member'] if r.get('zone_control_enabled', True)}
         released = [{**old,'id':entity} for entity,old in self.managed_rooms.items()
-                    if force or not self.live_enabled() or entity not in configured]
-        air_released = [room for room in released if air_room(room, snapshot)]
+                    if force or not self.live_enabled() or entity not in configured or not room_electric(configured[entity], snapshot)]
+        air_released = [room for room in released if air_room(room, snapshot) or garage_thermostat(room)]
         released = [room for room in released if room not in air_released]
         targets = {old['id']: self.fallback_target(configured.get(old['thermostat'], old)) for old in released}
         errors = await self.control.apply(released, targets, now.timestamp(), lambda: self.settings == snapshot)
@@ -1513,8 +1520,8 @@ class PilotCoordinator(DataUpdateCoordinator):
                 temperature, too_warm = self.value(room['temperature_entity']), False
             if room.get('is_garage'):
                 limit = room['garage_maximum']
-                target = room['garage_heat_target']
-                doors = room.get('garage_door_entities', [])
+                target = room['garage_maximum'] if garage_thermostat(room) else room['garage_heat_target']
+                doors = room.get('garage_door_entities', []) if air else []
                 if any(binary(self.hass, entity) is not False for entity in doors):
                     continue
             else:
@@ -1550,6 +1557,58 @@ class PilotCoordinator(DataUpdateCoordinator):
             data['warnings'].append(warning)
         return sessions
 
+    async def update_garage_door_warnings(self, now):
+        """Warn once per continuous open-door interval; never interrupt heating.
+
+        Persist the start and delivery attempt so a restart cannot repeat the
+        same push. A confirmed closed interval arms the next warning. Missing
+        door states cannot establish that an opening continued uninterrupted.
+        """
+        target = self.settings['manual_notification_target']
+        warnings = {}
+        self.garage_door_warning_deadlines = []
+        due = []
+        if self.settings['heating_enabled'] and target:
+            for room in resolved_rooms(self.settings):
+                if not garage_thermostat(room):
+                    continue
+                doors = room.get('garage_door_entities', [])
+                opened = [entity for entity in doors if binary(self.hass, entity) is True]
+                if not opened:
+                    continue
+                signature = sorted(doors)
+                prior = self.garage_door_warnings.get(room['id'], {})
+                if prior.get('doors') == signature:
+                    warning = deepcopy(prior)
+                else:
+                    warning = {'doors': signature, 'since': now.timestamp(), 'attempted': False}
+                deadline = warning['since'] + room['garage_door_warning_minutes'] * 60
+                if not warning['attempted']:
+                    if now.timestamp() >= deadline:
+                        # Persist before delivery. Failed notification services
+                        # must not create a retry storm on every sensor update.
+                        warning['attempted'] = True
+                        due.append((room, opened))
+                    else:
+                        self.garage_door_warning_deadlines.append(deadline)
+                warnings[room['id']] = warning
+        if warnings != self.garage_door_warnings:
+            await self.store.async_save({**self.storage_data(), 'garage_door_warnings': warnings})
+            self.garage_door_warnings = warnings
+        errors = []
+        for room, opened in due:
+            names = [self.hass.states.get(entity).attributes.get('friendly_name') or entity for entity in opened]
+            try:
+                await notify_garage_door_open(
+                    self.hass, target, self.settings['language'], room['name'], names,
+                    room['garage_door_warning_minutes'],
+                    f'{DOMAIN}_{self.entry.entry_id}_{room["id"]}_door_warning',
+                )
+            except Exception:
+                _LOGGER.warning('Garage door warning could not be sent', exc_info=True)
+                errors.append('Push notification could not be sent. Check the selected notification device.')
+        return errors
+
     async def apply_live_targets(self, data, now):
         """Reconcile current windows and restore comfort targets when inputs fail."""
         self.air_control.deadlines = []
@@ -1559,7 +1618,8 @@ class PilotCoordinator(DataUpdateCoordinator):
             self.air_control.cycles.clear()
         self._air_was_live = live
         release_errors = await self.release_managed_rooms(now)
-        air_rooms = [r for r in resolved_rooms(self.settings) + zone_rooms(self.settings) if air_room(r, self.settings)]
+        release_errors += await self.update_garage_door_warnings(now)
+        air_rooms = [r for r in resolved_rooms(self.settings) + zone_rooms(self.settings) if room_electric(r, self.settings) and (air_room(r, self.settings) or garage_thermostat(r))]
         # Expiry, pause and device reassignment all relinquish the override.
         # A later re-enable must never resurrect a manually requested session.
         configured = {r['id']: r for r in resolved_rooms(self.settings) + zone_rooms(self.settings)
@@ -1570,7 +1630,9 @@ class PilotCoordinator(DataUpdateCoordinator):
             if (session['ends'] <= now.timestamp() or not live
                     or not self.settings['heating_enabled'] or room is None
                     or room['thermostat'] != session['entity']
-                    or not room.get('zone_control_enabled', True)):
+                    or not room.get('zone_control_enabled', True)
+                    or not room_electric(room, self.settings)
+                    or (garage_thermostat(room) and session['mode'] != 'heat')):
                 self.manual_sessions.pop(room_id)
                 ended.add(room_id)
         if ended:
@@ -1581,7 +1643,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         assistance = await self.update_heating_assistance(data, now)
         intents = {}
         for room in air_rooms:
-            room = {**room, 'manual_session': self.manual_sessions.get(room['id']),
+            room = {**room, 'manual_session': deepcopy(self.manual_sessions.get(room['id'])),
                     'manual_session_ended': room['id'] in ended,
                     'away_target': self.away_target(room),
                     'away_cooling_target': self.settings['away_cooling_temperature'] if self.away_target(room) is not None else None,
@@ -1589,6 +1651,9 @@ class PilotCoordinator(DataUpdateCoordinator):
                     'solar_session_ended': room['id'] in ended_solar,
                     'preferred_heat_request': bool(room.get('secondary_zone')) and any(report.get('pump_requested') and report['zone_id'] == room.get('heating_zone_id')
                         for report in assistance.values())}
+
+            if garage_thermostat(room) and room_water_distribution(room, self.settings) and room['manual_session']:
+                room['manual_session']['target'] = room['garage_maximum']
 
             bucket = data.get('zones', {}) if room.get('secondary_zone') else data.get('rooms', {})
             key = room['heating_zone_id'] if room.get('secondary_zone') else room['id']
@@ -1660,7 +1725,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             prices = []
         sources_ok = sources_ok and bool(prices)
         for room in resolved_rooms(snapshot):
-            if not room_electric(room, snapshot) or air_room(room, snapshot) or room.get('heat_control') == 'zone_member':
+            if not room_electric(room, snapshot) or air_room(room, snapshot) or garage_thermostat(room) or room.get('heat_control') == 'zone_member':
                 continue
             planned = data.get('rooms', {}).get(room['id'], {}).get('plan')
             rows = (planned or {}).get('slots', [])
@@ -1735,7 +1800,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             self.applied_season_targets.clear()
             return errors
         for room in resolved_rooms(self.settings):
-            if not room_electric(room, self.settings) or air_room(room, self.settings) or room.get('heat_control') == 'zone_member':
+            if not room_electric(room, self.settings) or air_room(room, self.settings) or garage_thermostat(room) or room.get('heat_control') == 'zone_member':
                 continue
             target = room['baseline'] if heating_active else self.fallback_target(room)
             state = self.hass.states.get(room['thermostat'])

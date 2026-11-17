@@ -1,9 +1,9 @@
-"""Explicit air-to-air mode control, independent of water heating and valve timing."""
+"""Staged mode control for air-to-air pumps and independent garage thermostats."""
 from typing import Any
 import asyncio
 from .model import number
 from .sources import temperature_celsius
-from .config import resolved_rooms, zone_rooms, garage_sensor_lists
+from .config import resolved_rooms, zone_rooms, garage_sensor_lists, garage_thermostat, room_heat_source
 
 
 def binary(hass, entity):
@@ -80,6 +80,8 @@ class AirHeatPumpControl:
         the external room sensor used for hysteresis and safety limits.
         """
         room = garage_sensor_lists(room)
+        if room.get('is_garage'):
+            room['garage_heat_source'] = room_heat_source(room, settings)
         manual = room.get('manual_session')
         if manual and manual['ends'] <= now:
             manual = None
@@ -99,7 +101,11 @@ class AirHeatPumpControl:
         prefix = 'garage_' if garage else 'air_'
         values = room if garage else settings
         target = values[prefix + 'heat_target']
-        mode = 'fan_only'
+        thermostat = garage_thermostat(room)
+        standby = 'off' if thermostat else 'fan_only'
+        if thermostat:
+            target = room['garage_maximum']
+        mode = standby
         reason = 'Standby'
         errors = []
         lower_limit = room['garage_minimum'] if garage else settings['minimum']
@@ -116,7 +122,7 @@ class AirHeatPumpControl:
             )
         signature = (
             room['thermostat'], room['temperature_entity'], garage, lower_limit,
-            room.get('garage_maximum'), room.get('garage_strategy'),
+            room.get('garage_maximum'), room.get('garage_strategy'), room.get('garage_heat_source', 'air_to_air'),
         )
         old_cycle = self.cycles.get(room_id, {})
         if old_cycle.get('signature') == signature:
@@ -126,7 +132,7 @@ class AirHeatPumpControl:
 
         if room.get('manual_session_ended') or room.get('solar_session_ended'):
             heating = False
-        door_entities = room.get('garage_door_entities', []) if garage else []
+        door_entities = room.get('garage_door_entities', []) if garage and not thermostat else []
         door_states = {entity: binary(self.hass, entity) for entity in door_entities}
         door_open = any((value is True for value in door_states.values()))
         doors_valid = all((value is not None for value in door_states.values()))
@@ -159,7 +165,7 @@ class AirHeatPumpControl:
             reason = 'Required heat pump input unavailable'
             errors.append(
                 f"{room['name']}: required temperature or configured control input unavailable; "
-                'using fan-only standby.'
+                + ('using off standby.' if thermostat else 'using fan-only standby.')
             )
         elif paused or (door_open and not (heating or (manual and state and state.state == 'cool'))):
             heating = False
@@ -238,6 +244,9 @@ class AirHeatPumpControl:
         if mode == 'cool':
             fan = settings.get('air_fan_cool', '')
             swing = settings.get('air_swing_cool', '')
+        if thermostat:
+            fan = ''
+            swing = ''
         if mode == 'off':
             swing = ''
         return {
@@ -335,7 +344,9 @@ of physical compressor operation, especially with optimistic integrations.
                 if attributes.get('temperature_unit', '°C') not in ('°C', 'C'):
                     errors.append(f"{room['name']}: heat pump must use Celsius.")
                     continue
-                # Never reverse directly. Confirm fan-only, then wait ten minutes.
+                # Pumps reverse through fan-only; ordinary garage thermostats
+                # have no fan mode and must acknowledge Off instead.
+                standby = 'off' if garage_thermostat(room) else 'fan_only'
                 desired_mode = mode
                 if state.state in ('heat', 'cool'):
                     self.thermal_modes[entity] = {'mode': state.state, 'time': now}
@@ -354,10 +365,10 @@ of physical compressor operation, especially with optimistic integrations.
                         if reversal['mode'] != desired_mode:
                             reversal = {'mode': desired_mode, 'since': None}
                             self.reversals[entity] = reversal
-                        if state.state == 'fan_only' and reversal['since'] is None:
+                        if state.state == standby and reversal['since'] is None:
                             reversal['since'] = now
                         if reversal['since'] is None or now - reversal['since'] < 600:
-                            mode = 'fan_only'
+                            mode = standby
                             self.deadlines.append(now+10 if reversal['since'] is None else reversal['since']+600)
                         else:
                             self.reversals.pop(entity,None)
@@ -393,10 +404,11 @@ of physical compressor operation, especially with optimistic integrations.
                         target = round(max(low, min(high, low + round((target - low) / step) * step)), 6)
                         commands.append(('set_temperature','temperature',target,number(attributes.get('temperature'))))
                 if rejected:
-                    errors.append(f"{room['name']}: temperature setpoint outside device limits ({rejected['low']:g}–{rejected['high']:g} °C); using fan-only standby.")
+                    standby = 'off' if garage_thermostat(room) else 'fan-only'
+                    errors.append(f"{room['name']}: temperature setpoint outside device limits ({rejected['low']:g}–{rejected['high']:g} °C); using {standby} standby.")
                     # Keep the rejection while in standby, avoiding repeated starts
                     # with an invalid setpoint. A changed target permits a new check.
-                    mode = 'fan_only'
+                    mode = 'off' if garage_thermostat(room) else 'fan_only'
                     commands = [('set_hvac_mode', 'hvac_mode', mode, state.state)]
                 if intent['fan'] and (not rejected) and (mode == desired_mode):
                     if intent['fan'] not in attributes.get('fan_modes', []):

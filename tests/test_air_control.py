@@ -12,7 +12,7 @@ from thermal_pilot.air_control import AirHeatPumpControl,zone_temperature
 def state(value,attrs=None):return types.SimpleNamespace(state=value,attributes=attrs or {})
 class AirTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.room={**ROOM_DEFAULTS,'id':'00000000-0000-4000-8000-000000000001','name':'Garage','is_garage':True,'thermostat':'climate.garage','temperature_entity':'sensor.garage','garage_fan_heat':'high','garage_fan_idle':'low','garage_fan_presence':'medium','garage_swing':'both'}
+        self.room={**ROOM_DEFAULTS,'id':'00000000-0000-4000-8000-000000000001','name':'Garage','is_garage':True,'garage_heat_source':'air_to_air','thermostat':'climate.garage','temperature_entity':'sensor.garage','garage_fan_heat':'high','garage_fan_idle':'low','garage_fan_presence':'medium','garage_swing':'both'}
         self.settings={**deepcopy(DEFAULTS),'outdoor_entity':'sensor.out','rooms':[self.room]}
         self.pump=state('fan_only',{'hvac_modes':['heat','fan_only','off'],'fan_modes':['low','medium','high'],'swing_modes':['off','both'],'temperature':16,'min_temp':16,'max_temp':30,'fan_mode':'low','swing_mode':'off'})
         self.hass=types.SimpleNamespace(states={'climate.garage':self.pump,'sensor.garage':state('6'),'sensor.out':state('-2')},services=types.SimpleNamespace(async_call=AsyncMock()))

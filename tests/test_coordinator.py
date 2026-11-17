@@ -1011,7 +1011,7 @@ class GarageCoordinatorTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp=tempfile.TemporaryDirectory();self.hass=Hass(self.temp.name)
         self.floor={**ROOM_DEFAULTS,'id':'11111111-1111-4111-8111-111111111111','name':'Floor room','thermostat':'climate.room','temperature_entity':'sensor.room'}
-        self.garage={**ROOM_DEFAULTS,'id':'22222222-2222-4222-8222-222222222222','name':'Garage','thermostat':'climate.garage','temperature_entity':'sensor.garage','is_garage':True}
+        self.garage={**ROOM_DEFAULTS,'id':'22222222-2222-4222-8222-222222222222','name':'Garage','thermostat':'climate.garage','temperature_entity':'sensor.garage','is_garage':True,'garage_heat_source':'air_to_air'}
         self.hass.states.update({'sensor.garage':State('4'),'climate.garage':State('fan_only',{'hvac_modes':['heat','fan_only','off'],'fan_modes':['low','high'],'swing_modes':['off','both'],'temperature':20,'min_temp':16,'max_temp':30,'hvac_action':'fan'})})
         entry=types.SimpleNamespace(entry_id='garage',data={**DEFAULTS,'price_entity':'sensor.price','outdoor_entity':'sensor.out','water_entity':'sensor.water','rooms':[self.floor]},options={})
         self.c=PilotCoordinator(self.hass,entry);await self.c.load()
@@ -1397,7 +1397,7 @@ class ChartTemperatureTests(unittest.IsolatedAsyncioTestCase):
             hass.states.update({'sensor.room':State('20.7'),'sensor.second':State('18.2'),'sensor.garage':State('7.5')})
             first={**ROOM_DEFAULTS,'id':'first','name':'Kitchen','thermostat':'climate.room','temperature_entity':'sensor.room','heating_zone_id':'zone'}
             second={**ROOM_DEFAULTS,'id':'second','name':'Bedroom','thermostat':'climate.second','temperature_entity':'sensor.second','heating_zone_id':'zone'}
-            garage={**ROOM_DEFAULTS,'id':'garage','name':'Garage','thermostat':'climate.garage','temperature_entity':'sensor.garage','is_garage':True}
+            garage={**ROOM_DEFAULTS,'id':'garage','name':'Garage','thermostat':'climate.garage','temperature_entity':'sensor.garage','is_garage':True,'garage_heat_source':'air_to_air'}
             from thermal_pilot.const import ZONE_DEFAULTS
             zone={**ZONE_DEFAULTS,'id':'zone','name':'Heat pump','thermostat':'climate.zone','main_room_id':'first','temperature_policy':'main','climate_mode':'cool','heating_enabled':False}
             entry=types.SimpleNamespace(entry_id='chart',data={**DEFAULTS,'rooms':[first,second,garage],'heating_zones':[zone],'heating_enabled':False},options={})

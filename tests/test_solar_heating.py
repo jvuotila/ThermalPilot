@@ -182,7 +182,7 @@ class SolarCoordinatorTests(unittest.IsolatedAsyncioTestCase):
     async def test_garage_stops_solar_cycle_but_still_obeys_doors_and_upper_limit(self):
         from thermal_pilot.const import ROOM_DEFAULTS
         garage={**ROOM_DEFAULTS,'id':'garage','name':'Garage','thermostat':'climate.garage',
-                'temperature_entity':'sensor.garage','is_garage':True,'garage_minimum':6,'garage_maximum':10,
+                'temperature_entity':'sensor.garage','is_garage':True,'garage_heat_source':'air_to_air','garage_minimum':6,'garage_maximum':10,
                 'garage_heat_target':18,'garage_door_entities':['binary_sensor.door'],'garage_door_delay':60}
         self.c.settings['rooms']=[garage];self.c._plan_settings=deepcopy(self.c.settings)
         self.hass.states['sensor.garage']=State('7')

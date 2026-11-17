@@ -114,6 +114,7 @@ ROOM_FIELDS = [
      'Construction type',
      'select:unknown,timber_frame,masonry,lightweight_metal'
  ),
+ ('garage_heat_source', 'Heat source', 'select:house,air_to_air'),
  ('garage_strategy', 'Heating strategy', 'select:temperature,tariff'),
  ('garage_minimum', 'Lower temperature limit (°C)', 'number', -5, 25, 0.1),
  ('garage_maximum', 'Upper temperature limit (°C)', 'number', -5, 30, 0.1),
@@ -125,6 +126,7 @@ ROOM_FIELDS = [
  ('garage_fan_presence', 'Fan mode when occupied', 'text'),
  ('garage_door_delay', 'Pause heating after door opens (seconds)', 'number', 0, 600, 1),
  ('garage_door_entities', 'Door sensors (optional)', 'entities:binary_sensor'),
+ ('garage_door_warning_minutes', 'Door-open warning delay (minutes)', 'number', 1, 1440, 1),
  ('garage_presence_entities', 'Presence sensors (optional)', 'entities:binary_sensor'),
  ('fireplace_reduction', 'Fireplace heating compensation', 'number', -100, 0, 1),
  (
@@ -209,12 +211,46 @@ def setup_selector_config(hass, key):
         if not entity_matches(state, rule)]}
 
 
+def room_heat_source(room, settings):
+    """A garage has its own source; existing garages retain their heat pump."""
+    if room.get('is_garage'):
+        source = room.get('garage_heat_source', 'air_to_air')
+        if source != 'house':
+            return source
+        return settings.get('house_heat_source', 'air_to_water')
+    if room.get('heat_control') == 'air_to_air':
+        return 'air_to_air'
+    return settings.get('house_heat_source', 'air_to_water')
+
+
 def electric_heating(settings):
-    return settings.get('house_heat_source', 'air_to_water') in ('air_to_water', 'ground_source', 'air_to_air', 'electric_resistance') or any((z.get('source_type', 'air_to_air') == 'air_to_air' for z in (settings.get('heating_zones') if isinstance(settings.get('heating_zones'), list) else []) if isinstance(z, dict))) or any((r.get('is_garage') or r.get('heat_control') == 'air_to_air' for r in (settings.get('rooms') if isinstance(settings.get('rooms'), list) else []) if isinstance(r, dict)))
+    electric_sources = ('air_to_water', 'ground_source', 'air_to_air', 'electric_resistance')
+    if settings.get('house_heat_source', 'air_to_water') in electric_sources:
+        return True
+    zones = settings.get('heating_zones')
+    if not isinstance(zones, list):
+        zones = []
+    rooms = settings.get('rooms')
+    if not isinstance(rooms, list):
+        rooms = []
+    if any(zone.get('source_type', 'air_to_air') == 'air_to_air'
+           for zone in zones if isinstance(zone, dict)):
+        return True
+    return any(room_electric(room, settings) for room in rooms if isinstance(room, dict))
 
 
 def room_electric(room, settings):
-    return air_room(room, settings) or room.get('heat_control') == 'zone_member' or settings.get('house_heat_source', 'air_to_water') in ('air_to_water', 'ground_source', 'air_to_air', 'electric_resistance')
+    return room.get('heat_control') == 'zone_member' or room_heat_source(room, settings) in (
+        'air_to_water', 'ground_source', 'air_to_air', 'electric_resistance')
+
+
+def garage_thermostat(room):
+    return room.get('is_garage', False) and room.get('garage_heat_source', 'air_to_air') != 'air_to_air'
+
+
+def room_water_distribution(room, settings):
+    return (not air_room(room, settings) and room.get('heat_control') != 'zone_member'
+            and water_distribution(settings))
 
 
 def price_required(settings):
@@ -239,6 +275,10 @@ def price_required(settings):
 def garage_sensor_lists(room):
     """Migrate the original single/two-sensor fields without losing selections."""
     result = deepcopy(room)
+    # Older garages had only air-to-air control. New forms explicitly send
+    # 'house'; a missing choice must never silently change an existing device.
+    if result.get('is_garage'):
+        result.setdefault('garage_heat_source', 'air_to_air')
     for plural,legacy in [
         ('garage_door_entities',('garage_door_entity','garage_door_entity_2')),
         ('garage_presence_entities',('garage_presence_entity','garage_presence_entity_2'))
@@ -265,6 +305,9 @@ def resolved_rooms(settings):
         if not isinstance(original, dict):
             continue
         room = garage_sensor_lists(original)
+        # Resolve inheritance on this runtime copy, retaining 'house' in storage.
+        if room.get('is_garage'):
+            room['garage_heat_source'] = room_heat_source(room, settings)
         zone = zones.get(room.get('heating_zone_id'))
         if zone:
             room.update(
@@ -280,7 +323,7 @@ def resolved_rooms(settings):
                     room['secondary_pump_entity'] = zone.get('thermostat', '')
         rooms.append(room)
     by_id = {room['id']: room for room in rooms}
-    eligible = [room for room in rooms if not air_room(room, settings) and room.get('heat_control') != 'zone_member']
+    eligible = [room for room in rooms if not room.get('is_garage') and not air_room(room, settings) and room.get('heat_control') != 'zone_member']
     connections = room_connections(eligible)
     for room in eligible:
         room['shared_air_rooms'] = connections[room['id']]
@@ -328,7 +371,7 @@ def zone_rooms(settings):
 
 
 def air_room(room, settings):
-    return room.get('heat_control') != 'zone_member' and (room.get('is_garage', False) or room.get('heat_control') == 'air_to_air' or (room.get('heat_control', 'house') == 'house' and settings.get('house_heat_source') == 'air_to_air'))
+    return room.get('heat_control') != 'zone_member' and room_heat_source(room, settings) == 'air_to_air'
 
 
 def preferred_zone(room: dict, settings: dict) -> dict | None:
@@ -381,7 +424,7 @@ def room_settings(room, settings):
 def learning_fingerprint(room, settings):
     effective = room_settings(room, settings)
     effective['water_reference'] = WATER_REFERENCE
-    room_water = water_distribution(settings) and (not effective.get('air_control'))
+    room_water = room_water_distribution(room, settings)
     fingerprint = [effective[k] for k in (
         'thermostat',
         'temperature_entity',
@@ -401,6 +444,8 @@ def learning_fingerprint(room, settings):
         ]
     elif settings['house_distribution'] != 'water_floor':
         fingerprint += [settings['house_distribution']]
+    if room.get('is_garage'):
+        fingerprint += [room.get('garage_heat_source', 'air_to_air')]
     if effective.get('shared_air_signature'):
         fingerprint += ['shared_air', effective['shared_air_signature']]
     return fingerprint
@@ -595,13 +640,21 @@ def validate(payload, hass=None, *, require_outdoor=True):
             raise ValueError('Room identifier or thermostat is already in use.')
         ids.add(room['id'])
         if room['is_garage'] and room['heating_zone_id']:
-            raise ValueError('A garage must have its own heat pump controller.')
+            raise ValueError('A garage must have its own heating controller.')
         if room['garage_minimum'] >= room['garage_maximum']:
             raise ValueError('Garage lower limit must be below its upper limit.')
+        if room['garage_door_warning_minutes'] != int(room['garage_door_warning_minutes']):
+            raise ValueError('Door warning delay must be an integer.')
         if room['garage_door_delay'] != int(room['garage_door_delay']):
             raise ValueError('Door pause delay must be an integer.')
         if not room['is_garage'] and (not result['minimum'] <= room['baseline'] <= result['maximum']):
             raise ValueError(f"{room['name']}: normal temperature must be within the allowed temperature range.")
+        if hass is not None and room['is_garage'] and not air_room(room, result) and room_electric(room, result):
+            attrs = hass.states.get(room['thermostat']).attributes
+            if not {'heat', 'off'}.issubset(attrs.get('hvac_modes', [])):
+                raise ValueError('The garage thermostat must support heating and off modes.')
+            if not attrs.get('min_temp', 5) <= room['garage_maximum'] <= attrs.get('max_temp', 35):
+                raise ValueError('The garage upper temperature limit must be within thermostat limits.')
         if hass is not None and air_room(room, result):
             state = hass.states.get(room['thermostat'])
             attrs = state.attributes
@@ -679,7 +732,7 @@ def validate(payload, hass=None, *, require_outdoor=True):
             peer = by_id.get(peer_id)
             if peer is None or peer is room:
                 raise ValueError('Shared air space: select another existing room.')
-            if air_room(room, result) or air_room(peer, result):
+            if room.get('is_garage') or peer.get('is_garage') or air_room(room, result) or air_room(peer, result):
                 raise ValueError('Shared air space: select primary heating circuits, not heat pumps or garages.')
     # Configuring either end adds the reverse edge, never an indirect edge.
     connections = room_connections(rooms)
@@ -692,7 +745,7 @@ def validate(payload, hass=None, *, require_outdoor=True):
         raise ValueError('Select an outdoor temperature source.')
     if hass is not None and (result['apply_season_setpoints'] or not result['simulation_enabled']):
         for room in resolved_rooms(result):
-            if air_room(room, result) or room['heat_control'] == 'zone_member':
+            if air_room(room, result) or garage_thermostat(room) or room['heat_control'] == 'zone_member' or not room_electric(room, result):
                 continue
             state = hass.states.get(room['thermostat'])
             low, high = (state.attributes.get('min_temp', 5), state.attributes.get('max_temp', 35))

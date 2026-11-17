@@ -87,6 +87,7 @@ def normalize_learning(raw, settings):
     state.pop('manual_sessions', None)
     state.pop('solar_heating', None)
     state.pop('heating_assistance', None)
+    state.pop('garage_door_warnings', None)
     state.pop('away', None)
     for key,default in STATE_DEFAULTS.items():
         state.setdefault(key,deepcopy(default))
