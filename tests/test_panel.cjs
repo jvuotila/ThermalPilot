@@ -1953,3 +1953,22 @@ assert.equal(themeProperties.get('color-scheme'),'dark');
 themedPanel.hass={themes:{darkMode:false},states:{}};
 assert.equal(themeProperties.get('color-scheme'),'light');
 console.log('Theme mode follows Home Assistant and updates without reloading.');
+
+// Empty-name headings are UI placeholders; typed names remain user content.
+const localizedDraft=new Component();localizedDraft._hass={states:{}};
+localizedDraft.settings={language:'fi',rooms:[{id:'room',name:''}],heating_zones:[{id:'zone',name:'',source_type:'fireplace'}]};
+localizedDraft.info={source_fields:[],room_fields:[],zone_fields:[],settings:structuredClone(localizedDraft.settings)};
+let draftHTML=localizedDraft.settingsView('rooms');
+assert.match(draftHTML,/<span data-user-text>Uusi huone<\/span>/);
+assert.match(draftHTML,/<span data-user-text>Uusi vyöhyke<\/span>/);
+assert.equal(localizedDraft.settings.rooms[0].name,'');
+assert.equal(localizedDraft.settings.heating_zones[0].name,'');
+localizedDraft.settings.language='en';draftHTML=localizedDraft.settingsView('rooms');
+assert.match(draftHTML,/<span data-user-text>New room<\/span>/);
+assert.match(draftHTML,/<span data-user-text>New zone<\/span>/);
+localizedDraft.settings.language='fi';
+localizedDraft.settings.rooms[0].name='New room';localizedDraft.settings.heating_zones[0].name='New zone';
+draftHTML=localizedDraft.settingsView('rooms');
+assert.match(draftHTML,/<span data-user-text>New room<\/span>/);
+assert.match(draftHTML,/<span data-user-text>New zone<\/span>/);
+console.log('New room and zone headings follow the selected language without translating user-entered names.');
