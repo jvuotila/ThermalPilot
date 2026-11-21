@@ -3,7 +3,7 @@ from typing import Any
 import asyncio
 from .model import number
 from .sources import temperature_celsius
-from .config import resolved_rooms, zone_rooms, garage_sensor_lists, garage_thermostat, room_heat_source
+from .config import resolved_rooms, zone_rooms, garage_sensor_lists, garage_thermostat, room_heat_source, pump_uses_setpoints, pump_temperature_settings
 
 
 def binary(hass, entity):
@@ -40,7 +40,7 @@ def zone_temperature(
         upper_limit = room['garage_maximum']
         policy = 'main'
     else:
-        upper_limit = settings['maximum']
+        upper_limit = pump_temperature_settings(settings)['maximum'] if pump_uses_setpoints(room, settings) else settings['maximum']
         policy = room.get('zone_policy', settings.get('air_zone_temperature', 'main'))
     too_warm = any((value >= upper_limit for value in values))
     if policy == 'coldest':
@@ -82,13 +82,16 @@ class AirHeatPumpControl:
         room = garage_sensor_lists(room)
         if room.get('is_garage'):
             room['garage_heat_source'] = room_heat_source(room, settings)
+        use_setpoints = pump_uses_setpoints(room, settings)
         manual = room.get('manual_session')
         if manual and manual['ends'] <= now:
             manual = None
         if room.get('heating_zone_id') and (not room.get('is_garage')) and not manual:
             season = self.zone_season(room['heating_zone_id'], summer, now)
             use = room.get('zone_climate_mode', 'heat')
-            if season or use == 'cool':
+            # Heating-only setpoint control keeps a maintenance target even in
+            # summer. Explicit cooling and its changeover retain their safeguards.
+            if use == 'cool' or (season and (not use_setpoints or (use == 'both' and enabled and not release))):
                 cooling_enabled = enabled and (not release) and season and (use in ('cool', 'both'))
                 return self.cooling_intent(room, settings, now, cooling_enabled)
 
@@ -129,6 +132,9 @@ class AirHeatPumpControl:
             heating = old_cycle.get('heating', state is not None and state.state == 'heat')
         else:
             heating = bool(state and state.state == 'heat')
+        if use_setpoints:
+            # Heat is an operating mode, not proof the compressor is running.
+            heating = bool(state and state.attributes.get('hvac_action') == 'heating')
 
         if room.get('manual_session_ended') or room.get('solar_session_ended'):
             heating = False
@@ -155,6 +161,45 @@ class AirHeatPumpControl:
                 self.deadlines.append(deadline)
         elif doors_valid:
             self.doors.pop(room_id, None)
+
+        if use_setpoints and not manual and doors_valid and not paused and (not door_open or heating):
+            if garage:
+                normal_target = minimum = room['garage_minimum']
+                maximum = room['garage_maximum']
+                reduced_target = normal_target
+                boosted_target = maximum
+            else:
+                limits = pump_temperature_settings(settings)
+                minimum = limits['minimum']
+                maximum = limits['maximum']
+                normal_target = max(minimum, min(maximum, room['baseline']))
+                reduced_target = max(minimum, normal_target + limits['setback'])
+                boosted_target = min(maximum, normal_target + limits['boost'])
+            target = normal_target
+            reason = 'Pump thermostat: normal target'
+            if not enabled or release or not doors_valid or temperature is None or outdoor is None:
+                reason = 'Pump thermostat: maintenance target'
+            elif room.get('away_target') is not None and not garage:
+                target = min(normal_target, room['away_target'])
+                reason = 'Away temperature schedule'
+            elif too_warm:
+                target = reduced_target
+                reason = 'Garage upper limit reached' if garage else 'Zone upper limit reached'
+            elif room.get('solar_session') or room.get('preferred_heat_request'):
+                target = boosted_target
+                reason = 'Solar heating session' if room.get('solar_session') else 'Heat pump preferred'
+            elif not garage and summer:
+                target = min(normal_target, settings['summer_setpoint'])
+                reason = 'Pump thermostat: maintenance target'
+            elif planned and (not garage or room['garage_strategy'] == 'tariff'):
+                target = max(minimum, min(maximum, planned.get('setpoint', normal_target)))
+                reason = 'Pump thermostat: scheduled target'
+            fan = values.get(prefix + 'fan_heat', '')
+            if garage and any(binary(self.hass, entity) is True for entity in room.get('garage_presence_entities', [])):
+                fan = room.get('garage_fan_presence') or fan
+            return {'mode': 'heat', 'target': target, 'fan': fan,
+                    'swing': values.get(prefix + 'swing', ''), 'reason': reason,
+                    'errors': [], 'keep_heat': True, 'clamp_target': True}
 
         valid = temperature is not None and (manual or outdoor is not None) and doors_valid
         if not enabled or release:
@@ -254,6 +299,7 @@ class AirHeatPumpControl:
             'fan': fan if mode != 'off' else '',
             'swing': swing,
             'reason': reason, 'errors': errors,
+            **({'keep_heat': True} if use_setpoints and mode == 'heat' else {}),
         }
 
     def zone_season(self, zone, summer, now):
@@ -365,6 +411,12 @@ of physical compressor operation, especially with optimistic integrations.
                         if reversal['mode'] != desired_mode:
                             reversal = {'mode': desired_mode, 'since': None}
                             self.reversals[entity] = reversal
+                        if standby not in attributes.get('hvac_modes', []):
+                            if 'off' in attributes.get('hvac_modes', []):
+                                standby = 'off'
+                            else:
+                                errors.append(f"{room['name']}: no supported standby mode for heat pump changeover.")
+                                continue
                         if state.state == standby and reversal['since'] is None:
                             reversal['since'] = now
                         if reversal['since'] is None or now - reversal['since'] < 600:
@@ -395,6 +447,11 @@ of physical compressor operation, especially with optimistic integrations.
                     low = number(attributes.get('min_temp'), 5)
                     high = number(attributes.get('max_temp'), 35)
                     step = number(attributes.get('target_temp_step'), 0.5)
+                    if intent.get('clamp_target') and target is not None and low <= high:
+                        limited_target = max(low, min(high, target))
+                        if limited_target != target:
+                            errors.append(f"{room['name']}: requested {target:g} °C is outside pump limits. Using {limited_target:g} °C.")
+                        target = limited_target
                     if target is None or not low <= target <= high or step <= 0:
                         rejected = {'target': target, 'low': low, 'high': high, 'mode': mode}
                         self.rejected_targets[entity] = rejected
@@ -403,6 +460,11 @@ of physical compressor operation, especially with optimistic integrations.
                         self.rejected_targets.pop(entity,None)
                         target = round(max(low, min(high, low + round((target - low) / step) * step)), 6)
                         commands.append(('set_temperature','temperature',target,number(attributes.get('temperature'))))
+                if rejected and intent.get('keep_heat'):
+                    errors.append(f"{room['name']}: temperature setpoint outside device limits ({rejected['low']:g}–{rejected['high']:g} °C).")
+                    # Leave the device's last valid setpoint active instead of
+                    # switching to Fan only after an invalid manual request.
+                    continue
                 if rejected:
                     standby = 'off' if garage_thermostat(room) else 'fan-only'
                     errors.append(f"{room['name']}: temperature setpoint outside device limits ({rejected['low']:g}–{rejected['high']:g} °C); using {standby} standby.")
@@ -423,6 +485,8 @@ of physical compressor operation, especially with optimistic integrations.
                 if mode not in ('heat', 'cool'):
                     self.ready.pop(entity,None)
                 self.results[room_id] = {**intent, 'confirmed': False, 'stage': 'checking'}
+                if checking_heat and intent.get('clamp_target') and not rejected:
+                    self.results[room_id]['target'] = target
                 for service,key,value,reported in commands:
                     if not permitted():
                         break

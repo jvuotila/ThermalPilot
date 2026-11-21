@@ -17,6 +17,7 @@ function awayCalendarMonth(month,selected,today,locale){
  }).join('');
  return `<section class="month" aria-label="${escapeHTML(title)}"><h3>${escapeHTML(title)}</h3><div class="days">${weekdays}${days}</div></section>`;
 }
+const pumpTemperatureFields=['air_minimum','air_maximum','air_boost','air_setback'];
 const tooltipInfoIcon='<svg class="status-info" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle class="status-info-dot" cx="10" cy="6" r="1"/></svg>';
 const roomFloorPlanAsset=typeof location!=='undefined'&&/\/PREVIEW\.html$/.test(location.pathname)?'./custom_components/thermal_pilot/frontend/rooms-floor-plan.png':'/thermal_pilot/rooms-floor-plan.png';
 const dateLabel = value => new Date(value).toLocaleDateString('fi-FI',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -75,6 +76,8 @@ const settingHelp = {
   garage_strategy:'Temperature limits only preserves the lower-to-upper cycle and works without electricity prices. Tariff optimization uses the learned room response and prices to consider earlier heating; the lower limit still takes priority. Missing prices fall back to temperature cycling.',
   garage_swing:'Options come from the selected heat pump’s swing_modes. Leave unchanged sends no swing command.',
   air_swing:'Options are those supported by every selected ordinary air-to-air heat pump. Leave unchanged sends no swing command.',
+  air_use_fan_only:'On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat.',
+  garage_use_fan_only:'On allows garage targets below the pump’s minimum by switching between Heat and Fan only. Off keeps Heat selected and uses the garage’s lower limit as the maintenance target. The pump cannot go below its own minimum, for example 16 °C. Door protection can still switch to Fan only.',
   air_heat_target:'Device setpoint used in Heat mode. External room sensors and the heating plan decide when to switch between Heat and Fan only. This is separate from each room’s comfort target.',
   heat_control:'Use the house heating system, or choose a separate air-to-air heat pump. Rooms linked to a zone share that zone’s pump; only the zone’s main room issues commands.',
   heating_priority:'Link the heat pump under Zones and keep the floor thermostat here. Heat pump preferred uses room response, not COP. An unlinked or disabled zone restores independent floor control.',
@@ -133,7 +136,7 @@ const sourceSettingGroups = [
 ];
 const sharedSettingGroups = [
   ['Thermostat settings',['summer_setpoint','minimum','maximum','boost','setback','apply_season_setpoints']],
- ['Air-to-air heat pump settings',['air_heat_target','air_fan_heat','air_swing','air_fan_idle','air_swing_idle','air_fan_cool','air_swing_cool']],
+ ['Air-to-air heat pump settings',['air_use_fan_only','air_minimum','air_maximum','air_boost','air_setback','air_heat_target','air_fan_heat','air_swing','air_fan_idle','air_swing_idle','air_fan_cool','air_swing_cool']],
 ];
 const houseOptionLabels={timber_frame:'Timber frame',masonry:'Masonry',lightweight_metal:'Lightweight metal',wooden_detached:'Wooden detached house',masonry_detached:'Masonry detached house',concrete_apartment:'Concrete-element apartment building',heavy_masonry_apartment:'Heavy masonry apartment building',air_to_water:'Air-to-water heat pump',ground_source:'Ground-source heat pump',air_to_air:'Air-to-air heat pump',electric_resistance:'Electric resistance',oil_boiler:'Oil boiler',gas_boiler:'Gas boiler',wood_boiler:'Wood boiler',pellet_boiler:'Pellet boiler',district_heating:'District heating',water_floor:'Water floor heating',water_radiators:'Water radiators',electric_floor:'Electric floor heating',electric_ceiling:'Electric ceiling heating',electric_panels:'Electric panels',warm_air:'Warm air',mixed:'Mixed',concrete_slab:'Concrete slab',thin_screed:'Thin screed',lightweight:'Lightweight floor',not_applicable:'Not applicable',slab_on_ground:'Slab on ground',crawl_space:'Crawl space',basement:'Basement',other:'Other',unknown:'Unknown'};
 const schedulingLabels = {hourly:'hourly average',quarterly:'15 minutes',flexible:'flexible'};
@@ -623,7 +626,7 @@ class ThermalPilotPanel extends HTMLElement {
     finally{this.loading=false;if(this.historyPeriodReload){this.historyPeriodReload=false;if(this.tab==='history')this.setHistoryPeriod(this.historyHours,this.historyPeriodFocus);}}
   }
   field(field,obj,prefix){
-    const [key,label,type,min,max,step='any']=field;const value=obj[key];const name=`${prefix}.${key}`;
+    const [key,label,type,min,max,step='any']=field;const value=pumpTemperatureFields.includes(key)?obj[key]??obj[key.slice(4)]:['air_use_fan_only','garage_use_fan_only'].includes(key)?obj[key]??true:obj[key];const name=`${prefix}.${key}`;
     let input;
     if(type==='bool')input=`<input type="checkbox" class="setting-toggle" role="switch" data-field="${name}" ${value?'checked':''}>`;
     else if(type==='notification'){
@@ -708,6 +711,13 @@ class ThermalPilotPanel extends HTMLElement {
       const staticPrice=this.settings.price_entity==='static';
       const nativePrice=['nordpool','tibber'].includes(this.settings.price_entity);
       const available=keys.filter(key=>{
+        if(pumpTemperatureFields.includes(key))return this.settings.air_use_fan_only===false;
+        if(this.settings.air_use_fan_only===false){
+          if(key==='air_heat_target')return false;
+          if(['air_fan_idle','air_swing_idle'].includes(key)){
+            return (this.settings.heating_zones||[]).some(zone=>zone.source_type!=='fireplace'&&zone.heating_enabled&&['cool','both'].includes(zone.climate_mode));
+          }
+        }
         if(['away_zone','away_delay_hours'].includes(key)&&!this.settings.away_automatic)return false;
         if(['solar_start_kw','solar_stop_kw','solar_minimum_run_minutes'].includes(key)&&!this.settings.solar_power_entity)return false;
         if(key==='static_price')return staticPrice;
@@ -821,6 +831,11 @@ class ThermalPilotPanel extends HTMLElement {
       if(key==='shared_air_rooms')return this.sharedAirEligible(r);
       if(key==='garage_strategy')return r.is_garage&&['air_to_water','ground_source','air_to_air','electric_resistance'].includes(garageSource(r,this.settings));
       if(key==='garage_door_warning_minutes')return r.is_garage&&!airRoom(r,this.settings)&&(r.garage_door_entities||[]).some(Boolean);
+      if(key==='garage_use_fan_only')return r.is_garage&&airRoom(r,this.settings);
+      if(r.garage_use_fan_only===false){
+        if(key==='garage_heat_target')return false;
+        if(['garage_fan_idle','garage_swing_idle'].includes(key)&&!(r.garage_door_entities||[]).some(Boolean))return false;
+      }
       if(key==='garage_heat_target'||key in pumpOptionKeys||['garage_presence_entities','garage_door_delay'].includes(key))return r.is_garage&&airRoom(r,this.settings);
       if(key.startsWith('garage_'))return r.is_garage;
       if(['baseline','fireplace_reduction','away_exempt'].includes(key))return !r.is_garage;
@@ -1718,7 +1733,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     if (room.pump_suggestion) {
       const pumpMode = room.pump_suggestion.mode;
       if (room.is_garage&&room.garage_heat_source&&room.garage_heat_source!=='air_to_air') status=pumpMode==='heat'?'Thermostat: Heating':'Thermostat: Off';
-      else if (pumpMode === 'heat') status = 'Heat pump: Heating';
+      else if (pumpMode === 'heat') status = room.pump_suggestion.clamp_target ? 'Heat pump: Thermostat control' : 'Heat pump: Heating';
       else if (pumpMode === 'cool') status = 'Heat pump: Cooling';
       else if (pumpMode === 'off') status = 'Heat pump: Off';
       else status = 'Heat pump: Fan only';
@@ -1767,8 +1782,10 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
 
     const targetLabel = room.air_control
       ? 'Heat pump heating setpoint' : 'Suggested thermostat target';
+    const confirmedTarget = room.pump_suggestion?.clamp_target && room.pump_control?.confirmed
+      ? room.pump_control.target : null;
     const target = room.air_control
-      ? room.pump_suggestion?.target : room.pump_suggestion?.target ?? room.away?.heating_target ?? room.heating_assistance?.floor_target ?? plan?.setpoint;
+      ? confirmedTarget ?? room.pump_suggestion?.target : room.pump_suggestion?.target ?? room.away?.heating_target ?? room.heating_assistance?.floor_target ?? plan?.setpoint;
     const garageClass = this.isGarageRoom(roomId, room) ? ' garage-observation-card' : '';
     return `<section class="observation-card${garageClass}">
       <details class="observation-accordion" data-room-accordion="${escapeHTML(roomId)}" ${this.roomDisclosureOpen(roomId) ? 'open' : ''}>
@@ -1789,7 +1806,9 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     const plan = room.plan;
     const heading = room.air_control ? 'Heat pump timing' : 'Thermostat timing';
     const helpId = `timing-help-${escapeHTML(roomId)}`;
-    const helpText = room.air_control
+    const helpText = room.pump_uses_setpoints
+      ? 'These heating targets use the pump’s own thermostat. The pump’s supported temperature limits apply.'
+      : room.air_control
       ? 'Heat means heating mode; pauses use fan-only. Room sensors govern temperature limits. The device setpoint is separate from those limits.'
       : 'Target changes include the shared start/stop offsets. The temperature forecast models the planned heating period; actual valve and heat-pump delays must be checked against observations.';
     const help = `<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t(heading))}" aria-describedby="${helpId}">${tooltipInfoIcon}</button><span id="${helpId}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t(helpText))}</span></span>`;
@@ -2415,7 +2434,7 @@ details{scroll-margin-block:16px}
       if(key==='zone_rooms'){const selected=new Set(values.filter(Boolean));this.settings.rooms.forEach(room=>{if(room.heating_zone_id===obj.id&&!selected.has(room.id))room.heating_zone_id='';});if(!selected.has(obj.main_room_id))obj.main_room_id=this.settings.rooms.find(room=>selected.has(room.id))?.id||'';}
       clearSaveMessage();this.render();
     });
-    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if(event?.target?.closest?.('[data-entity-list]')?.dataset.entityList?.endsWith('.garage_door_entities')){this.capture(true);clearSaveMessage();this.render();return;}if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','garage_heat_source','heat_control','thermostat','heating_zone_id','heating_priority','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff','source.nordpool_entry','source.solar_power_entity','source.away_automatic'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.capture();this.render();return;}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
+    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if(event?.target?.closest?.('[data-entity-list]')?.dataset.entityList?.endsWith('.garage_door_entities')){this.capture(true);clearSaveMessage();this.render();return;}if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','garage_heat_source','garage_use_fan_only','air_use_fan_only','heat_control','thermostat','heating_zone_id','heating_priority','fireplace_entity','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff','source.nordpool_entry','source.solar_power_entity','source.away_automatic'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.capture();this.render();return;}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
     settingsForm?.addEventListener('submit',async e=>{
       e.preventDefault();if(this.saving||this.backupBusy)return;this.capture();
       const enableLive=electricHeating(this.settings)&&this.settings.simulation_enabled===false&&!this.info.settings?.live_control_confirmed;

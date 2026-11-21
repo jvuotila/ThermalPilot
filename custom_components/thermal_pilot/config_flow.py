@@ -17,7 +17,10 @@ class ThermalPilotFlow(config_entries.ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         if user_input is not None:
-            return self.async_create_entry(title='ThermalPilot', data={**DEFAULTS, **user_input})
+            # New entries store the safer choice explicitly. Older entries
+            # without this setting still use the legacy default in DEFAULTS.
+            settings = {**DEFAULTS, **user_input, 'air_use_fan_only': False}
+            return self.async_create_entry(title='ThermalPilot', data=settings)
         return self.async_show_form(step_id='user', data_schema=vol.Schema({
             vol.Optional('price_entity'): selector.EntitySelector(setup_selector_config(self.hass, 'price_entity')),
             vol.Required('outdoor_entity'): selector.EntitySelector(setup_selector_config(self.hass, 'outdoor_entity')),

@@ -81,3 +81,28 @@ assert.equal(ordering.settings.rooms[2].id,'new-one','visual order never changes
 ordering.info.settings=structuredClone(ordering.settings);
 assert.deepEqual(order(),['room','new-two','new-one','old-garage']);
 console.log('New rooms append after garages, retain their position during edits, and sort after successful save.');
+
+// Fixed pump targets and idle controls are shown only when used.
+panel.settings.house_heat_source='air_to_air';
+room.garage_heat_source='air_to_air';
+room.garage_door_entities=[];
+room.garage_use_fan_only=false;
+let markup=panel.roomSettingsFields(room,0);
+assert.match(markup,/data-field="room0.garage_use_fan_only"/);
+assert.doesNotMatch(markup,/data-field="room0.garage_(heat_target|fan_idle|swing_idle)"/);
+room.garage_door_entities=['binary_sensor.door'];
+markup=panel.roomSettingsFields(room,0);
+assert.match(markup,/data-field="room0.garage_fan_idle"/);
+room.garage_use_fan_only=true;
+assert.match(panel.roomSettingsFields(room,0),/data-field="room0.garage_heat_target"/);
+panel.settings.air_use_fan_only=false;
+panel.settings.heating_zones=[];
+markup=panel.settingsView('rooms');
+assert.match(markup,/data-field="source.air_use_fan_only"/);
+assert.doesNotMatch(markup,/data-field="source.air_(heat_target|fan_idle|swing_idle)"/);
+for(const key of ['minimum','maximum','boost','setback']){
+ assert.ok(markup.includes(`data-field="source.air_${key}"`));
+}
+panel.settings.air_use_fan_only=true;
+assert.doesNotMatch(panel.settingsView('rooms'),/data-field="source.air_(minimum|maximum|boost|setback)"/);
+assert.match(panel.settingsView('rooms'),/data-field="source.air_heat_target"/);

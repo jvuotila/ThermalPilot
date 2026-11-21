@@ -17,6 +17,11 @@ SOURCE_FIELDS = [
  ('away_delay_hours','Absence delay (hours)','number',0,168,.5),
  ('air_fan_cool','Cooling fan speed','text'),
  ('air_swing_cool','Cooling swing mode','text'),
+ ('air_use_fan_only', 'Use Fan only between heating runs', 'bool'),
+ ('air_minimum', 'Minimum allowed temperature (°C)', 'number', 5, 30, .1),
+ ('air_maximum', 'Maximum allowed temperature (°C)', 'number', 5, 35, .1),
+ ('air_boost', 'Heating setpoint boost (°C)', 'number', 0, 5, .1),
+ ('air_setback', 'Peak-hour reduction (°C)', 'number', -5, 0, .1),
  ('air_heat_target','Heat pump heating setpoint (°C)','number',5,35,.5),
  ('air_fan_heat','Heating fan speed','text'),
  ('air_fan_idle','Standby fan speed','text'),
@@ -118,6 +123,7 @@ ROOM_FIELDS = [
  ('garage_strategy', 'Heating strategy', 'select:temperature,tariff'),
  ('garage_minimum', 'Lower temperature limit (°C)', 'number', -5, 25, 0.1),
  ('garage_maximum', 'Upper temperature limit (°C)', 'number', -5, 30, 0.1),
+ ('garage_use_fan_only', 'Use Fan only between heating runs', 'bool'),
  ('garage_heat_target', 'Heat pump heating setpoint (°C)', 'number', 5, 35, 0.5),
  ('garage_fan_heat', 'Heating fan speed', 'text'),
  ('garage_swing', 'Heating swing mode', 'text'),
@@ -374,6 +380,24 @@ def air_room(room, settings):
     return room.get('heat_control') != 'zone_member' and room_heat_source(room, settings) == 'air_to_air'
 
 
+def pump_uses_setpoints(room, settings):
+    if not air_room(room, settings):
+        return False
+    if room.get('is_garage'):
+        return not room.get('garage_use_fan_only', True)
+    return not settings.get('air_use_fan_only', True)
+
+
+
+def pump_temperature_settings(settings):
+    """Use house values until independent pump values are saved."""
+    limits = {}
+    for key in ('minimum', 'maximum', 'boost', 'setback'):
+        value = settings.get('air_' + key)
+        limits[key] = settings[key] if value is None else value
+    return limits
+
+
 def preferred_zone(room: dict, settings: dict) -> dict | None:
     """Return an enabled heating zone without replacing the floor controller.
 
@@ -409,6 +433,9 @@ def room_settings(room, settings):
     if air_room(room, settings) or room.get('heat_control') == 'zone_member':
         effective['lag_hours'] = AIR_INITIAL_LAG_HOURS
         effective['air_control'] = True
+    if not room.get('is_garage') and pump_uses_setpoints(room, settings):
+        effective.update(pump_temperature_settings(settings))
+        effective['baseline'] = max(effective['minimum'], min(effective['maximum'], room['baseline']))
     if room.get('is_garage'):
         effective.update(
             minimum=room['garage_minimum'],
@@ -437,6 +464,8 @@ def learning_fingerprint(room, settings):
         'baseline',
         'water_reference'
     )] + [settings['outdoor_entity'], settings['water_entity'] if room_water else '']
+    if pump_uses_setpoints(room, settings):
+        fingerprint.append('pump_setpoints')
     if effective.get('air_control'):
         fingerprint += [
             'air_to_air',
@@ -540,6 +569,8 @@ def validate(payload, hass=None, *, require_outdoor=True):
     fields = []
     for field in SOURCE_FIELDS:
         key = field[0]
+        if key in ('air_minimum', 'air_maximum', 'air_boost', 'air_setback') and result[key] is None:
+            continue  # Existing installations inherit the shared values until edited.
         unused_water = key == 'water_entity' and not water_distribution(result)
         unused_price_sensor = (
             key in ('price_entity', 'price_forecast_entity') and not electric_heating(result)
@@ -568,6 +599,9 @@ def validate(payload, hass=None, *, require_outdoor=True):
                 raise ValueError('Fireplace active when: choose a valid state of the selected sensor.')
     if result['minimum'] > result['maximum']:
         raise ValueError('Minimum allowed temperature must not exceed maximum allowed temperature.')
+    pump_limits = pump_temperature_settings(result)
+    if pump_limits['minimum'] > pump_limits['maximum']:
+        raise ValueError('Heat pump: minimum allowed temperature must not exceed maximum allowed temperature.')
     for key in (
         'minimum_run_minutes',
         'start_offset_minutes',
@@ -658,11 +692,19 @@ def validate(payload, hass=None, *, require_outdoor=True):
         if hass is not None and air_room(room, result):
             state = hass.states.get(room['thermostat'])
             attrs = state.attributes
-            if not {'heat', 'fan_only'}.issubset(attrs.get('hvac_modes', [])) or (room['is_garage'] and 'off' not in attrs.get('hvac_modes', [])):
+            use_setpoints = pump_uses_setpoints(room, result)
+            required = {'heat'}
+            if not use_setpoints or (room['is_garage'] and room['garage_door_entities']):
+                required.add('fan_only')
+            if room['is_garage'] and not use_setpoints:
+                required.add('off')
+            if not required.issubset(attrs.get('hvac_modes', [])):
+                if use_setpoints:
+                    raise ValueError(f"{room['name']}: select a pump that supports Heat and, for garage door protection, Fan only.")
                 raise ValueError(f"{room['name']}: select a heat pump supporting heat and fan-only (and off for a garage).")
             target = room['garage_heat_target'] if room['is_garage'] else result['air_heat_target']
             # Climate limits can describe the current mode (fan-only may report 0–1).
-            if state.state == 'heat' and (not attrs.get('min_temp', 5) <= target <= attrs.get('max_temp', 35)):
+            if not use_setpoints and state.state == 'heat' and (not attrs.get('min_temp', 5) <= target <= attrs.get('max_temp', 35)):
                 raise ValueError(f"{room['name']}: heat pump heating setpoint {target:g} °C is outside device limits ({attrs.get('min_temp', 5):g}–{attrs.get('max_temp', 35):g} °C).")
             prefix = 'garage_' if room['is_garage'] else 'air_'
             values = room if room['is_garage'] else result
@@ -673,6 +715,10 @@ def validate(payload, hass=None, *, require_outdoor=True):
                 ('swing','swing_modes'),
                 ('swing_idle','swing_modes')
             ]:
+                if use_setpoints and suffix in ('fan_idle', 'swing_idle') and not (
+                    room['is_garage'] and room['garage_door_entities']
+                ):
+                    continue
                 selected = values.get(prefix + suffix, '')
                 if selected and selected not in attrs.get(attribute, []):
                     raise ValueError(f"{room['name']}: selected {suffix.replace('_', ' ')} is not supported by this heat pump.")
@@ -707,10 +753,13 @@ def validate(payload, hass=None, *, require_outdoor=True):
         if hass is not None and zone['heating_enabled']:
             state = hass.states.get(zone['thermostat'])
             attrs = state.attributes
-            required = {'fan_only'} | ({'heat'} if zone['climate_mode'] == 'heat' else {'cool'} if zone['climate_mode'] == 'cool' else {'heat', 'cool'})
+            use_setpoints = not result['air_use_fan_only']
+            required = ({'heat'} if zone['climate_mode'] == 'heat' else {'cool'} if zone['climate_mode'] == 'cool' else {'heat', 'cool'})
+            if not use_setpoints or zone['climate_mode'] != 'heat':
+                required.add('fan_only')
             if not required.issubset(attrs.get('hvac_modes', [])):
                 raise ValueError('The zone heat pump must support the selected heating/cooling modes and fan-only.')
-            if zone['climate_mode'] in ('heat', 'both') and state.state == 'heat' and (not attrs.get('min_temp', 5) <= result['air_heat_target'] <= attrs.get('max_temp', 35)):
+            if not use_setpoints and zone['climate_mode'] in ('heat', 'both') and state.state == 'heat' and (not attrs.get('min_temp', 5) <= result['air_heat_target'] <= attrs.get('max_temp', 35)):
                 raise ValueError(f"{zone['name']}: heat pump heating setpoint {result['air_heat_target']:g} °C is outside device limits ({attrs.get('min_temp', 5):g}–{attrs.get('max_temp', 35):g} °C).")
             for key,attribute in [
                 ('air_fan_heat','fan_modes'),
@@ -720,6 +769,8 @@ def validate(payload, hass=None, *, require_outdoor=True):
                 ('air_fan_cool','fan_modes'),
                 ('air_swing_cool','swing_modes')
             ]:
+                if use_setpoints and zone['climate_mode'] == 'heat' and key in ('air_fan_idle', 'air_swing_idle', 'air_fan_cool', 'air_swing_cool'):
+                    continue
                 if result[key] and result[key] not in attrs.get(attribute, []):
                     raise ValueError('Shared air-to-air mode is not supported by every selected heat pump.')
     for room in rooms:

@@ -18,6 +18,70 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
         self.hass=types.SimpleNamespace(states={'climate.garage':self.pump,'sensor.garage':state('6'),'sensor.out':state('-2')},services=types.SimpleNamespace(async_call=AsyncMock()))
         self.control=AirHeatPumpControl(self.hass)
     def intent(self,now=0,**kw):return self.control.intent(self.room,self.settings,now,**kw)
+    def test_setpoint_control_keeps_heat_selected_during_schedule_and_fallback(self):
+        self.room.update(is_garage=False, heat_control='air_to_air', baseline=21)
+        self.settings['air_use_fan_only'] = False
+        self.hass.states['sensor.garage'].state = '21'
+        for target in (22.5, 20, 21):
+            intent = self.intent(planned={'setpoint': target})
+            self.assertEqual((intent['mode'], intent['target']), ('heat', target))
+        self.hass.states['sensor.out'].state = 'unavailable'
+        self.assertEqual(self.intent()['target'], 21)
+        self.assertEqual(self.intent(release=True)['mode'], 'heat')
+        self.assertEqual(self.intent(enabled=False)['mode'], 'heat')
+
+    def test_independent_pump_settings_drive_planning_and_control(self):
+        self.room.update(is_garage=False, heat_control='air_to_air', baseline=21)
+        self.settings.update(air_use_fan_only=False, air_minimum=17, air_maximum=22,
+                             air_boost=0.5, air_setback=-3, minimum=19, maximum=23)
+        self.hass.states['sensor.garage'].state = '20'
+        planned_room = room_settings(self.room, self.settings)
+        self.assertEqual(tuple(planned_room[key] for key in ('minimum', 'maximum', 'boost', 'setback')),
+                         (17, 22, 0.5, -3))
+        main_room = room_settings({**self.room, 'heat_control': 'house'}, self.settings)
+        self.assertEqual((main_room['minimum'], main_room['maximum']), (19, 23))
+        self.assertEqual(self.intent(planned={'setpoint': 18})['target'], 18)
+        self.room['solar_session'] = True
+        self.assertEqual(self.intent()['target'], 21.5)
+        self.hass.states['sensor.garage'].state = '22'
+        self.assertEqual(self.intent()['target'], 18)
+        self.settings['air_minimum'] = 23
+        with self.assertRaisesRegex(ValueError, 'Heat pump: minimum'):
+            validate(self.settings, self.hass)
+
+    async def test_garage_setpoint_is_clamped_after_heat_acknowledgement(self):
+        self.room['garage_use_fan_only'] = False
+        self.pump.attributes.update(temperature=20, min_temp=0, max_temp=1)
+        intents = {self.room['id']: self.intent()}
+        await self.control.apply([self.room], intents, 0, lambda: True)
+        self.assertEqual(self.hass.services.async_call.await_args.args[2]['hvac_mode'], 'heat')
+        self.pump.state = 'heat'
+        self.pump.attributes.update(min_temp=16, max_temp=30)
+        errors = await self.control.apply([self.room], intents, 10, lambda: True)
+        self.assertEqual(self.hass.services.async_call.await_args.args[2]['temperature'], 16)
+        self.assertEqual(self.control.results[self.room['id']]['target'], 16)
+        self.assertIn('Using 16 °C', errors[0])
+
+    def test_setpoint_garage_retains_door_pause(self):
+        self.room.update(garage_use_fan_only=False, garage_door_entities=['binary_sensor.door'])
+        self.hass.states['binary_sensor.door'] = state('off')
+        self.pump.state = 'heat'
+        self.pump.attributes['hvac_action'] = 'heating'
+        self.assertEqual(self.intent(0)['mode'], 'heat')
+        self.hass.states['binary_sensor.door'].state = 'on'
+        self.assertEqual(self.intent(1)['mode'], 'heat')
+        self.assertEqual(self.intent(61)['mode'], 'fan_only')
+        self.hass.states['binary_sensor.door'].state = 'off'
+        self.assertEqual(self.intent(62)['mode'], 'heat')
+
+    def test_setpoint_garage_without_door_sensors_can_use_heat_only_device(self):
+        self.room['garage_use_fan_only'] = False
+        self.pump.attributes['hvac_modes'] = ['heat']
+        self.pump.state = 'heat'
+        self.pump.attributes['min_temp'] = 18  # Saved fan-only mode used 16 °C.
+        result = validate(self.settings, self.hass)
+        self.assertFalse(result['rooms'][0]['garage_use_fan_only'])
+
     async def test_hysteresis_and_warm_off(self):
         self.assertEqual(self.intent()['mode'],'fan_only')
         for value,expected in [('4.9','heat'),('8.9','heat'),('9','fan_only'),('6','fan_only')]:

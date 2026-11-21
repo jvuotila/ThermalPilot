@@ -18,7 +18,7 @@ from .heating_assistance import update_room as update_assistance_room, forecast 
 from .solar_heating import SOLAR_THRESHOLD_SECONDS, production_kw, update_sessions
 from .notifications import notify_manual_door_pause, notify_garage_door_open
 from .away import person_count, parse_schedule, room_exempt, update as update_away, overlay_plan as away_plan
-from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_water_distribution
+from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
@@ -344,6 +344,10 @@ class PilotCoordinator(DataUpdateCoordinator):
             if value in ('idle', 'off', 'fan') or ((air_room(room, self.settings) or room.get('heat_control') == 'zone_member') and state.state in ('fan_only', 'off')):
                 return 0.0
             if value is None and (air_room(room, self.settings) or room.get('heat_control') == 'zone_member') and (state.state == 'heat'):
+                if pump_uses_setpoints(room, self.settings) or (
+                    room.get('heat_control') == 'zone_member' and not self.settings.get('air_use_fan_only', True)
+                ):
+                    return None  # Heat can be selected while the compressor is idle.
                 return 1.0  # Observed operating mode proxy, not measured heat output.
             return None
         value = state.state
@@ -869,6 +873,15 @@ class PilotCoordinator(DataUpdateCoordinator):
                 model['response'] = 0.0
             activity = self.activity(room)
             thermostat_state = self.hass.states.get(room['thermostat'])
+            use_setpoints = pump_uses_setpoints(room, self.settings)
+            if use_setpoints and room.get('is_garage') and room['garage_strategy'] == 'temperature':
+                target = room['garage_minimum']
+                if (thermostat_state and thermostat_state.state == 'heat'
+                        and now.timestamp() >= self.air_control.ready.get(room['thermostat'], 0)):
+                    low = number(thermostat_state.attributes.get('min_temp'), 5)
+                    high = number(thermostat_state.attributes.get('max_temp'), 35)
+                    target = max(low, min(high, target))
+                room['garage_maintenance_target'] = target
             pump_mode = None
             pump_basis = 'activity'
             if room.get('air_control') and thermostat_state and (thermostat_state.state not in ('unknown', 'unavailable')):
@@ -876,7 +889,8 @@ class PilotCoordinator(DataUpdateCoordinator):
                 if action in ('heating', 'cooling'):
                     pump_mode = 'heat' if action == 'heating' else 'cool'
                 elif action is None:
-                    pump_mode = thermostat_state.state if thermostat_state.state in ('heat', 'cool') else None
+                    if thermostat_state.state == 'cool' or (thermostat_state.state == 'heat' and not use_setpoints):
+                        pump_mode = thermostat_state.state
                     pump_basis = 'operating_mode'
             actual_request = number(thermostat_state.attributes.get('temperature')) if thermostat_state else None
             result = {'name':room['name'], 'temperature':temperature, 'actual_activity':activity,
@@ -1061,7 +1075,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                     )
                     result['plan']['prices_used'] = False
                 if result['plan'] and room.get('air_control'):
-                    result['plan']['air_control'] = True
+                    result['plan']['air_control'] = not use_setpoints
                     result['plan']['device_target'] = room['garage_heat_target'] if room.get('is_garage') else self.settings['air_heat_target']
                 result['model'] = deepcopy(model)
                 result['one_step_prediction'] = prediction
@@ -1083,8 +1097,9 @@ class PilotCoordinator(DataUpdateCoordinator):
             else:
                 result['learning_note'] = 'Model adapting to observations; assess reliability from prediction error.'
             result['air_control'] = bool(room.get('air_control'))
+            result['pump_uses_setpoints'] = use_setpoints
             result['garage_heat_source'] = room.get('garage_heat_source', 'air_to_air')
-            result['activity_basis'] = 'heat_mode' if room.get('air_control') and (not room['activity_entity']) and thermostat_state and (thermostat_state.attributes.get('hvac_action') is None) else 'demand'
+            result['activity_basis'] = 'heat_mode' if room.get('air_control') and not use_setpoints and (not room['activity_entity']) and thermostat_state and (thermostat_state.attributes.get('hvac_action') is None) else 'demand'
             result['is_garage'] = room.get('is_garage', False)
             result['heating_zone_id'] = room.get('heating_zone_id', '')
             if room.get('heat_control') == 'zone_member':
@@ -1171,6 +1186,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             if state is None:
                 continue
             air = air_room(room, self.settings)
+            use_setpoints = pump_uses_setpoints(room, self.settings)
             modes = [mode for mode in ('heat', 'cool')
                      if mode in state.attributes.get('hvac_modes', ['heat']) and (air or mode == 'heat')]
             if not modes:
@@ -1191,11 +1207,20 @@ class PilotCoordinator(DataUpdateCoordinator):
                 # Maintenance bounds are deliberately overridden for garages;
                 # ordinary rooms still respect their configured temperature range.
                 if not room.get('is_garage'):
-                    minimum = max(minimum, self.settings['minimum'])
-                    maximum = min(maximum, self.settings['maximum'])
+                    bounds = pump_temperature_settings(self.settings) if use_setpoints and mode == 'heat' else self.settings
+                    minimum = max(minimum, bounds['minimum'])
+                    maximum = min(maximum, bounds['maximum'])
+                if minimum > maximum:
+                    continue
                 limits[mode] = {'minimum': minimum, 'maximum': maximum, 'step': step}
+            modes = list(limits)
+            if not modes:
+                continue
             if room.get('is_garage'):
-                target = room['garage_maximum'] if garage_thermostat(room) else room['garage_heat_target']
+                target = room['garage_maximum'] if garage_thermostat(room) or use_setpoints else room['garage_heat_target']
+            elif use_setpoints:
+                effective = room_settings(room, self.settings)
+                target = effective['baseline'] + effective['boost']
             elif air:
                 target = self.settings['air_heat_target']
             else:
@@ -1401,12 +1426,14 @@ class PilotCoordinator(DataUpdateCoordinator):
             pump = self.hass.states.get(zone['thermostat'])
             members = [member for member in configured if member.get('heating_zone_id') == zone['id']]
             readings = [self.value(member['temperature_entity']) for member in members]
+            use_setpoints = not settings.get('air_use_fan_only', True)
+            pump_maximum = pump_temperature_settings(settings)['maximum'] if use_setpoints else settings['maximum']
             pump_available = bool(pump and pump.state not in ('unknown', 'unavailable', 'cool')
                                   and 'heat' in pump.attributes.get('hvac_modes', ['heat'])
                                   and pump.attributes.get('hvac_action') != 'cooling'
-                                  and all(value is not None and value < settings['maximum'] for value in readings))
+                                  and all(value is not None and value < pump_maximum for value in readings))
             pump_heating = bool(pump_available and (pump.attributes.get('hvac_action') == 'heating'
-                                or (pump.attributes.get('hvac_action') is None and pump.state == 'heat')))
+                                or (not use_setpoints and pump.attributes.get('hvac_action') is None and pump.state == 'heat')))
             signature = [room['thermostat'], room['temperature_entity'], zone['id'], zone['thermostat'],
                          room['baseline'], room['assist_below_target'], settings['lag_hours'],
                          settings['minimum_run_minutes'], settings['boost'], settings['minimum'], settings['maximum'],
@@ -1525,8 +1552,11 @@ class PilotCoordinator(DataUpdateCoordinator):
                 if any(binary(self.hass, entity) is not False for entity in doors):
                     continue
             else:
-                limit = min(settings['maximum'], room['baseline'] + settings['boost'])
-                target = settings['air_heat_target'] if air else limit
+                use_setpoints = pump_uses_setpoints(room, settings)
+                effective = room_settings(room, settings) if use_setpoints else room
+                bounds = pump_temperature_settings(settings) if use_setpoints else settings
+                limit = min(bounds['maximum'], effective['baseline'] + bounds['boost'])
+                target = settings['air_heat_target'] if air and not use_setpoints else limit
             if temperature is None or too_warm or temperature >= limit:
                 continue
             rooms[room_id] = {

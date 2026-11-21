@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.97 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.98 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -567,6 +567,26 @@ cancels the session. Importing a backup does not reactivate manual sessions.
 Controls are available in the integration's Plan tab; dashboard cards remain
 read-only.
 
+
+### Air-to-air pump heating control
+
+**Use Fan only between heating runs** is off for new installations. Existing
+installations keep their current setting and older configurations without this
+setting keep Fan only switching. With the switch off under
+**Shared room and zone settings**, eligible pumps stay in Heat while ThermalPilot adjusts the normal target using the pump-specific minimum, maximum,
+boost and reduction. These four fields appear when switching is off and start
+with the shared thermostat values.
+If Home Assistant stops while the pump is in Heat, the pump can continue
+regulating at its last setpoint using its own thermostat. Cooling, changeover,
+and configured garage door protection can still take a pump out of Heat.
+
+Each garage pump has its own switch, which is on by default. With switching disabled, the garage uses
+its lower temperature limit as the maintenance target, subject to the pump's
+supported setpoints. A pump with a 16 °C minimum cannot maintain an 8 °C
+garage target in this mode. Keep Fan only switching enabled to use those
+lower garage targets. When using thermostat targets, heating observations
+require reported HVAC activity or an activity sensor because Heat mode alone
+does not show whether the pump is running.
 
 ### Garage heat sources
 

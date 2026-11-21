@@ -1,6 +1,6 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.97'
+VERSION = '0.9.98'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
@@ -34,7 +34,8 @@ DEFAULTS = {
     'lag_hours': 3.0, 'curve_warm_temp': 0.0, 'curve_cold_temp': -18.0,
     'house_construction':'unknown', 'house_heat_source': 'air_to_water', 'house_distribution': 'water_floor',
     'house_heated_floor': 'concrete_slab', 'house_foundation': 'unknown',
-    'air_fan_cool':'', 'air_swing_cool':'', 'air_heat_target': 24.0,
+    'air_minimum': None, 'air_maximum': None, 'air_boost': None, 'air_setback': None,
+    'air_use_fan_only': True, 'air_fan_cool':'', 'air_swing_cool':'', 'air_heat_target': 24.0,
     'air_fan_heat': '', 'air_fan_idle': '', 'air_swing': '', 'air_swing_idle': '',
     'heating_zones': [], 'rooms': [],
 }
@@ -44,7 +45,7 @@ ROOM_DEFAULTS = {
     'baseline': 20.0, 'heating_priority': 'independent', 'assist_below_target': 0.5,
     'is_garage': False, 'heat_control': 'house', 'heating_zone_id': '',
     'garage_construction':'unknown', 'garage_minimum': 5.0, 'garage_maximum': 9.0,
-    'garage_heat_source': 'house', 'garage_strategy': 'temperature', 'garage_heat_target': 16.0,
+    'garage_heat_source': 'house', 'garage_use_fan_only': True, 'garage_strategy': 'temperature', 'garage_heat_target': 16.0,
     'garage_fan_heat': '', 'garage_fan_idle': '', 'garage_fan_presence': '', 'garage_swing': '', 'garage_swing_idle': '',
     'garage_door_entities': [], 'garage_door_delay': 60, 'garage_door_warning_minutes': 10,
     'garage_presence_entities': [],
