@@ -2,6 +2,8 @@
   "language": "fr",
   "name": "Français",
   "messages": {
+    "Use Fan only between heating runs": "Utiliser la ventilation seule entre les cycles de chauffage",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Lorsque l’option est activée, la pompe à chaleur alterne entre le chauffage et la ventilation seule. Lorsqu’elle est désactivée, la pompe reste en mode chauffage pendant la saison de chauffe et ajuste la consigne selon la température cible de la pièce, la hausse et la baisse prévues. Si Home Assistant s’arrête pendant que le mode chauffage est sélectionné, la pompe peut maintenir la dernière consigne avec son propre thermostat. Le refroidissement et le changement de mode peuvent toujours faire quitter le mode chauffage. Entre les cycles de refroidissement, la pompe peut utiliser la ventilation seule dans les deux positions de l’interrupteur.",
     " and heating water temperature": " et température d’eau",
     " are available. Weather forecast details are reported separately below.": " disponibles. Prévisions météo ci-dessous.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", sans chauffage, chaleur résiduelle ni appareils. Moindre perte signifie refroidissement modélisé plus lent ; aucune mesure d’efficacité ou d’isolation.",

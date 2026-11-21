@@ -2,6 +2,8 @@
   "language": "lt",
   "name": "Lietuvių",
   "messages": {
+    "Use Fan only between heating runs": "Tarp šildymo ciklų naudoti tik ventiliatorių",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Įjungus šią parinktį šilumos siurblys perjungia šildymo ir vien ventiliatoriaus režimus. Išjungus parinktį šildymo sezonu išlieka šildymo režimas, o nustatyta temperatūra keičiama pagal patalpos tikslinę temperatūrą, padidinimą ir sumažinimą. Jei Home Assistant nustoja veikti pasirinkus šildymo režimą, siurblys savo termostatu gali palaikyti paskutinę nustatytą temperatūrą. Vėsinant ar keičiant režimą šildymo režimas vis tiek gali būti išjungtas. Tarp vėsinimo ciklų siurblys gali naudoti vien ventiliatorių esant bet kuriai jungiklio padėčiai.",
     " and heating water temperature": " ir vandens temperatūra",
     " are available. Weather forecast details are reported separately below.": " prieinami. Orų prognozė žemiau.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", be šildymo, likutinės ar prietaisų šilumos. Mažesnis nuostolis reiškia lėtesnį modeliuojamą vėsimą; tai ne našumo ar izoliacijos rodiklis.",

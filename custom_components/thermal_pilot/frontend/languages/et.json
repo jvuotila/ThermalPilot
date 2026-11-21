@@ -2,6 +2,8 @@
   "language": "et",
   "name": "Eesti",
   "messages": {
+    "Use Fan only between heating runs": "Kasuta kütmistsüklite vahel ainult ventilaatorit",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kui säte on sisse lülitatud, vahetab soojuspump kütterežiimi ja ainult ventilaatoriga režiimi vahel. Kui säte on välja lülitatud, jääb pump kütteperioodil kütterežiimi ning muudab seadistatud temperatuuri ruumi sihttemperatuuri, tõste ja alanduse järgi. Kui Home Assistant seiskub ajal, mil pump on kütterežiimis, saab pump viimast seadistatud temperatuuri oma termostaadiga hoida. Jahutamine ja režiimi vahetamine võivad pumba siiski kütterežiimist välja viia. Jahutustsüklite vahel saab pump kasutada ainult ventilaatorit lüliti mõlemas asendis.",
     " and heating water temperature": " ja veetemperatuur",
     " are available. Weather forecast details are reported separately below.": " on saadaval. Ilmaprognoos on allpool.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", ilma kütte, jääk- või seadmesoojuseta. Väiksem kadu tähendab mudelis aeglasemat jahtumist; see pole energia- ega soojustusnäitaja.",

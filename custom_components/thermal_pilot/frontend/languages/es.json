@@ -2,6 +2,8 @@
   "language": "es",
   "name": "Español",
   "messages": {
+    "Use Fan only between heating runs": "Usar solo el ventilador entre ciclos de calefacción",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Con la opción activada, la bomba de calor alterna entre calefacción y solo ventilador. Con la opción desactivada, la bomba permanece en modo calefacción durante la temporada de calefacción y ajusta la consigna según la temperatura objetivo de la habitación, el aumento y la reducción. Si Home Assistant se detiene mientras está seleccionado el modo calefacción, la bomba puede mantener la última consigna con su propio termostato. La refrigeración y el cambio de modo aún pueden hacer que la bomba salga del modo calefacción. Entre ciclos de refrigeración, la bomba puede usar el modo de solo ventilador con la opción activada o desactivada.",
     " and heating water temperature": " y temperatura del agua",
     " are available. Weather forecast details are reported separately below.": " disponibles. Previsión meteorológica abajo.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", sin calefacción, calor residual ni aparatos. Menor pérdida indica enfriamiento más lento en el modelo; no mide eficiencia ni aislamiento.",

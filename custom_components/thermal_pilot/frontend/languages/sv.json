@@ -2,6 +2,8 @@
   "language": "sv",
   "name": "Svenska",
   "messages": {
+    "Use Fan only between heating runs": "Använd endast fläkten mellan uppvärmningsperioder",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "När inställningen är på växlar värmepumpen mellan värmedrift och enbart fläkt. När den är av stannar pumpen i värmeläge under uppvärmningssäsongen och justerar börvärdet utifrån rummets måltemperatur, höjningen och sänkningen. Om Home Assistant slutar fungera medan värmeläget är valt kan pumpen hålla det senaste börvärdet med sin egen termostat. Kylning och byte av driftläge kan fortfarande avsluta värmeläget. Mellan kylperioder kan pumpen använda enbart fläkt oavsett om inställningen är på eller av.",
     " and heating water temperature": " och vattentemperatur",
     " are available. Weather forecast details are reported separately below.": " är tillgängliga. Väderprognos visas nedan.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", utan värme, kvarvarande golvvärme eller apparatvärme. Lägre förlust betyder långsammare modellerad kylning; ingen energimätning eller isoleringsklass.",

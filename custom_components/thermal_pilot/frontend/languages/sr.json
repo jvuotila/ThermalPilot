@@ -2,6 +2,8 @@
   "language": "sr",
   "name": "Српски",
   "messages": {
+    "Use Fan only between heating runs": "Користи само вентилатор између циклуса грејања",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Када је подешавање укључено, топлотна пумпа прелази између грејања и режима у ком ради само вентилатор. Када је искључено, пумпа остаје у режиму грејања током грејне сезоне и мења задату температуру према циљној температури просторије, повећању и снижењу. Ако Home Assistant престане да ради док је изабран режим грејања, пумпа може својим термостатом одржавати последњу задату температуру. Хлађење и промена режима и даље могу прекинути режим грејања. Између циклуса хлађења пумпа може користити само вентилатор у оба положаја прекидача.",
     " and heating water temperature": " и температура воде",
     " are available. Weather forecast details are reported separately below.": " доступни. Време испод.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", без грејања, остатка топлоте или уређаја. Мањи губитак је спорије моделско хлађење, не оцена енергије или изолације.",

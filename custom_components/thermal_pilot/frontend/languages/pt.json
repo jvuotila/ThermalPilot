@@ -2,6 +2,8 @@
   "language": "pt",
   "name": "Português",
   "messages": {
+    "Use Fan only between heating runs": "Usar apenas a ventoinha entre ciclos de aquecimento",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Com a opção ativada, a bomba de calor alterna entre o aquecimento e o modo de ventilação sem aquecimento. Com a opção desativada, a bomba permanece em modo de aquecimento durante a época de aquecimento e ajusta a temperatura definida com base na temperatura pretendida para a divisão, no aumento e na redução. Se o Home Assistant parar enquanto o modo de aquecimento estiver selecionado, a bomba pode manter a última temperatura definida com o seu próprio termóstato. O arrefecimento e a mudança de modo podem ainda terminar o modo de aquecimento. Entre ciclos de arrefecimento, a bomba pode usar o modo de ventilação com a opção ativada ou desativada.",
     " and heating water temperature": " e temperatura da água",
     " are available. Weather forecast details are reported separately below.": " disponíveis. Previsão meteorológica abaixo.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", sem aquecimento, calor residual ou aparelhos. Menor perda significa arrefecimento mais lento no modelo; não mede eficiência nem isolamento.",

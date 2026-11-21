@@ -2,6 +2,8 @@
   "language": "hu",
   "name": "Magyar",
   "messages": {
+    "Use Fan only between heating runs": "Csak ventilátor használata a fűtési ciklusok között",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Bekapcsolva a hőszivattyú a fűtés és a csak ventilátoros üzemmód között vált. Kikapcsolva a fűtési idényben fűtési üzemmódban marad, és a helyiség célhőmérséklete, az emelés és a csökkentés alapján módosítja a beállított hőmérsékletet. Ha a Home Assistant leáll, miközben a fűtési üzemmód van kiválasztva, a hőszivattyú a saját termosztátjával tarthatja az utoljára beállított hőmérsékletet. A hűtés és az üzemmódváltás továbbra is megszakíthatja a fűtési üzemmódot. A hűtési ciklusok között a hőszivattyú a kapcsoló mindkét állásában használhatja a csak ventilátoros üzemmódot.",
     " and heating water temperature": " és vízhőmérséklet",
     " are available. Weather forecast details are reported separately below.": " elérhető. Időjárás alább.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", fűtés, maradékhő vagy eszközök nélkül. Kisebb veszteség lassabb modellhűlés, nem energia- vagy szigetelésérték.",

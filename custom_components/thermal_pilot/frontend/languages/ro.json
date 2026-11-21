@@ -2,6 +2,8 @@
   "language": "ro",
   "name": "Română",
   "messages": {
+    "Use Fan only between heating runs": "Folosește doar ventilatorul între ciclurile de încălzire",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Când opțiunea este activată, pompa de căldură comută între încălzire și modul doar ventilator. Când este dezactivată, pompa rămâne în modul de încălzire în sezonul rece și ajustează temperatura setată în funcție de ținta camerei, de creștere și de reducere. Dacă Home Assistant se oprește în timp ce este selectat modul de încălzire, pompa poate menține ultima temperatură setată cu propriul termostat. Răcirea și schimbarea modului pot scoate în continuare pompa din modul de încălzire. Între ciclurile de răcire, pompa poate folosi modul doar ventilator în ambele poziții ale comutatorului.",
     " and heating water temperature": " și temperatura apei",
     " are available. Weather forecast details are reported separately below.": " disponibile. Vreme mai jos.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", fără încălzire, căldură reziduală sau aparate. Pierdere mică înseamnă răcire lentă modelată, nu eficiență sau izolație.",

@@ -2,6 +2,8 @@
   "language": "pl",
   "name": "Polski",
   "messages": {
+    "Use Fan only between heating runs": "Używaj samego wentylatora między cyklami grzania",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Po włączeniu tej opcji pompa ciepła przełącza się między grzaniem a trybem samego wentylatora. Po wyłączeniu pozostaje w trybie grzania w sezonie grzewczym i dostosowuje nastawę do temperatury docelowej pomieszczenia oraz ustawionego podwyższenia i obniżenia. Jeśli Home Assistant przestanie działać, gdy wybrany jest tryb grzania, pompa może utrzymać ostatnią nastawę za pomocą własnego termostatu. Chłodzenie i zmiana trybu nadal mogą zakończyć tryb grzania. Między cyklami chłodzenia pompa może używać samego wentylatora w obu położeniach przełącznika.",
     " and heating water temperature": " i temperatura wody",
     " are available. Weather forecast details are reported separately below.": " są dostępne. Prognoza pogody poniżej.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", bez grzania, ciepła resztkowego i urządzeń. Mniejsza strata oznacza wolniejsze chłodzenie modelowe; to nie ocena energii ani izolacji.",

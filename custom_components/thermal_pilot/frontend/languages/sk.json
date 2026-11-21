@@ -2,6 +2,8 @@
   "language": "sk",
   "name": "Slovenčina",
   "messages": {
+    "Use Fan only between heating runs": "Medzi cyklami vykurovania používať iba ventilátor",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Pri zapnutej voľbe tepelné čerpadlo prepína medzi vykurovaním a režimom samotného ventilátora. Pri vypnutej voľbe zostáva počas vykurovacej sezóny v režime vykurovania a upravuje nastavenú teplotu podľa cieľa miestnosti, zvýšenia a zníženia. Ak sa Home Assistant zastaví počas režimu vykurovania, čerpadlo môže udržiavať poslednú nastavenú teplotu vlastným termostatom. Chladenie a zmena režimu môžu naďalej ukončiť režim vykurovania. Medzi cyklami chladenia môže čerpadlo používať iba ventilátor v oboch polohách prepínača.",
     " and heating water temperature": " a teplota vody",
     " are available. Weather forecast details are reported separately below.": " dostupné. Počasie nižšie.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", bez kúrenia, zvyškového tepla či spotrebičov. Menšia strata je pomalšie modelové chladnutie, nie hodnotenie energie či izolácie.",

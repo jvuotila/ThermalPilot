@@ -2,6 +2,8 @@
   "language": "el",
   "name": "Ελληνικά",
   "messages": {
+    "Use Fan only between heating runs": "Χρήση μόνο του ανεμιστήρα μεταξύ κύκλων θέρμανσης",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Όταν η ρύθμιση είναι ενεργή, η αντλία θερμότητας εναλλάσσεται μεταξύ θέρμανσης και λειτουργίας μόνο ανεμιστήρα. Όταν είναι ανενεργή, η αντλία παραμένει σε λειτουργία θέρμανσης κατά την περίοδο θέρμανσης και προσαρμόζει τη ρυθμισμένη θερμοκρασία βάσει του στόχου του χώρου, της αύξησης και της μείωσης. Αν σταματήσει το Home Assistant ενώ έχει επιλεγεί η θέρμανση, η αντλία μπορεί να διατηρήσει την τελευταία ρυθμισμένη θερμοκρασία με τον δικό της θερμοστάτη. Η ψύξη και η αλλαγή λειτουργίας μπορούν ακόμη να τερματίσουν τη λειτουργία θέρμανσης. Μεταξύ κύκλων ψύξης μπορεί να χρησιμοποιηθεί η λειτουργία μόνο ανεμιστήρα και στις δύο θέσεις του διακόπτη.",
     " and heating water temperature": " και θερμοκρασία νερού",
     " are available. Weather forecast details are reported separately below.": " διαθέσιμες. Καιρός παρακάτω.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", χωρίς θέρμανση, υπολειμματική θερμότητα ή συσκευές. Μικρότερη απώλεια σημαίνει βραδύτερη ψύξη μοντέλου, όχι ενεργειακή ή μονωτική αξιολόγηση.",

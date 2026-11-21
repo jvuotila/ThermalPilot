@@ -2,6 +2,8 @@
   "language": "nb",
   "name": "Norsk (bokmål)",
   "messages": {
+    "Use Fan only between heating runs": "Bruk bare vifte mellom oppvarmingsperioder",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Når innstillingen er på, veksler varmepumpen mellom oppvarming og bare vifte. Når den er av, forblir pumpen i varmemodus i fyringssesongen og justerer den innstilte temperaturen ut fra rommets måltemperatur, økning og senking. Hvis Home Assistant stopper mens varmemodus er valgt, kan pumpen holde den sist innstilte temperaturen med sin egen termostat. Kjøling og bytte av driftsmodus kan fortsatt avbryte varmemodusen. Mellom kjøleperioder kan pumpen bruke bare vifte uansett om innstillingen er på eller av.",
     " and heating water temperature": " og vanntemperatur",
     " are available. Weather forecast details are reported separately below.": " er tilgjengelige. Værprognose vises nedenfor.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", uten varme, gjenværende gulvvarme eller apparatvarme. Lavere tap betyr langsommere modellert avkjøling; ingen energimåling eller isolasjonsklasse.",

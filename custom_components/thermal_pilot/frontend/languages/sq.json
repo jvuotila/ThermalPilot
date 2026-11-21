@@ -2,6 +2,8 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "Use Fan only between heating runs": "Përdor vetëm ventilatorin ndërmjet cikleve të ngrohjes",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kur cilësimi është aktiv, pompa e nxehtësisë kalon nga ngrohja në modalitetin vetëm me ventilator dhe anasjelltas. Kur është joaktiv, pompa qëndron në modalitetin e ngrohjes gjatë sezonit të ngrohjes dhe përshtat temperaturën e caktuar sipas temperaturës së synuar të dhomës, rritjes dhe uljes. Nëse Home Assistant ndalon ndërkohë që është zgjedhur ngrohja, pompa mund ta mbajë temperaturën e fundit të caktuar me termostatin e vet. Ftohja dhe ndryshimi i modalitetit mund ta nxjerrin ende pompën nga modaliteti i ngrohjes. Ndërmjet cikleve të ftohjes, pompa mund të përdorë vetëm ventilatorin në të dyja pozicionet e çelësit.",
     " and heating water temperature": " dhe temperatura e ujit",
     " are available. Weather forecast details are reported separately below.": " në dispozicion. Moti më poshtë.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", pa ngrohje, nxehtësi të mbetur ose pajisje. Humbje më e vogël është ftohje më e ngadaltë modelore, jo vlerësim izolimi.",

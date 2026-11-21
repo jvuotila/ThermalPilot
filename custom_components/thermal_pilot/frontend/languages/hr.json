@@ -2,6 +2,8 @@
   "language": "hr",
   "name": "Hrvatski",
   "messages": {
+    "Use Fan only between heating runs": "Koristi samo ventilator između ciklusa grijanja",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kad je postavka uključena, dizalica topline prebacuje se između grijanja i rada samo s ventilatorom. Kad je isključena, ostaje u načinu grijanja tijekom sezone grijanja i prilagođava zadanu temperaturu prema ciljnoj temperaturi prostorije, povišenju i sniženju. Ako se Home Assistant zaustavi dok je odabrano grijanje, dizalica može vlastitim termostatom održavati posljednju zadanu temperaturu. Hlađenje i promjena načina rada i dalje mogu prekinuti način grijanja. Između ciklusa hlađenja dizalica može koristiti samo ventilator u oba položaja prekidača.",
     " and heating water temperature": " i temperatura vode",
     " are available. Weather forecast details are reported separately below.": " dostupni. Vrijeme ispod.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", bez grijanja, ostatka topline ili uređaja. Manji gubitak je sporije modelsko hlađenje, ne ocjena energije ili izolacije.",

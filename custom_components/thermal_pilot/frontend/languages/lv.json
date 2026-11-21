@@ -2,6 +2,8 @@
   "language": "lv",
   "name": "Latviešu",
   "messages": {
+    "Use Fan only between heating runs": "Starp apkures cikliem izmantot tikai ventilatoru",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kad iestatījums ir ieslēgts, siltumsūknis pārslēdzas starp apkuri un režīmu, kurā darbojas tikai ventilators. Izslēdzot šo iestatījumu, siltumsūknis apkures sezonā paliek apkures režīmā un pielāgo iestatīto temperatūru atbilstoši telpas mērķa temperatūrai, paaugstinājumam un pazeminājumam. Ja Home Assistant pārstāj darboties, kamēr izvēlēts apkures režīms, siltumsūknis ar savu termostatu var uzturēt pēdējo iestatīto temperatūru. Dzesēšana un režīma maiņa joprojām var pārtraukt apkures režīmu. Starp dzesēšanas cikliem siltumsūknis var izmantot tikai ventilatoru abās slēdža pozīcijās.",
     " and heating water temperature": " un ūdens temperatūra",
     " are available. Weather forecast details are reported separately below.": " ir pieejami. Laikapstākļu prognoze ir zemāk.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", bez apkures, atlikušā vai ierīču siltuma. Mazāks zudums nozīmē lēnāku modelētu atdzišanu; tas nav efektivitātes vai izolācijas rādītājs.",

@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.98 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.99 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -579,6 +579,7 @@ with the shared thermostat values.
 If Home Assistant stops while the pump is in Heat, the pump can continue
 regulating at its last setpoint using its own thermostat. Cooling, changeover,
 and configured garage door protection can still take a pump out of Heat.
+Between cooling sessions, the pump can use Fan only with the switch on or off.
 
 Each garage pump has its own switch, which is on by default. With switching disabled, the garage uses
 its lower temperature limit as the maintenance target, subject to the pump's

@@ -2,6 +2,8 @@
   "language": "is",
   "name": "Íslenska",
   "messages": {
+    "Use Fan only between heating runs": "Nota eingöngu viftu á milli hitunarlota",
+    "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Þegar kveikt er á stillingunni skiptir varmadælan á milli hitunar og viftustillingar. Þegar slökkt er á henni helst dælan í hitunarstillingu á upphitunartímabilinu og stillir hitastigið eftir markhita rýmisins og stilltri hækkun eða lækkun. Ef Home Assistant stöðvast á meðan hitunarstilling er valin getur dælan haldið síðast stillta hitastiginu með eigin hitastilli. Kæling og skipti á vinnslustillingu geta enn tekið dæluna úr hitunarstillingu. Milli kælilota getur dælan notað viftustillingu hvort sem kveikt eða slökkt er á rofanum.",
     " and heating water temperature": " og vatnshiti",
     " are available. Weather forecast details are reported separately below.": " til staðar. Veður hér að neðan.",
     ", without heating, remaining slab warmth or appliance heat. Lower temperature loss means slower modeled cooling. This is a model estimate, not measured energy efficiency or an insulation rating.": ", án hitunar, afgangsvarma eða tækja. Minna tap er hægari reiknuð kólnun; ekki orkumat eða einangrunarmat.",
