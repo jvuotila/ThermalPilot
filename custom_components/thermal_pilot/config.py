@@ -73,7 +73,7 @@ SOURCE_FIELDS = [
  ('outdoor_entity','Outdoor temperature','sensor',{'kind':'temperature'}),
  ('wind_entity','Wind speed (optional)','sensor',{'kind':'wind'}),
  ('water_entity','Heating water (optional)','sensor,climate',{'kind':'water'}),
- ('heat_pump_cop_entity', 'Heat pump COP sensor (optional)', 'sensor', {'kind': 'cop'}),
+ ('heat_pump_cop_entity', 'Heat pump COP sensor (optional)', 'sensor', {}),
  (
      'fireplace_entity',
      'Fireplace activity sensor (optional)',

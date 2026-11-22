@@ -19,13 +19,14 @@ const panel=new Component();
  copPanel._hass={states:{
   'sensor.heating_cop':{entity_id:'sensor.heating_cop',state:'3.2',attributes:{device_class:'power_factor',state_class:'measurement'}},
   'sensor.other_cop':{entity_id:'sensor.other_cop',state:'unavailable',attributes:{device_class:'power_factor',unit_of_measurement:'%'}},
-  'sensor.unitless':{entity_id:'sensor.unitless',state:'14',attributes:{state_class:'measurement'}},
+  'sensor.unitless':{entity_id:'sensor.unitless',state:'3.1',attributes:{state_class:'measurement'}},
   'sensor.temperature':{entity_id:'sensor.temperature',state:'10',attributes:{device_class:'temperature',unit_of_measurement:'°C'}},
+  'input_number.cop':{entity_id:'input_number.cop',state:'3',attributes:{}},
  }};
  copPanel.info={source_fields:[
   ['house_heat_source','Heat source','select:air_to_water,ground_source'],
   ['house_distribution','Heat distribution','select:water_floor'],
-  ['heat_pump_cop_entity','Heat pump COP sensor (optional)','sensor',{kind:'cop'}],
+  ['heat_pump_cop_entity','Heat pump COP sensor (optional)','sensor',{}],
  ],data:{
   price_chart:[{start:at(-6),end:at(6),price:10}],
   weather_forecast:[{datetime:at(1),temperature:0,condition:'cloudy'}],
@@ -41,9 +42,14 @@ const panel=new Component();
  assert.deepEqual(houseFields.slice(heatSourceIndex,heatSourceIndex+3),['house_heat_source','heat_pump_cop_entity','house_distribution']);
  assert.match(copSettings(),/value="sensor.heating_cop" selected/);
  assert.match(copSettings(),/value="sensor.other_cop"/);
- assert.doesNotMatch(copSettings(),/value="sensor\.(temperature|unitless)"/);
+ const copPicker=()=>copSettings().match(/<select data-field="source\.heat_pump_cop_entity">[\s\S]*?<\/select>/)[0];
+ assert.match(copPicker(),/value="sensor\.temperature"/);
+ assert.match(copPicker(),/value="sensor\.unitless"/);
+ assert.doesNotMatch(copPicker(),/value="input_number\.cop"/);
  copPanel.settings.heat_pump_cop_entity='sensor.unitless';
- assert.match(copSettings(),/<option selected hidden value="sensor.unitless"/);
+ assert.match(copPicker(),/value="sensor\.unitless" selected/);
+ copPanel.settings.heat_pump_cop_entity='sensor.missing_cop';
+ assert.match(copPicker(),/<option selected value="sensor\.missing_cop"/);
  copPanel.settings.heat_pump_cop_entity='sensor.heating_cop';
  copPanel.settings.house_heat_source='ground_source';
  assert.doesNotMatch(copSettings(),/source.heat_pump_cop_entity/);

@@ -238,7 +238,6 @@ function entityMatches(state,rule={},settings={}){
   if(rule.kind==='relay')return domain==='switch';
   if(rule.kind==='water')return domain==='climate'?Object.hasOwn(attrs,'current_temperature'):domain==='sensor'&&temperature;
   if(rule.kind==='temperature')return temperature;
-  if(rule.kind==='cop')return domain==='sensor'&&deviceClass==='power_factor';
   if(rule.kind==='wind')return domain==='sensor'&&['m/s','km/h','mph','kn','knots'].includes(unit);
   if(rule.kind==='power')return deviceClass==='power'||(!deviceClass&&['w','kw'].includes(unit));
   if(rule.kind==='price_forecast')return domain==='sensor'&&Array.isArray(attrs.forecast);
@@ -690,8 +689,7 @@ class ThermalPilotPanel extends HTMLElement {
     else if(type==='text')input=`<input data-field="${name}" value="${escapeHTML(value)}">`;
     else{
       const domains=type.split(','),rule=field[3]||{};const entities=Object.values(this._hass.states).filter(s=>domains.includes(s.entity_id.split('.')[0])&&entityMatches(s,rule,obj)).sort((a,b)=>entityLabel(a).localeCompare(entityLabel(b)));
-      // Keep a saved COP selection when editing other settings, but omit it from the list of choices.
-      const retained=value&&!(key==='price_entity'&&['static','nordpool','tibber'].includes(value))&&!entities.some(s=>s.entity_id===value)?`<option selected ${rule.kind==='cop'?'hidden ':''}value="${escapeHTML(value)}">${escapeHTML(entityLabel(this._hass.states[value]))} (${this._hass.states[value]?'does not match filter':'unavailable'})</option>`:'';
+      const retained=value&&!(key==='price_entity'&&['static','nordpool','tibber'].includes(value))&&!entities.some(s=>s.entity_id===value)?`<option selected value="${escapeHTML(value)}">${escapeHTML(entityLabel(this._hass.states[value]))} (${this._hass.states[value]?'does not match filter':'unavailable'})</option>`:'';
       input=`<select data-field="${name}"><option value="" ${!value?'selected':''}>${key==='price_entity'?escapeHTML(this.t('Not configured')):'— Select / not used —'}</option>${key==='price_entity'?`<option value="static" ${value==='static'?'selected':''}>${escapeHTML(this.t('Static price'))}</option><option value="nordpool" ${value==='nordpool'?'selected':''}>Nord Pool (Home Assistant)</option><option value="tibber" ${value==='tibber'?'selected':''}>Tibber (Home Assistant)</option>`:''}${retained}${entities.map(s=>`<option data-user-text value="${escapeHTML(s.entity_id)}" ${s.entity_id===value?'selected':''}>${escapeHTML(entityLabel(s))}</option>`).join('')}</select>`;
     }
     if(sourceReadingKeys.includes(key))input+=`<small class="source-current-state" data-source-reading="${key}" role="status">${escapeHTML(this.t('Current state:'))} ${escapeHTML(this.t(sourceReading(key,value,this._hass?.states?.[value])))}</small>`;
