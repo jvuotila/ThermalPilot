@@ -146,6 +146,24 @@ class CopTests(unittest.TestCase):
         self.assertTrue(all(point['basis'] == 'initial' for point in forecast))
         self.assertEqual(forecast_cop([], [], NOW), [])
 
+    def test_current_hour_uses_weather_until_next_hour(self):
+        now_time = NOW + 15 * 60
+        forecast = forecast_cop([], [weather(-1, -20), weather(0, -15), weather(1, 0)],
+                                now_time, current_outdoor=4)
+        self.assertEqual([point['time'] for point in forecast], [NOW, NOW + 3600])
+        self.assertEqual(forecast[0]['end'], NOW + 3600)
+        self.assertEqual(forecast[0]['cop'], 1.5)
+
+    def test_current_outdoor_only_bridges_to_a_nearby_forecast(self):
+        now_time = NOW + 15 * 60
+        forecast = forecast_cop([], [weather(1, 0)], now_time, current_outdoor=-7.5)
+        self.assertEqual([point['time'] for point in forecast], [now_time, NOW + 3600])
+        self.assertEqual(forecast[0]['end'], NOW + 3600)
+        self.assertEqual(forecast[0]['cop'], 2.5)
+        delayed = forecast_cop([], [weather(2, 0)], now_time, current_outdoor=-7.5)
+        self.assertEqual([point['time'] for point in delayed], [NOW + 7200])
+        self.assertEqual(forecast_cop([], [], now_time, current_outdoor=-7.5), [])
+
     def test_initial_curve_is_used_until_a_week_of_history(self):
         observations = [
             {'time': NOW - offset * 3600, 'outdoor': 5, 'cop': 6.2}
@@ -243,7 +261,7 @@ class CopCoordinatorTests(unittest.IsolatedAsyncioTestCase):
             hass.states[SOURCES[0]] = SimpleNamespace(state='3.8', attributes={})
             chart = await coordinator.heat_pump_cop_chart(NOW, 0, [weather(1, 0)])
             self.assertEqual([row['cop'] for row in chart['observed']], [3.4, 3.6, 3.8])
-            self.assertEqual([row['cop'] for row in chart['forecast']], [3.6])
+            self.assertEqual([row['cop'] for row in chart['forecast']], [3.6, 3.6])
 
     async def test_cop_uses_configured_house_sensor_and_respects_pause(self):
         with TemporaryDirectory() as directory:

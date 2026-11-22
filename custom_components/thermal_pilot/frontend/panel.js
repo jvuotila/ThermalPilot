@@ -238,12 +238,7 @@ function entityMatches(state,rule={},settings={}){
   if(rule.kind==='relay')return domain==='switch';
   if(rule.kind==='water')return domain==='climate'?Object.hasOwn(attrs,'current_temperature'):domain==='sensor'&&temperature;
   if(rule.kind==='temperature')return temperature;
-  if(rule.kind==='cop'){
-    if(domain!=='sensor'||(deviceClass&&deviceClass!=='power_factor'))return false;
-    if(deviceClass==='power_factor'&&unit==='%')return true;
-    return ['','1','cop','x','×','w/w','kw/kw'].includes(unit)
-      &&(deviceClass==='power_factor'||attrs.state_class==='measurement'||(state.state!==''&&Number.isFinite(Number(state.state))));
-  }
+  if(rule.kind==='cop')return domain==='sensor'&&deviceClass==='power_factor';
   if(rule.kind==='wind')return domain==='sensor'&&['m/s','km/h','mph','kn','knots'].includes(unit);
   if(rule.kind==='power')return deviceClass==='power'||(!deviceClass&&['w','kw'].includes(unit));
   if(rule.kind==='price_forecast')return domain==='sensor'&&Array.isArray(attrs.forecast);
@@ -695,7 +690,8 @@ class ThermalPilotPanel extends HTMLElement {
     else if(type==='text')input=`<input data-field="${name}" value="${escapeHTML(value)}">`;
     else{
       const domains=type.split(','),rule=field[3]||{};const entities=Object.values(this._hass.states).filter(s=>domains.includes(s.entity_id.split('.')[0])&&entityMatches(s,rule,obj)).sort((a,b)=>entityLabel(a).localeCompare(entityLabel(b)));
-      const retained=value&&!(key==='price_entity'&&['static','nordpool','tibber'].includes(value))&&!entities.some(s=>s.entity_id===value)?`<option selected value="${escapeHTML(value)}">${escapeHTML(entityLabel(this._hass.states[value]))} (${this._hass.states[value]?'does not match filter':'unavailable'})</option>`:'';
+      // Keep a saved COP selection when editing other settings, but omit it from the list of choices.
+      const retained=value&&!(key==='price_entity'&&['static','nordpool','tibber'].includes(value))&&!entities.some(s=>s.entity_id===value)?`<option selected ${rule.kind==='cop'?'hidden ':''}value="${escapeHTML(value)}">${escapeHTML(entityLabel(this._hass.states[value]))} (${this._hass.states[value]?'does not match filter':'unavailable'})</option>`:'';
       input=`<select data-field="${name}"><option value="" ${!value?'selected':''}>${key==='price_entity'?escapeHTML(this.t('Not configured')):'— Select / not used —'}</option>${key==='price_entity'?`<option value="static" ${value==='static'?'selected':''}>${escapeHTML(this.t('Static price'))}</option><option value="nordpool" ${value==='nordpool'?'selected':''}>Nord Pool (Home Assistant)</option><option value="tibber" ${value==='tibber'?'selected':''}>Tibber (Home Assistant)</option>`:''}${retained}${entities.map(s=>`<option data-user-text value="${escapeHTML(s.entity_id)}" ${s.entity_id===value?'selected':''}>${escapeHTML(entityLabel(s))}</option>`).join('')}</select>`;
     }
     if(sourceReadingKeys.includes(key))input+=`<small class="source-current-state" data-source-reading="${key}" role="status">${escapeHTML(this.t('Current state:'))} ${escapeHTML(this.t(sourceReading(key,value,this._hass?.states?.[value])))}</small>`;
@@ -1171,7 +1167,12 @@ class ThermalPilotPanel extends HTMLElement {
     const forecastColor='var(--secondary-text-color,#526b75)';
     const points=(rows,forecast)=>rows
       .filter(row=>Number.isFinite(row.time)&&Number.isFinite(row.cop)&&row.cop>0)
-      .map(row=>({...row,time:row.time*1000}))
+      .map(row=>{
+        const time=row.time*1000;
+        // The forecast for the current interval stays valid between refreshes.
+        const coversNow=forecast&&time<now&&row.end*1000>now;
+        return {...row,time:coversNow?now:time};
+      })
       .filter(row=>row.time>=start&&row.time<=end&&(forecast?row.time>=now:row.time<=now))
       .sort((first,second)=>first.time-second.time);
     const measured=points(data.observed||[],false);
@@ -1184,7 +1185,12 @@ class ThermalPilotPanel extends HTMLElement {
     }
     const legendX=compact?52:8;
     const legendY=compact?14:38;
-    const legendItem=(label,color,y,dash)=>`<line x1="${legendX}" x2="${legendX+15}" y1="${y}" y2="${y}" stroke="${color}" stroke-width="2" ${dash?'stroke-dasharray="4 3"':''}/><text x="${legendX+20}" y="${y+4}" font-size="11">${escapeHTML(label)}</text>`;
+    const legendItem=(label,color,y,dashed)=>{
+      const symbol=dashed
+        ?`<line x1="${legendX}" x2="${legendX+15}" y1="${y}" y2="${y}" stroke="${color}" stroke-width="2" stroke-dasharray="4 3"/>`
+        :`<circle cx="${legendX+7.5}" cy="${y}" r="2.5" fill="${color}"/>`;
+      return `${symbol}<text x="${legendX+20}" y="${y+4}" font-size="11">${escapeHTML(label)}</text>`;
+    };
     const legend=legendItem(measuredLabel,measuredColor,legendY,false)
       +(forecast.length?legendItem(forecastLabel,forecastColor,legendY+17,true):'');
     const top=compact?48:13;
@@ -1197,24 +1203,34 @@ class ThermalPilotPanel extends HTMLElement {
     const y=value=>top+(1-(value-axisMin)/(axisMax-axisMin))*plotHeight;
     const format=new Intl.NumberFormat(this.settings.language||'en',{maximumFractionDigits:2});
     const ticks=[axisMin,(axisMin+axisMax)/2,axisMax].map(value=>`<line x1="${left}" x2="${left+width}" y1="${y(value)}" y2="${y(value)}" stroke="#829aa32c"/><text x="${left-8}" y="${y(value)+4}" text-anchor="end" font-size="11">${escapeHTML(format.format(value))}</text>`).join('');
-    const series=(rows,label,color,gap,dashed)=>{
+    const series=(rows,label,color,dashed)=>{
       let path='';
-      let previousTime;
-      const markers=rows.map(row=>{
-        const disconnected=previousTime===undefined||row.time-previousTime>gap;
+      const forecastInterval=3600000;
+      const markers=rows.map((row,index)=>{
         const cx=x(row.time),cy=y(row.cop);
-        path+=`${disconnected?'M':'L'}${cx} ${cy} `;
-        previousTime=row.time;
+        if(dashed){
+          const previous=rows[index-1];
+          const disconnected=!previous||row.time-previous.time>forecastInterval;
+          path+=`${disconnected?'M':'L'}${cx} ${cy} `;
+          const next=rows[index+1];
+          if(disconnected&&(!next||next.time-row.time>forecastInterval)){
+            // A single forecast point has no line segment, so show one short dash.
+            const dashEnd=cx+4<=left+width?cx+4:cx-4;
+            path+=`L${dashEnd} ${cy} `;
+          }
+        }
         const labelWithBasis=row.basis==='initial'?`${label} · ${this.t('Initial estimate')}`:label;
         const detail=`${labelWithBasis} · COP: ${format.format(row.cop)}\n${outdoorLabel}: ${format.format(row.outdoor)} °C\n${timeLabel(row.time)}`;
-        return `<circle cx="${cx}" cy="${cy}" r="2" fill="${color}" pointer-events="none"/><circle ${detailAttributes(detail)} cx="${cx}" cy="${cy}" r="6" fill="transparent"/>`;
+        const measuredDot=dashed?'':`<circle cx="${cx}" cy="${cy}" r="2" fill="${color}" pointer-events="none"/>`;
+        return `${measuredDot}<circle ${detailAttributes(detail)} cx="${cx}" cy="${cy}" r="6" fill="transparent"/>`;
       }).join('');
-      return `<g data-cop-series="${dashed?'forecast':'observed'}"><path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="2" ${dashed?'stroke-dasharray="5 4"':''}/>${markers}</g>`;
+      const forecastPath=dashed?`<path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="2" stroke-dasharray="5 4"/>`:'';
+      return `<g data-cop-series="${dashed?'forecast':'observed'}">${forecastPath}${markers}</g>`;
     };
     const nowLine=now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="${top}" y2="${top+plotHeight}" stroke="${forecastColor}" stroke-dasharray="4 4" pointer-events="none"/>`:'';
-    const observedLine=measured.length?series(measured,measuredLabel,measuredColor,900000,false):'';
-    const forecastLine=forecast.length?series(forecast,forecastLabel,forecastColor,3600000,true):'';
-    return {height:top+plotHeight+16,svg:`<g data-cop-timeline>${caption}${legend}${ticks}${nowLine}${observedLine}${forecastLine}</g>`};
+    const observedDots=measured.length?series(measured,measuredLabel,measuredColor,false):'';
+    const forecastLine=forecast.length?series(forecast,forecastLabel,forecastColor,true):'';
+    return {height:top+plotHeight+16,svg:`<g data-cop-timeline>${caption}${legend}${ticks}${nowLine}${observedDots}${forecastLine}</g>`};
   }
   chartVisibility(){return {weather:true,prices:true};}
   priceChart(history=false,dashboard=false){

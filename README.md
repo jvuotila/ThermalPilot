@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.100 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.101 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -572,17 +572,20 @@ read-only.
 
 Under **Rooms and zones → House heating settings → House and heating**, choose
 **Air-to-water heat pump** as the heat source. The optional **Heat pump COP
-sensor** appears immediately after **Heat source**.
+sensor** appears immediately after **Heat source**. The dropdown lists
+sensors with Home Assistant device class `power_factor`.
 Choose a live space-heating COP sensor that reports zero or is unavailable
 while idle. A combined COP, hot-water COP, or daily average can give a
 misleading estimate for space heating.
 
-The Plan timeline shows measured COP as a solid line and estimated COP as a
-dashed line. ThermalPilot keeps up to 30 days of paired COP and outdoor
+The Plan timeline shows recorded COP readings as dots and estimated COP as
+a dashed line. Periods without a valid COP reading stay empty.
+ThermalPilot keeps up to 30 days of paired COP and outdoor
 temperature measurements and uses temperatures from the hourly weather
-forecast. Until accepted readings span at least seven days, or whenever
-the model lacks readings at comparable temperatures, it uses the initial
-curve below.
+forecast. If the hourly forecast starts at the next hour, the current outdoor
+reading covers the short gap until then. ThermalPilot uses the initial curve
+below until accepted readings span at least seven days, or whenever it lacks
+readings at comparable temperatures.
 
 | Outdoor temperature | Initial COP |
 | --- | ---: |

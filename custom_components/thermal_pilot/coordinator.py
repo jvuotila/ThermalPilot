@@ -508,7 +508,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         return {
             'observed': [{key: row[key] for key in ('time', 'cop', 'outdoor')}
                          for row in filtered if row['time'] >= now - 2 * 86400],
-            'forecast': forecast_cop(filtered, weather, now),
+            'forecast': forecast_cop(filtered, weather, now, outdoor),
         }
 
     def session_fingerprint(self, room: dict[str, Any]) -> list:

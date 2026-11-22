@@ -18,6 +18,8 @@ const panel=new Component();
  copPanel.settings={rooms:[],house_heat_source:'air_to_water',heat_pump_cop_entity:'sensor.heating_cop',language:'fi'};
  copPanel._hass={states:{
   'sensor.heating_cop':{entity_id:'sensor.heating_cop',state:'3.2',attributes:{device_class:'power_factor',state_class:'measurement'}},
+  'sensor.other_cop':{entity_id:'sensor.other_cop',state:'unavailable',attributes:{device_class:'power_factor',unit_of_measurement:'%'}},
+  'sensor.unitless':{entity_id:'sensor.unitless',state:'14',attributes:{state_class:'measurement'}},
   'sensor.temperature':{entity_id:'sensor.temperature',state:'10',attributes:{device_class:'temperature',unit_of_measurement:'°C'}},
  }};
  copPanel.info={source_fields:[
@@ -38,15 +40,35 @@ const panel=new Component();
  assert.notEqual(heatSourceIndex,-1);
  assert.deepEqual(houseFields.slice(heatSourceIndex,heatSourceIndex+3),['house_heat_source','heat_pump_cop_entity','house_distribution']);
  assert.match(copSettings(),/value="sensor.heating_cop" selected/);
- assert.doesNotMatch(copSettings(),/value="sensor.temperature"/);
+ assert.match(copSettings(),/value="sensor.other_cop"/);
+ assert.doesNotMatch(copSettings(),/value="sensor\.(temperature|unitless)"/);
+ copPanel.settings.heat_pump_cop_entity='sensor.unitless';
+ assert.match(copSettings(),/<option selected hidden value="sensor.unitless"/);
+ copPanel.settings.heat_pump_cop_entity='sensor.heating_cop';
  copPanel.settings.house_heat_source='ground_source';
  assert.doesNotMatch(copSettings(),/source.heat_pump_cop_entity/);
  copPanel.settings.house_heat_source='air_to_water';
+ const latest=copPanel.copTimeline({
+  data:{forecast:[
+   {time:now/1000-4500,end:now/1000-900,cop:6.9,outdoor:-2},
+   {time:now/1000-900,end:now/1000+2700,cop:2.5,outdoor:-7.5},
+   {time:now/1000+2700,end:now/1000+6300,cop:3.3,outdoor:0},
+  ]},
+  start:now-7200000,end:now+7200000,left:100,width:240,now,
+  detailAttributes:detail=>`aria-label="${detail}"`,
+ });
+ assert.match(latest.svg,/data-cop-series="forecast"><path d="M220 [^"]* L/);
+ assert.doesNotMatch(latest.svg,/COP: 6,9/);
+ assert.doesNotMatch(latest.svg,/<circle[^>]* r="2"/);
+ assert.match(latest.svg,/<circle[^>]* r="6" fill="transparent"/);
  for(const width of [320,1200]){
   copPanel.priceChartWidth=width;
   const chart=copPanel.priceChart();
   assert.match(chart,/data-cop-timeline[\s\S]*data-cop-series="observed"[\s\S]*data-cop-series="forecast"[\s\S]*data-weather/);
-  assert.match(chart,/data-cop-series="observed"><path d="M[^"]* M/,'An idle gap breaks the measured line');
+  const measuredSeries=chart.match(/<g data-cop-series="observed">([^]*?)<\/g>/)[1];
+  assert.doesNotMatch(measuredSeries,/<path\b/,'Measured samples are dots only');
+  assert.equal((measuredSeries.match(/data-chart-detail=/g)||[]).length,2,'Only actual samples have tooltips');
+  assert.equal((measuredSeries.match(/<circle[^>]* r="2"/g)||[]).length,2);
   assert.match(chart,/data-cop-series="forecast"><path d="M[^"]* L[^"]*"[^>]*stroke-dasharray/);
   assert.match(chart,/COP-ennuste · COP: 3,3/);
   assert.match(chart,/COP-ennuste · Alkuarvio · COP: 3,5/);

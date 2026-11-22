@@ -150,17 +150,32 @@ def learned_cop_bands(observations: list[dict]) -> list[CopBand]:
 
 
 def forecast_cop(
-    observations: list[dict], weather: list[dict], now: float
+    observations: list[dict], weather: list[dict], now: float, current_outdoor: float | None = None,
 ) -> list[dict]:
     """Use the learned curve where supported and the starting curve elsewhere."""
     anchors = learned_cop_bands(observations)
     temperatures = [anchor.temperature for anchor in anchors]
-    forecast = []
+    hourly = []
     for row in weather:
         when = stamp(row['datetime'])
-        if when is None or when.timestamp() < now:
+        if when is None:
             continue
-        outdoor = row['temperature']
+        start = when.timestamp()
+        if start + COP_FORECAST_INTERVAL_SECONDS > now:
+            hourly.append((start, row['temperature']))
+    hourly.sort()
+    # Some providers start at the next whole hour. Use the outdoor reading
+    # for the short lead-in only, so a weather outage cannot create a forecast.
+    if hourly and current_outdoor is not None and now < hourly[0][0] <= now + COP_FORECAST_INTERVAL_SECONDS:
+        hourly.insert(0, (now, current_outdoor))
+
+    forecast = []
+    for index, (start, outdoor) in enumerate(hourly):
+        end = start + COP_FORECAST_INTERVAL_SECONDS
+        if index + 1 < len(hourly):
+            end = min(end, hourly[index + 1][0])
+        if end <= now or end <= start:
+            continue
         next_index = bisect_left(temperatures, outdoor)
         left = anchors[next_index - 1] if next_index else None
         right = anchors[next_index] if next_index < len(anchors) else None
@@ -179,7 +194,7 @@ def forecast_cop(
             basis = 'initial'
             cop = lower = upper = initial_cop(outdoor)
         forecast.append({
-            'time': when.timestamp(), 'cop': round(cop, 2), 'outdoor': outdoor,
+            'time': start, 'end': end, 'cop': round(cop, 2), 'outdoor': outdoor,
             'lower_cop': round(lower, 2), 'upper_cop': round(upper, 2), 'basis': basis,
         })
     return forecast
@@ -195,7 +210,7 @@ def cop_priced_slots(slots: list[Slot], forecast: list[dict], now: datetime) -> 
     estimates = {}
     for point in forecast:
         start, cop = point['time'], point['cop']
-        end = start + COP_FORECAST_INTERVAL_SECONDS
+        end = point.get('end', start + COP_FORECAST_INTERVAL_SECONDS)
         if cop > 0 and start < horizon_end and end > horizon_start:
             estimates[start] = point
     if not estimates:
@@ -207,10 +222,10 @@ def cop_priced_slots(slots: list[Slot], forecast: list[dict], now: datetime) -> 
     starts = sorted(estimates)
     intervals = []
     for index, start in enumerate(starts):
-        end = start + COP_FORECAST_INTERVAL_SECONDS
+        point = estimates[start]
+        end = point.get('end', start + COP_FORECAST_INTERVAL_SECONDS)
         if index + 1 < len(starts):
             end = min(end, starts[index + 1])
-        point = estimates[start]
         # Only the part of the efficiency difference supported by the observed
         # middle half of COP readings changes the tariff ranking.
         lower = point.get('lower_cop', point['cop'])
