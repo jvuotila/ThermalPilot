@@ -74,7 +74,6 @@ const panel=new Component();
   assert.match(chart,/COP-ennuste · Alkuarvio · COP: 3,5/);
  }
  assert.doesNotMatch(copPanel.priceChart(true),/data-cop-timeline/);
- assert.doesNotMatch(copPanel.priceChart(false,true),/data-cop-timeline/);
  copPanel.info.data.heat_pump_cop=null;
  assert.doesNotMatch(copPanel.priceChart(),/data-cop-timeline/);
 }

@@ -21,7 +21,7 @@ response.data.zones={zone:{plan:structuredClone(response.data.rooms.room.plan)}}
  card.priceChartWidth=1200;assert.match(card.priceChart(),/viewBox="0 0 1200 /);
  assert.throws(()=>card.setConfig({title:123}),/title must be text/);
  card._hass.callWS=async()=>{throw Error('secret');};await card.refresh();assert.match(card.shadowRoot.innerHTML,/Unable to load/);assert.doesNotMatch(card.shadowRoot.innerHTML,/secret/);
- let disconnected=false;card.priceResizeObserver={disconnect(){disconnected=true;}};card.disconnectedCallback();assert.equal(disconnected,true);assert.equal(timers.size,0);
+ let disconnected=false;const cardTimer=card._timer;card.priceResizeObserver={disconnect(){disconnected=true;}};card.disconnectedCallback();assert.equal(disconnected,true);assert.ok(!timers.has(cardTimer));
  const editor=new Editor();let renders=0;const render=editor.render.bind(editor);editor.render=()=>{renders++;render();};editor.setConfig({});editor.dispatchEvent=event=>editor.setConfig(event.detail.config);for(const title of ['H','He','Heat'])editor.update({title});assert.equal(renders,1);
  // Use the exact same integration language renderer, never the viewer's HA language.
  assert.equal(card.t('Rooms'),'Rooms');card.settings.language='fi';assert.equal(card.t('Rooms'),'Huoneet');
@@ -72,9 +72,89 @@ for(const weather of [false,true])for(const prices of [false,true]){
  assert.equal(html.includes('data-chart-detail="Electricity price:'),prices);
  assert.ok(html.includes('Kitchen'),'Heating timeline remains visible in every combination');
 }
-for(const key of ['show_weather','show_prices'])assert.throws(()=>weatherCard.setConfig({[key]:'false'}),/must be a boolean/);
+for(const key of ['show_weather','show_prices','show_manual_controls','show_cop'])assert.throws(()=>weatherCard.setConfig({[key]:'false'}),/must be a boolean/);
 const weatherEditor=new Editor();weatherEditor.setConfig({show_weather:false,show_prices:true});
 assert.equal(weatherEditor.form.data.show_weather,false);assert.equal(weatherEditor.form.data.show_prices,true);
 weatherEditor.setConfig({show_weather:true,show_prices:false});assert.equal(weatherEditor.form.data.show_weather,true);
 assert.equal(weatherEditor.form.data.show_prices,false);
 console.log('Plan card independently configures weather and electricity prices; all four combinations preserve heating timelines and editor state.');
+
+(async()=>{
+ const controls={room:{name:'Kitchen',entity:'climate.kitchen',modes:['heat'],enabled:true},
+  garage:{name:'Garage',modes:['heat','cool'],enabled:true}};
+ const snapshot=structuredClone(response);
+ snapshot.entry_id='home';
+ snapshot.cop_available=true;
+ snapshot.manual_controls=controls;
+ snapshot.settings.rooms[0].baseline=20;
+ Object.assign(snapshot.data.rooms.room.plan,{mode:'boost',heat:true,setpoint:21.5});
+ snapshot.data.chart_temperatures={rooms:{room:20.1}};
+ snapshot.data.heat_pump_cop={
+  observed:[{time:now/1000-1500,cop:2.8,outdoor:0}],
+  forecast:[{time:now/1000+3600,cop:3.4,outdoor:3}]
+ };
+ const card=new Card(),requests=[];
+ const hass={connection:{},user:{is_admin:true},callWS:async request=>{
+  requests.push(request);
+  return structuredClone(snapshot);
+ }};
+ card.setConfig({});
+ card.hass=hass;
+ card.connectedCallback();
+ await new Promise(setImmediate);
+ assert.match(card.priceChart(),/data-cop-timeline/);
+ assert.match(card.priceChart(),/data-target-adjustment="boost"[^>]+\+1\.5 °C/);
+ assert.doesNotMatch(card.priceChart(),/data-manual-id=/);
+ card.setConfig({show_manual_controls:true,show_cop:false});
+ await new Promise(setImmediate);
+ assert.equal(requests.at(-1).include_manual_controls,true);
+ for(const width of [400,1200]){
+  card.priceChartWidth=width;
+  assert.match(card.priceChart(),/data-manual-id="room" data-manual-mode="heat"/);
+  assert.match(card.priceChart(),/data-manual-id="garage" data-manual-mode="cool"/);
+  assert.doesNotMatch(card.priceChart(),/data-cop-timeline/);
+  assert.match(card.priceChart(),/data-target-adjustment="boost"/);
+ }
+ await card.call('manual',{room_id:'garage',mode:'cool',minutes:60,target:22});
+ assert.equal(requests.at(-1).entry_id,'home');
+ assert.equal(requests.at(-1).type,'thermal_pilot/manual');
+ const reduction={mode:'reduced',heat:false,setpoint:19};
+ Object.assign(card.info.data.rooms.room.plan,reduction);
+ Object.assign(snapshot.data.rooms.room.plan,reduction);
+ assert.match(card.priceChart(),/data-target-adjustment="reduced"[^>]+−1 °C/);
+ card.hass={...hass,user:{is_admin:false}};
+ await new Promise(setImmediate);
+ assert.equal(requests.at(-1).include_manual_controls,undefined);
+ assert.doesNotMatch(card.priceChart(),/data-manual-id=/);
+ assert.match(card.priceChart(),/data-target-adjustment="reduced"/);
+ card.setConfig({show_cop:true});
+ card.info.cop_available=false;
+ assert.doesNotMatch(card.priceChart(),/data-cop-timeline/);
+ card.disconnectedCallback();
+
+ const editor=new Editor();
+ const editorEntries=[
+  {entry_id:'home',title:'Home',language:'fi',cop_available:true},
+  {entry_id:'other',title:'Other',language:'en',cop_available:false}
+ ];
+ editor.setConfig({entry_id:'home'});
+ editor.hass={...hass,callWS:async request=>{
+  assert.equal(request.metadata_only,true);
+  return {entries:editorEntries};
+ }};
+ await new Promise(setImmediate);
+ assert.ok(editor.form.schema.some(field=>field.name==='show_cop'));
+ assert.ok(editor.form.schema.some(field=>field.name==='show_manual_controls'));
+ assert.equal(editor.form.data.show_cop,true);
+ assert.equal(editor.form.data.show_manual_controls,false);
+ assert.equal(editor.form.computeLabel({name:'show_cop'}),'Näytä lämpöpumpun COP-kaavio');
+ editor.form['value-changed']({stopPropagation(){},detail:{value:{...editor.form.data,entry_id:'other',show_cop:false}}});
+ assert.ok(!editor.form.schema.some(field=>field.name==='show_cop'));
+ assert.equal(editor.event.detail.config.show_cop,false);
+ editor.setConfig({entry_id:'home',show_cop:false});
+ assert.ok(editor.form.schema.some(field=>field.name==='show_cop'));
+ assert.equal(editor.form.data.show_cop,false);
+ editor.hass={...editor._hass,user:{is_admin:false}};
+ assert.ok(!editor.form.schema.some(field=>field.name==='show_manual_controls'));
+ console.log('Plan dashboard card COP, manual controls and thermostat adjustment indicators passed.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

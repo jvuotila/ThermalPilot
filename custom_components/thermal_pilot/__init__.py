@@ -192,18 +192,32 @@ def ws_retention(hass, connection, msg):
                                     'language':coordinator.settings.get('language','en')})
 
 
-@websocket_api.websocket_command({vol.Required('type'):'thermal_pilot/plan_chart', vol.Optional('entry_id'):str})
+@websocket_api.websocket_command({
+    vol.Required('type'): 'thermal_pilot/plan_chart',
+    vol.Optional('entry_id'): str,
+    vol.Optional('metadata_only'): bool,
+    vol.Optional('include_manual_controls'): bool,
+})
 @websocket_api.async_response
 async def ws_plan_chart(hass, connection, msg):
-    """Read-only chart snapshot; expose chart weather, exclude private settings and room-model internals."""
+    """Return chart data, or just the capabilities used by the card editor."""
     coordinators = {
         key: value for key,
         value in hass.data.get(DOMAIN, {}).items() if isinstance(value, PilotCoordinator)
     }
     entries = [
-        {'entry_id': key, 'title': getattr(value.entry, 'title', 'ThermalPilot')} for key,
-        value in coordinators.items()
+        {
+            'entry_id': key,
+            'title': getattr(value.entry, 'title', 'ThermalPilot'),
+            'language': value.settings.get('language', 'en'),
+            'cop_available': value.settings.get('house_heat_source') == 'air_to_water'
+                             and bool(value.settings.get('heat_pump_cop_entity')),
+        }
+        for key, value in coordinators.items()
     ]
+    if msg.get('metadata_only'):
+        connection.send_result(msg['id'], {'entries': entries})
+        return
     entry_id = msg.get('entry_id') or (entries[0]['entry_id'] if len(entries) == 1 else None)
     if not entry_id:
         connection.send_result(msg['id'],{'entries':entries,'requires_selection':len(entries)>1})
@@ -212,30 +226,45 @@ async def ws_plan_chart(hass, connection, msg):
     if coordinator is None:
         connection.send_error(msg['id'],'not_loaded','Integration is not loaded.')
         return
+    selected_entry = next(entry for entry in entries if entry['entry_id'] == entry_id)
+    include_manual_controls = msg.get('include_manual_controls', False) and connection.user.is_admin
+    room_data_keys = ('air_control', 'is_garage')
+    if include_manual_controls:
+        room_data_keys += ('actual_activity',)
     rows = await hass.async_add_executor_job(coordinator.history_db.read, dt_util.utcnow().timestamp() - 48 * 3600)
     def subset(value,keys):return {key: value[key] for key in keys if key in value}
     settings = coordinator.settings
     data = coordinator.data or {}
-    room_keys = ('id', 'name', 'is_garage', 'heat_control', 'garage_strategy', 'heating_zone_id')
+    room_keys = ('id', 'name', 'is_garage', 'heat_control', 'garage_strategy', 'heating_zone_id', 'baseline')
+    if include_manual_controls:
+        room_keys += ('activity_entity',)
     zone_keys = ('id', 'name', 'source_type', 'heating_strategy', 'climate_mode', 'main_room_id')
     chart_rooms = {}
     for room_id,room in data.get('rooms',{}).items():
-        chart_rooms[room_id] = subset(room, ('air_control', 'is_garage'))
+        chart_rooms[room_id] = subset(room, room_data_keys)
+        if (assistance := room.get('heating_assistance')):
+            chart_rooms[room_id]['heating_assistance'] = subset(assistance, ('floor_target',))
         if (plan := room.get('plan')):
-            chart_rooms[room_id]['plan']={'commands':[subset(command,('time','action')) for command in plan.get('commands',[])],
-                'slots':[{'end':plan['slots'][-1]['end']}] if plan.get('slots') else []}
+            chart_rooms[room_id]['plan'] = {
+                **subset(plan, ('mode', 'heat', 'setpoint')),
+                'commands': [subset(command, ('time', 'action')) for command in plan.get('commands', [])],
+                'slots': [{'end': plan['slots'][-1]['end']}] if plan.get('slots') else [],
+            }
     chart_zones = {}
     for zone_id,zone in data.get('zones',{}).items():
         plan = zone.get('plan')
         chart_zones[zone_id]={'plan':{'commands':[subset(command,('time','action')) for command in plan.get('commands',[])],
             'slots':[{'end':plan['slots'][-1]['end']}] if plan.get('slots') else []} if plan else None}
     connection.send_result(msg['id'],{'entry_id':entry_id,'entries':entries,
+        'cop_available':selected_entry['cop_available'],
+        **({'manual_controls': coordinator.manual_controls()} if include_manual_controls else {}),
         'settings':{'language':settings.get('language','en'),'house_heat_source':settings.get('house_heat_source'),
                     'rooms':[subset(room,room_keys) for room in settings.get('rooms',[])],
                     'heating_zones':[subset(zone,zone_keys) for zone in settings.get('heating_zones',[])]},
         'data':{
             'rooms':chart_rooms,
             'zones':chart_zones,
+            'heat_pump_cop': data.get('heat_pump_cop') if selected_entry['cop_available'] else None,
             'chart_temperatures':coordinator.chart_temperatures(),
             'temperature_history_entities':chart_history_entities(hass,coordinator),
             'weather_forecast':[subset(row,('datetime','temperature','condition')) for row in data.get('weather_forecast',[])],

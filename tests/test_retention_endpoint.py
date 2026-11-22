@@ -12,6 +12,7 @@ class Coordinator:
         self.settings={'language':'fi','rooms':[{'id':'room','name':'Garage','is_garage':True,'thermostat':'climate.private'}], 'secret':'not public'}
         self.data={'rooms':{'room':{'name':'Old','heat_retention':{'drop_6h':1.49,'hours_per_degree':4},'model':{'private':'details'}}}}
 class Connection:
+    user = types.SimpleNamespace(is_admin=False)
     def send_result(self,identifier,value):self.result=value
     def send_error(self,*args):self.error=args
 class EndpointTests(unittest.TestCase):
@@ -72,6 +73,7 @@ class PlanChartEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(any(isinstance(item,ast.Attribute) and item.attr=='require_admin' for item in handler.decorator_list))
         handler.decorator_list=[];namespace={'PilotCoordinator':Coordinator,'DOMAIN':'thermal_pilot','chart_history_entities':lambda hass,c:{'rooms':{'room':'sensor.room'},'zones':{'zone':'sensor.zone'}},'dt_util':types.SimpleNamespace(utcnow=lambda:datetime(2026,10,15,tzinfo=timezone.utc))}
         exec(compile(ast.Module(body=[handler],type_ignores=[]),str(SOURCE),'exec'),namespace);self.handler=namespace['ws_plan_chart'];self.connection=Connection();self.coordinator=Coordinator()
+        self.coordinator.manual_controls = lambda: {'room': {'modes': ['heat']}}
         self.coordinator.settings.update(house_heat_source='air_to_water',heating_zones=[{'id':'zone','name':'Zone','thermostat':'climate.secret','heating_strategy':'tariff'}])
         self.coordinator.data['zones']={'zone':{'plan':{'commands':[{'time':'zone-later','action':'raise','setpoint':24}],'slots':[{'end':'zone-end'}]}}}
         self.coordinator.data['weather_forecast']=[{'datetime':'weather-time','temperature':12.1,'condition':'cloudy','private':'secret'}]
@@ -95,6 +97,47 @@ class PlanChartEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('internal',result['data']['price_chart'][0])
         self.assertEqual(result['data']['weather_forecast'],[{'datetime':'weather-time','temperature':12.1,'condition':'cloudy'}])
         self.assertEqual(result['data']['weather_forecast_history'],[{'datetime':'past','temperature':1,'condition':'snowy','issued':123}])
+    async def test_card_cop_capability_follows_heat_source_and_sensor(self):
+        self.coordinator.settings['heat_pump_cop_entity'] = 'sensor.private_cop'
+        self.coordinator.data['heat_pump_cop'] = {
+            'observed': [{'time': 1, 'cop': 3, 'outdoor': 0}], 'forecast': [],
+        }
+        await self.handler(self.hass, self.connection, {'id': 1, 'metadata_only': True})
+        self.assertEqual(self.connection.result, {'entries': [
+            {'entry_id': 'one', 'title': 'Home', 'language': 'fi', 'cop_available': True},
+        ]})
+        await self.handler(self.hass, self.connection, {'id': 1})
+        self.assertEqual(self.connection.result['data']['heat_pump_cop'],
+                         self.coordinator.data['heat_pump_cop'])
+        self.assertNotIn('heat_pump_cop_entity', self.connection.result['settings'])
+        self.coordinator.settings['house_heat_source'] = 'air_to_air'
+        await self.handler(self.hass, self.connection, {'id': 1})
+        self.assertFalse(self.connection.result['cop_available'])
+        self.assertIsNone(self.connection.result['data']['heat_pump_cop'])
+
+    async def test_manual_controls_require_administrator_and_opt_in(self):
+        request = {'id': 1, 'include_manual_controls': True}
+        await self.handler(self.hass, self.connection, request)
+        self.assertNotIn('manual_controls', self.connection.result)
+        self.connection.user = types.SimpleNamespace(is_admin=True)
+        await self.handler(self.hass, self.connection, {'id': 1})
+        self.assertNotIn('manual_controls', self.connection.result)
+        await self.handler(self.hass, self.connection, request)
+        self.assertEqual(self.connection.result['manual_controls'], {'room': {'modes': ['heat']}})
+
+    async def test_dashboard_keeps_adjustment_data_for_every_viewer(self):
+        self.coordinator.settings['rooms'][0]['baseline'] = 20
+        self.coordinator.data['rooms']['room']['plan'].update(mode='boost', heat=True, setpoint=21.5)
+        self.coordinator.data['rooms']['room']['heating_assistance'] = {'floor_target': 21.5, 'private': 123}
+        await self.handler(self.hass, self.connection, {'id': 1})
+        result = self.connection.result
+        self.assertEqual(result['settings']['rooms'][0]['baseline'], 20)
+        room = result['data']['rooms']['room']
+        self.assertEqual(room['plan']['mode'], 'boost')
+        self.assertTrue(room['plan']['heat'])
+        self.assertEqual(room['plan']['setpoint'], 21.5)
+        self.assertEqual(room['heating_assistance'], {'floor_target': 21.5})
+
     async def test_multiple_integrations_and_unloaded_selection(self):
         self.hass.data['thermal_pilot']['two']=Coordinator('Other')
         await self.handler(self.hass,self.connection,{'id':1})

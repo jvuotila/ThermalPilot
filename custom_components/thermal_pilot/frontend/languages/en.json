@@ -554,6 +554,8 @@
     "Shared settings apply to ordinary rooms. Garages use their own room settings.": "Shared settings apply to ordinary rooms. Garages use their own room settings.",
     "Shared summer thermostat setpoint (°C)": "Shared summer thermostat setpoint (°C)",
     "Shared zone": "Shared zone",
+    "Show manual heating and cooling controls": "Show manual heating and cooling controls",
+    "Show heat pump COP chart": "Show heat pump COP chart",
     "Show electricity prices": "Show electricity prices",
     "Show weather forecast": "Show weather forecast",
     "Similar heating": "Similar heating",

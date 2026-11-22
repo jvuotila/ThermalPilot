@@ -42,18 +42,21 @@ loads it automatically. The card shows the Plan chart's legend, electricity
 prices, hourly weather, room timelines, garages and zones. Explanatory text above and
 below the chart is omitted. Its optional title is blank by default, and it uses
 the integration's language unless a card language is selected. Hover, focus or tap a chart bar to see details.
-The chart refreshes every minute and adapts to the card width.
+The chart refreshes every minute and adapts to the card width. Room temperature
+labels include an arrow when the current thermostat target is boosted or reduced.
+Hover, focus, or tap the arrow to see the adjustment.
 
 ```yaml
 type: custom:thermal-pilot-plan-chart-card
 title: Heating plan  # Optional
 show_weather: true
 show_prices: true
+show_cop: true
+show_manual_controls: false
 ```
 
 If multiple ThermalPilot integrations are loaded, choose one in the visual
-editor, or specify its `entry_id` in YAML. This card only displays information;
-it does not change heating settings or control devices. The optional `language`
+editor, or specify its `entry_id` in YAML. The optional `language`
 setting accepts `auto` (use the integration language) or a supported language
 code such as `en` or `fi`.
 
@@ -63,3 +66,13 @@ Weather appears only when the configured weather source provides an hourly
 forecast; daily forecasts are not expanded into invented hourly readings.
 The weather timeline always fits the card width and reduces weather-label density
 on narrow cards.
+
+
+**Show heat pump COP chart** is available when the selected integration uses an
+air-to-water heat pump with a configured COP sensor. It is enabled by default
+and shows measured COP points and the dashed forecast above the weather.
+
+**Show manual heating and cooling controls** is off by default and available
+only to Home Assistant administrators. Enable it to use the same timed session
+controls and device safeguards as the integration's Plan tab. The card shows
+controls only for the modes supported by each controller.

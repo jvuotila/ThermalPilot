@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.101 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.102 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -564,8 +564,8 @@ The original expiry survives a Home Assistant restart. Expiry or **Stop session*
 returns to automatic control, which may continue heating/cooling when needed.
 Pausing ThermalPilot, enabling simulation, disabling a zone or changing its device
 cancels the session. Importing a backup does not reactivate manual sessions.
-Controls are available in the integration's Plan tab; dashboard cards remain
-read-only.
+Controls are available in the integration's Plan tab. Home Assistant
+administrators can also enable them in the **ThermalPilot heating plan** dashboard card.
 
 
 ### Air-to-water heat pump COP

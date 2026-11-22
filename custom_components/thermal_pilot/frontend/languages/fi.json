@@ -299,6 +299,8 @@
     "Shared settings apply to ordinary rooms and zones. Garages use their own room settings.": "Yhteiset asetukset koskevat tavallisia huoneita ja vyöhykkeitä. Autotallit käyttävät omia huoneasetuksiaan.",
     "Shared settings apply to ordinary rooms. Garages use their own room settings.": "Yhteiset asetukset koskevat tavallisia huoneita. Autotallit käyttävät omia huonekohtaisia asetuksia.",
     "Shared zone": "Yhteinen vyöhyke",
+    "Show manual heating and cooling controls": "Näytä manuaalisen lämmityksen ja jäähdytyksen painikkeet",
+    "Show heat pump COP chart": "Näytä lämpöpumpun COP-kaavio",
     "Show electricity prices": "Näytä sähkön hinnat",
     "Show weather forecast": "Näytä sääennuste",
     "Simulation is active. ThermalPilot does not control heating.": "Simulointi on käytössä. ThermalPilot ei ohjaa lämmitystä.",

@@ -453,7 +453,7 @@ class ThermalPilotPanel extends HTMLElement {
   }
   manualChartName(name,id,history,color){
     const controls=this.info?.manual_controls;
-    if(history||!controls||!Object.keys(controls).length)return `<div xmlns="http://www.w3.org/1999/xhtml" data-user-text title="${escapeHTML(name)}" style="font:600 13px system-ui;color:${color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:22px">${escapeHTML(name)}</div>`;
+    if(history||this.chartVisibility().manual===false||!controls||!Object.keys(controls).length)return `<div xmlns="http://www.w3.org/1999/xhtml" data-user-text title="${escapeHTML(name)}" style="font:600 13px system-ui;color:${color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:22px">${escapeHTML(name)}</div>`;
     const control=controls[id],status=this.manualControlStatus(id),session=status.session;
     const buttons=['heat','cool'].map(mode=>{
       if(!control?.modes?.includes(mode))return '<span class="manual-slot" aria-hidden="true"></span>';
@@ -1235,13 +1235,13 @@ class ThermalPilotPanel extends HTMLElement {
   chartVisibility(){return {weather:true,prices:true};}
   priceChart(history=false,dashboard=false){
   const visibility=this.chartVisibility();
-  const copData=!history&&!dashboard?this.info.data?.heat_pump_cop:null;
+  const copData=!history&&visibility.cop!==false?this.info.data?.heat_pump_cop:null;
   const isGarage=room=>room.is_garage||this.info.data?.rooms?.[room.id]?.is_garage;
   const ordinaryRooms=[...(this.settings?.rooms||[])].filter(room=>!isGarage(room)).sort(compareRoomNames);
   const garageRooms=[...(this.settings?.rooms||[])].filter(isGarage).sort(compareRoomNames);
   const rooms=[...ordinaryRooms,...garageRooms];
   const zones=[...(this.settings?.heating_zones||[])].sort(compareRoomNames);
-  const manualNames=!history&&Object.keys(this.info?.manual_controls||{}).length>0;
+  const manualNames=!history&&visibility.manual!==false&&Object.keys(this.info?.manual_controls||{}).length>0;
   const chartReading=(item,zone=false)=>{
    const readings=this.info.data?.chart_temperatures?.[zone?'zones':'rooms'];
    return readings&&Object.hasOwn(readings,item.id)?readings[item.id]:this.info.data?.[zone?'zones':'rooms']?.[item.id]?.temperature;
@@ -1294,7 +1294,7 @@ class ThermalPilotPanel extends HTMLElement {
   let nameContext;
   try{nameContext=typeof document!=='undefined'?document.createElement('canvas').getContext?.('2d'):null;if(nameContext)nameContext.font='600 13px system-ui';}catch(error){nameContext=null;}
   const longestName=Math.max(0,...[...rooms,...zones].map(item=>String(item.name||'')).map(label=>nameContext?nameContext.measureText(label).width:Array.from(label).length*8));
-  const roomNameWidth=compact?viewWidth-(history?40:125):Math.max(history?190:180,Math.min(viewWidth*.4,Math.ceil(longestName)+12));
+  const roomNameWidth=compact?viewWidth-(history?40:125):Math.max(history?190:180,Math.min(viewWidth*.4,Math.ceil(longestName)+(manualNames?68:12)));
   const priceHeaderHeight=visibility.prices&&compact?64:0;
   const left=compact?88:roomNameWidth+(history?120:100),width=viewWidth-left-20,top=15+priceHeaderHeight,height=120,max=Math.max(25,Math.ceil(Math.max(0,...values.map(v=>v.price))/5)*5),min=Math.min(0,Math.floor(Math.min(0,...values.map(v=>v.price))/5)*5);
   const ticks=Array.from({length:6},(_,i)=>min+(max-min)*i/5).map(v=>{const y=top+height-(v-min)/(max-min)*height;return `<line x1="${left}" x2="${left+width}" y1="${y}" y2="${y}" stroke="#829aa32c"/><text x="${left-10}" y="${y+4}" text-anchor="end" fill="var(--secondary-text-color,#526b75)" font-size="12">${v.toFixed(0)} c/kWh</text>`;}).join('');
@@ -1538,7 +1538,7 @@ class ThermalPilotPanel extends HTMLElement {
       box.style.left=Math.max(area.left+8,Math.min(x+12,area.right-bounds.width-8))+'px';
       box.style.top=Math.max(area.top+8,Math.min(y+16,area.bottom-bounds.height-8))+'px';
     };
-    const openTemperature=event=>{const opened=this.openTemperatureHistory(event);if(opened)hide();return opened;};
+    const openTemperature=event=>{if(event.target.closest?.('[data-target-adjustment]'))return false;const opened=this.openTemperatureHistory(event);if(opened)hide();return opened;};
     viewport.addEventListener('pointermove',event=>{if(event.pointerType!=='touch')show(event);});
     viewport.addEventListener('pointerleave',hide);
     viewport.addEventListener('focusin',show);
