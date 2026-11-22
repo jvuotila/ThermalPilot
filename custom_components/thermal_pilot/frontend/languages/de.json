@@ -2,6 +2,9 @@
   "language": "de",
   "name": "Deutsch",
   "messages": {
+    "Heat pump COP sensor (optional)": "COP-Sensor der Wärmepumpe (optional)",
+    "COP forecast": "COP-Prognose",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Wähle einen Sensor für den aktuellen Heiz-COP, der im Stillstand null meldet oder nicht verfügbar ist. ThermalPilot lernt aus gemessenem COP und Außentemperaturen. ThermalPilot nutzt die Prognose zur Schätzung der Heizkosten.",
     "Use Fan only between heating runs": "Zwischen Heizphasen nur den Lüfter verwenden",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Ist die Einstellung aktiviert, wechselt die Wärmepumpe zwischen dem Heizbetrieb und dem reinen Lüfterbetrieb. Ist sie deaktiviert, bleibt die Pumpe während der Heizsaison im Heizbetrieb und passt den Sollwert anhand der Raumzieltemperatur, der Anhebung und der Absenkung an. Fällt Home Assistant im Heizbetrieb aus, kann die Pumpe den letzten Sollwert mit ihrem eigenen Thermostat halten. Kühlung und Betriebsartenwechsel können den Heizbetrieb weiterhin beenden. Zwischen Kühlphasen kann die Pumpe bei beiden Schalterstellungen den reinen Lüfterbetrieb nutzen.",
     " and heating water temperature": " und Heizwassertemperatur",
@@ -112,7 +115,7 @@
     "East": "Ost",
     "Electric ceiling heating": "Elektrische Deckenheizung",
     "Electric floor heating": "Elektrische Fußbodenheizung",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Elektroheizung profitiert vor allem von variablen Stromtarifen. Andere Quellen werden nur beobachtet, ohne Zeitpläne, Steuerung oder Pflicht-Preissensor. Wirkungsgrad und Brennstoffkosten werden nicht modelliert.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Elektroheizung profitiert vor allem von variablen Stromtarifen. Andere Quellen werden nur beobachtet, ohne Zeitpläne, Steuerung oder Pflicht-Preissensor.",
     "Electric panels": "Elektroheizkörper",
     "Electric resistance": "Elektrische Widerstandsheizung",
     "Electricity optimization": "Stromkostenoptimierung",

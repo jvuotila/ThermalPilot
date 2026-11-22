@@ -1,6 +1,6 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.99'
+VERSION = '0.9.100'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
@@ -22,7 +22,7 @@ DEFAULTS = {
     'solar_minimum_run_minutes': 30,
     'away_automatic': False, 'away_zone': '', 'away_delay_hours': 24.0, 'away_temperature': 16.0, 'away_cooling_temperature': 26.0,
     'weather_entity': '', 'outdoor_entity': '', 'wind_entity': '',
-    'water_entity': '', 'fireplace_entity': '',
+    'water_entity': '', 'heat_pump_cop_entity': '', 'fireplace_entity': '',
     'fireplace_active_state': 'on',
     'heating_enabled': True, 'simulation_enabled': True, 'language': 'en',
     'live_control_confirmed': False,

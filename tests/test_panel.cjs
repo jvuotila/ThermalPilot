@@ -11,6 +11,51 @@ const context={HTMLElement:Element,customElements:{get:()=>undefined,define:(nam
 vm.createContext(context);
 vm.runInContext(readFrontendSource(path.join(__dirname,'../custom_components/thermal_pilot/frontend/panel.js')),context);
 const panel=new Component();
+{
+ const copPanel=new Component();
+ const now=Date.now();
+ const at=hours=>new Date(now+hours*3600000).toISOString();
+ copPanel.settings={rooms:[],house_heat_source:'air_to_water',heat_pump_cop_entity:'sensor.heating_cop',language:'fi'};
+ copPanel._hass={states:{
+  'sensor.heating_cop':{entity_id:'sensor.heating_cop',state:'3.2',attributes:{device_class:'power_factor',state_class:'measurement'}},
+  'sensor.temperature':{entity_id:'sensor.temperature',state:'10',attributes:{device_class:'temperature',unit_of_measurement:'°C'}},
+ }};
+ copPanel.info={source_fields:[
+  ['house_heat_source','Heat source','select:air_to_water,ground_source'],
+  ['house_distribution','Heat distribution','select:water_floor'],
+  ['heat_pump_cop_entity','Heat pump COP sensor (optional)','sensor',{kind:'cop'}],
+ ],data:{
+  price_chart:[{start:at(-6),end:at(6),price:10}],
+  weather_forecast:[{datetime:at(1),temperature:0,condition:'cloudy'}],
+  heat_pump_cop:{
+   observed:[{time:now/1000-3600,cop:2.4,outdoor:-3},{time:now/1000-1800,cop:2.8,outdoor:-2}],
+   forecast:[{time:now/1000+3600,cop:3.3,outdoor:0},{time:now/1000+7200,cop:3.5,outdoor:1,basis:'initial'}],
+  },
+ }};
+ const copSettings=()=>copPanel.settingsView('rooms');
+ const houseFields=[...copSettings().matchAll(/data-field="source\.([^"]+)"/g)].map(match=>match[1]);
+ const heatSourceIndex=houseFields.indexOf('house_heat_source');
+ assert.notEqual(heatSourceIndex,-1);
+ assert.deepEqual(houseFields.slice(heatSourceIndex,heatSourceIndex+3),['house_heat_source','heat_pump_cop_entity','house_distribution']);
+ assert.match(copSettings(),/value="sensor.heating_cop" selected/);
+ assert.doesNotMatch(copSettings(),/value="sensor.temperature"/);
+ copPanel.settings.house_heat_source='ground_source';
+ assert.doesNotMatch(copSettings(),/source.heat_pump_cop_entity/);
+ copPanel.settings.house_heat_source='air_to_water';
+ for(const width of [320,1200]){
+  copPanel.priceChartWidth=width;
+  const chart=copPanel.priceChart();
+  assert.match(chart,/data-cop-timeline[\s\S]*data-cop-series="observed"[\s\S]*data-cop-series="forecast"[\s\S]*data-weather/);
+  assert.match(chart,/data-cop-series="observed"><path d="M[^"]* M/,'An idle gap breaks the measured line');
+  assert.match(chart,/data-cop-series="forecast"><path d="M[^"]* L[^"]*"[^>]*stroke-dasharray/);
+  assert.match(chart,/COP-ennuste · COP: 3,3/);
+  assert.match(chart,/COP-ennuste · Alkuarvio · COP: 3,5/);
+ }
+ assert.doesNotMatch(copPanel.priceChart(true),/data-cop-timeline/);
+ assert.doesNotMatch(copPanel.priceChart(false,true),/data-cop-timeline/);
+ copPanel.info.data.heat_pump_cop=null;
+ assert.doesNotMatch(copPanel.priceChart(),/data-cop-timeline/);
+}
 const quarterRows=vm.runInContext('quarterHourObservations',context);
 const hour=new Date(2026,9,10,0,0,0).getTime()/1000;
 const samples=[

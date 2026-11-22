@@ -2,6 +2,9 @@
   "language": "es",
   "name": "Español",
   "messages": {
+    "Heat pump COP sensor (optional)": "Sensor de COP de la bomba de calor (opcional)",
+    "COP forecast": "Previsión de COP",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Selecciona un sensor de COP instantáneo de calefacción que indique cero o no esté disponible en reposo. ThermalPilot aprende del COP medido y de la temperatura exterior. ThermalPilot utiliza la previsión para estimar los costes de calefacción.",
     "Use Fan only between heating runs": "Usar solo el ventilador entre ciclos de calefacción",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Con la opción activada, la bomba de calor alterna entre calefacción y solo ventilador. Con la opción desactivada, la bomba permanece en modo calefacción durante la temporada de calefacción y ajusta la consigna según la temperatura objetivo de la habitación, el aumento y la reducción. Si Home Assistant se detiene mientras está seleccionado el modo calefacción, la bomba puede mantener la última consigna con su propio termostato. La refrigeración y el cambio de modo aún pueden hacer que la bomba salga del modo calefacción. Entre ciclos de refrigeración, la bomba puede usar el modo de solo ventilador con la opción activada o desactivada.",
     " and heating water temperature": " y temperatura del agua",
@@ -112,7 +115,7 @@
     "East": "Este",
     "Electric ceiling heating": "Calefacción eléctrica de techo",
     "Electric floor heating": "Suelo radiante eléctrico",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "La calefacción eléctrica aprovecha tarifas variables. Otras fuentes solo se observan, sin horarios, control ni sensor de precio obligatorio. No se modelan eficiencia ni costes de combustible.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "La calefacción eléctrica aprovecha tarifas variables. Otras fuentes solo se observan, sin horarios, control ni sensor de precio obligatorio.",
     "Electric panels": "Paneles eléctricos",
     "Electric resistance": "Resistencia eléctrica",
     "Electricity optimization": "Optimización eléctrica",

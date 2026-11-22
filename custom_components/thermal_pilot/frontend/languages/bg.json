@@ -2,6 +2,9 @@
   "language": "bg",
   "name": "Български",
   "messages": {
+    "Heat pump COP sensor (optional)": "Датчик за COP на термопомпата (по избор)",
+    "COP forecast": "Прогноза за COP",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Изберете датчик за текущия COP при отопление, който отчита нула или е недостъпен в покой. ThermalPilot се обучава от измерените COP и външни температури. ThermalPilot използва прогнозата, за да оцени разходите за отопление.",
     "Use Fan only between heating runs": "Използване на режим „Само вентилатор“ между циклите на отопление",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "При включена настройка термопомпата превключва между отопление и режим „Само вентилатор“. При изключена настройка тя остава в режим на отопление през отоплителния сезон и променя зададената температура според целта за помещението, повишението и понижението. Ако Home Assistant спре, докато е избрано отопление, термопомпата може да поддържа последната зададена температура със собствения си термостат. Охлаждането и смяната на режима все пак могат да прекратят режима на отопление. Между циклите на охлаждане режимът „Само вентилатор“ може да се използва при всяко положение на превключвателя.",
     " and heating water temperature": " и температура на водата",
@@ -112,7 +115,7 @@
     "East": "Изток",
     "Electric ceiling heating": "Електрическо таванно отопление",
     "Electric floor heating": "Електрическо подово отопление",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Електрическото отопление използва променливи тарифи. Другите източници само се наблюдават, без графици, управление или задължителен датчик за цена. Ефективност и горива не се моделират.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Електрическото отопление използва променливи тарифи. Другите източници само се наблюдават, без графици, управление или задължителен датчик за цена.",
     "Electric panels": "Електрически панели",
     "Electric resistance": "Електрически нагревател",
     "Electricity optimization": "Оптимизация на електроенергията",

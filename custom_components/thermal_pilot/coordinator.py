@@ -12,13 +12,14 @@ from homeassistant.helpers.event import async_track_point_in_utc_time, async_tra
 from homeassistant.util import dt as dt_util
 from .const import DOMAIN, DEFAULTS, RESERVE_HOURS, ARCHIVE_KEEP_DAYS, WATER_REFERENCE, HISTORY_DAYS, MIN_LEARNING_INTERVAL_SECONDS
 from .history import HistoryDatabase
+from .cop import cop_priced_slots, cop_report_time, filter_cop_readings, forecast_cop, read_cop
 from .control import ThermostatControl
 from .air_control import AirHeatPumpControl, zone_temperature, binary
 from .heating_assistance import update_room as update_assistance_room, forecast as assistance_forecast
 from .solar_heating import SOLAR_THRESHOLD_SECONDS, production_kw, update_sessions
 from .notifications import notify_manual_door_pause, notify_garage_door_open
 from .away import person_count, parse_schedule, room_exempt, update as update_away, overlay_plan as away_plan
-from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
+from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
@@ -491,6 +492,25 @@ class PilotCoordinator(DataUpdateCoordinator):
                           'condition':condition if isinstance(condition,str) and condition in conditions else ''}
         return [rows[date] for date in sorted(rows)][:168]
 
+    async def heat_pump_cop_chart(self, now: float, outdoor: float | None, weather: list[dict]) -> dict | None:
+        """Publish COP observations and a weather-based estimate for the Plan tab."""
+        entity = self.settings['heat_pump_cop_entity']
+        if self.settings['house_heat_source'] != 'air_to_water' or not entity:
+            return None
+        state = self.hass.states.get(entity) if self.settings['heating_enabled'] else None
+        cop = read_cop(state, now)
+        readings = await self.hass.async_add_executor_job(
+            self.history_db.record_heat_pump_cop,
+            (entity, self.settings['outdoor_entity']), now, cop, outdoor,
+            cop_report_time(state) if cop is not None else None,
+        )
+        filtered = filter_cop_readings(readings)
+        return {
+            'observed': [{key: row[key] for key in ('time', 'cop', 'outdoor')}
+                         for row in filtered if row['time'] >= now - 2 * 86400],
+            'forecast': forecast_cop(filtered, weather, now),
+        }
+
     def session_fingerprint(self, room: dict[str, Any]) -> list:
         """Invalidate a checkpoint when device mapping or heating policy changes."""
         effective = room_settings(room, self.settings)
@@ -649,6 +669,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         saved_weather = await self.hass.async_add_executor_job(
             self.history_db.save_weather_forecasts, chart_forecast, forecast_issued, now.timestamp()
         )
+        cop_chart = await self.heat_pump_cop_chart(now.timestamp(), outdoor, chart_forecast)
         self.fallback_state = fallback_season(
             self.fallback_state,
             forecasts,
@@ -688,6 +709,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             data = {'updated':now.isoformat(),'simulation_only':not self.live_enabled() and not self.settings['apply_season_setpoints'],'heating_active':False,
                 'collection':self.season,'zones':{},'collection_evidence':self.collection_evidence(),'warnings':['ThermalPilot is passive. Planning, collection and learning are stopped.']+setpoint_errors,
                 'rooms':{},'outdoor':outdoor,'water':None,'weather_forecast':chart_forecast,'weather_forecast_history':saved_weather,
+                'heat_pump_cop':cop_chart,
                 'season_summaries':await self.hass.async_add_executor_job(self.history_db.summaries),
                 'history_info':await self.hass.async_add_executor_job(self.history_db.size)}
             self._plan_settings = plan_settings
@@ -725,6 +747,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                 warnings.append(str(error))
         if scheduling and self.settings['price_entity'] and (not slots):
             warnings.append('No continuous prices from now: no heating plan is available.')
+        pump_slots = cop_priced_slots(slots, cop_chart['forecast'], now) if cop_chart else slots
         if not forecasts:
             warnings.append('No weather forecast: current outdoor temperature is held constant. '+(self.forecast_error or 'No usable forecast was returned.'))
         price_outlook = {
@@ -1051,15 +1074,18 @@ class PilotCoordinator(DataUpdateCoordinator):
                             self.air_control.cycles.get(room_id, {}).get('heating', bool(thermostat_state and thermostat_state.state == 'heat'))
                         )
                     else:
+                        room_slots = slots
+                        if room_water and room_heat_source(room, self.settings) == 'air_to_water':
+                            room_slots = pump_slots
                         planning_temperature = temperature
                         if planning_temperature is not None:
                             result['plan'] = await self.hass.async_add_executor_job(plan, settings, deepcopy(model),
-                                planning_temperature, outdoors, slots, now, baseline, water_factor, room_fireplace)
+                                planning_temperature, outdoors, room_slots, now, baseline, water_factor, room_fireplace)
                             if (room.get('shared_air_signature') and room_id not in blocked_groups
                                     and room_id not in manual_groups):
                                 planning_contexts[room_id] = {
                                     'room': settings, 'model': deepcopy(model), 'temperature': temperature,
-                                    'baseline': baseline, 'outdoor': outdoors, 'slots': slots,
+                                    'baseline': baseline, 'outdoor': outdoors, 'slots': room_slots,
                                     'water_factor': water_factor, 'plan': result['plan'],
                                 }
                 if room.get('is_garage') and room_electric(room, self.settings) and room['garage_strategy'] == 'temperature' and (not slots):
@@ -1151,6 +1177,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         data = {'season_summaries':archives,'history_info':history_info, 'updated':now.isoformat(), 'simulation_only':not self.live_enabled() and not self.settings['apply_season_setpoints'], 'warnings':warnings,
                 'heating_active':True, 'collection':self.season, 'outdoor':outdoor, 'water':water, 
                 'rooms':room_data,'price_chart':chart_prices,'weather_forecast':chart_forecast,'weather_forecast_history':saved_weather,'price_outlook':price_outlook,'wind':wind_status,
+                'heat_pump_cop':cop_chart,
                 'zones':zone_data,'collection_evidence':self.collection_evidence(),
                 'source_status':{
                     'prices':bool(slots),

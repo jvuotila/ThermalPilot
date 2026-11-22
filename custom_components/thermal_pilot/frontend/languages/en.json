@@ -2,6 +2,9 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "Heat pump COP sensor (optional)": "Heat pump COP sensor (optional)",
+    "COP forecast": "COP forecast",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.",
     "Use Fan only between heating runs": "Use Fan only between heating runs",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.",
     " and heating water temperature": " and heating water temperature",
@@ -158,7 +161,7 @@
     "East": "East",
     "Electric ceiling heating": "Electric ceiling heating",
     "Electric floor heating": "Electric floor heating",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.",
     "Electric panels": "Electric panels",
     "Electric resistance": "Electric resistance",
     "Electricity optimization": "Electricity optimization",

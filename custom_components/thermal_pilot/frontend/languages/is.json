@@ -2,6 +2,9 @@
   "language": "is",
   "name": "Íslenska",
   "messages": {
+    "Heat pump COP sensor (optional)": "COP-skynjari varmadælu (valfrjálst)",
+    "COP forecast": "COP-spá",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Veldu skynjara fyrir núverandi COP við upphitun sem sýnir núll eða er ótiltækur í hvíld. ThermalPilot lærir af mældu COP og útihita. ThermalPilot notar spána til að áætla húshitunarkostnað.",
     "Use Fan only between heating runs": "Nota eingöngu viftu á milli hitunarlota",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Þegar kveikt er á stillingunni skiptir varmadælan á milli hitunar og viftustillingar. Þegar slökkt er á henni helst dælan í hitunarstillingu á upphitunartímabilinu og stillir hitastigið eftir markhita rýmisins og stilltri hækkun eða lækkun. Ef Home Assistant stöðvast á meðan hitunarstilling er valin getur dælan haldið síðast stillta hitastiginu með eigin hitastilli. Kæling og skipti á vinnslustillingu geta enn tekið dæluna úr hitunarstillingu. Milli kælilota getur dælan notað viftustillingu hvort sem kveikt eða slökkt er á rofanum.",
     " and heating water temperature": " og vatnshiti",
@@ -112,7 +115,7 @@
     "East": "Austur",
     "Electric ceiling heating": "Raflofthitun",
     "Electric floor heating": "Rafgólfhitun",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Rafhitun nýtur breytilegs verðs. Aðrir gjafar: aðeins mælingar, engin áætlun eða stýring og verðskynjari óþarfur. Nýtni og eldsneytiskostnaður ekki reiknað.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Rafhitun nýtur breytilegs verðs. Aðrir gjafar: aðeins mælingar, engin áætlun eða stýring og verðskynjari óþarfur.",
     "Electric panels": "Rafhitaplötur",
     "Electric resistance": "Rafviðnámshitun",
     "Electricity optimization": "Raforkuhagræðing",

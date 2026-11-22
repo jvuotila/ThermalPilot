@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.99 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.100 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -567,6 +567,80 @@ cancels the session. Importing a backup does not reactivate manual sessions.
 Controls are available in the integration's Plan tab; dashboard cards remain
 read-only.
 
+
+### Air-to-water heat pump COP
+
+Under **Rooms and zones → House heating settings → House and heating**, choose
+**Air-to-water heat pump** as the heat source. The optional **Heat pump COP
+sensor** appears immediately after **Heat source**.
+Choose a live space-heating COP sensor that reports zero or is unavailable
+while idle. A combined COP, hot-water COP, or daily average can give a
+misleading estimate for space heating.
+
+The Plan timeline shows measured COP as a solid line and estimated COP as a
+dashed line. ThermalPilot keeps up to 30 days of paired COP and outdoor
+temperature measurements and uses temperatures from the hourly weather
+forecast. Until accepted readings span at least seven days, or whenever
+the model lacks readings at comparable temperatures, it uses the initial
+curve below.
+
+| Outdoor temperature | Initial COP |
+| --- | ---: |
+| 0 °C | 3.5 |
+| −15 °C | 1.5 |
+| −20 °C | 1.0 |
+
+COP is interpolated between these points and held at 3.5 above 0 °C and
+1.0 below −20 °C. The chart tooltip identifies these points as initial
+estimates. Changing either sensor starts a new learning history.
+
+For rooms heated by the house air-to-water pump, ThermalPilot compares the
+cost of delivering heat using the electricity tariff divided by the forecast
+COP. A higher tariff can be worthwhile if the pump delivers heat more
+efficiently then. The planner discounts the apparent advantage when past COP
+readings vary at similar outdoor temperatures. It blends the normalized
+heat-cost estimate (90%) with the tariff (10%) to give cheaper electricity a
+small edge in close comparisons. Intervals without an estimate use the electricity
+tariff alone. Room-temperature limits and minimum run times still apply, and
+the price chart shows the actual electricity tariff.
+
+ThermalPilot stores one point per 15 minutes. Each point uses the median of
+the available COP samples and the average outdoor temperature from those
+same samples. Isolated high readings are removed before the median is
+calculated. A resulting COP above 5 needs a comparable point from a separate
+report in an adjacent interval. Raw readings above 10 are discarded. These
+checks reduce spikes around defrost while keeping sustained high readings
+eligible for the chart and the forecast once the learned curve is in use.
+
+#### HeishaMon template sensor example
+
+If HeishaMon provides separate heating power production and consumption
+sensors, you can add this [Home Assistant template sensor](https://www.home-assistant.io/integrations/template/)
+to `configuration.yaml`. If you already have a `template:` section, add the
+list item to that section. Check the entity IDs and make sure both sensors
+use the same power unit before dividing their readings.
+
+```yaml
+template:
+  - sensor:
+      - name: "VILP COP"
+        default_entity_id: sensor.vilp_cop
+        unique_id: heishamon_space_heating_cop
+        state_class: measurement
+        device_class: power_factor
+        icon: "mdi:chart-bell-curve-cumulative"
+        availability: >-
+          {{ is_number(states('sensor.panasonic_heat_pump_main_heat_power_production'))
+             and is_number(states('sensor.panasonic_heat_pump_main_heat_power_consumption')) }}
+        state: >-
+          {% set production = states('sensor.panasonic_heat_pump_main_heat_power_production') | float(0) %}
+          {% set consumption = states('sensor.panasonic_heat_pump_main_heat_power_consumption') | float(0) %}
+          {{ (production / consumption) | round(1) if consumption > 0 else 0 }}
+```
+
+Reload the template entities and select `sensor.vilp_cop` in ThermalPilot.
+The example reports zero when there is no heating power consumption and
+becomes unavailable when either input has no valid reading.
 
 ### Air-to-air pump heating control
 

@@ -2,6 +2,9 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "Heat pump COP sensor (optional)": "Sensori COP i pompës së nxehtësisë (opsional)",
+    "COP forecast": "Parashikimi i COP-it",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Zgjidhni një sensor të COP-it të çastit për ngrohjen që tregon zero ose është i padisponueshëm gjatë pushimit. ThermalPilot mëson nga COP-i i matur dhe temperaturat e jashtme. ThermalPilot përdor parashikimin për të vlerësuar kostot e ngrohjes.",
     "Use Fan only between heating runs": "Përdor vetëm ventilatorin ndërmjet cikleve të ngrohjes",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kur cilësimi është aktiv, pompa e nxehtësisë kalon nga ngrohja në modalitetin vetëm me ventilator dhe anasjelltas. Kur është joaktiv, pompa qëndron në modalitetin e ngrohjes gjatë sezonit të ngrohjes dhe përshtat temperaturën e caktuar sipas temperaturës së synuar të dhomës, rritjes dhe uljes. Nëse Home Assistant ndalon ndërkohë që është zgjedhur ngrohja, pompa mund ta mbajë temperaturën e fundit të caktuar me termostatin e vet. Ftohja dhe ndryshimi i modalitetit mund ta nxjerrin ende pompën nga modaliteti i ngrohjes. Ndërmjet cikleve të ftohjes, pompa mund të përdorë vetëm ventilatorin në të dyja pozicionet e çelësit.",
     " and heating water temperature": " dhe temperatura e ujit",
@@ -112,7 +115,7 @@
     "East": "Lindje",
     "Electric ceiling heating": "Ngrohje elektrike tavani",
     "Electric floor heating": "Ngrohje elektrike dyshemeje",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Ngrohja elektrike përfiton nga tarifa të ndryshueshme. Burimet e tjera vetëm vëzhgohen, pa orar, kontroll ose sensor çmimi të detyrueshëm. Rendimenti dhe karburanti nuk modelohen.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Ngrohja elektrike përfiton nga tarifa të ndryshueshme. Burimet e tjera vetëm vëzhgohen, pa orar, kontroll ose sensor çmimi të detyrueshëm.",
     "Electric panels": "Panele elektrike",
     "Electric resistance": "Rezistencë elektrike",
     "Electricity optimization": "Optimizimi i energjisë",

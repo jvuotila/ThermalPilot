@@ -2,6 +2,9 @@
   "language": "ro",
   "name": "Română",
   "messages": {
+    "Heat pump COP sensor (optional)": "Senzor COP al pompei de căldură (opțional)",
+    "COP forecast": "Prognoză COP",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Alege un senzor de COP instantaneu pentru încălzire care indică zero sau este indisponibil în repaus. ThermalPilot învață din COP-ul măsurat și din temperaturile exterioare. ThermalPilot folosește prognoza pentru a estima costurile de încălzire.",
     "Use Fan only between heating runs": "Folosește doar ventilatorul între ciclurile de încălzire",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Când opțiunea este activată, pompa de căldură comută între încălzire și modul doar ventilator. Când este dezactivată, pompa rămâne în modul de încălzire în sezonul rece și ajustează temperatura setată în funcție de ținta camerei, de creștere și de reducere. Dacă Home Assistant se oprește în timp ce este selectat modul de încălzire, pompa poate menține ultima temperatură setată cu propriul termostat. Răcirea și schimbarea modului pot scoate în continuare pompa din modul de încălzire. Între ciclurile de răcire, pompa poate folosi modul doar ventilator în ambele poziții ale comutatorului.",
     " and heating water temperature": " și temperatura apei",
@@ -112,7 +115,7 @@
     "East": "Est",
     "Electric ceiling heating": "Încălzire electrică în tavan",
     "Electric floor heating": "Încălzire electrică în pardoseală",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Încălzirea electrică beneficiază de tarife variabile. Alte surse: doar observație, fără program sau control și fără senzor de preț obligatoriu. Randamentul și combustibilul nu se modelează.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Încălzirea electrică beneficiază de tarife variabile. Alte surse: doar observație, fără program sau control și fără senzor de preț obligatoriu.",
     "Electric panels": "Panouri electrice",
     "Electric resistance": "Rezistență electrică",
     "Electricity optimization": "Optimizare electricitate",

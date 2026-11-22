@@ -211,7 +211,8 @@ def simulate_group(contexts: dict[str, dict], plans: dict[str, dict], now: datet
                     ranges[key][0] = min(ranges[key][0], updated[key])
                     ranges[key][1] = max(ranges[key][1], updated[key])
                     demand_hours[key] += step * heating
-                    cost += step * (row['price'] * heating
+                    heating_rate = row.get('heating_cost_rate', row['price'])
+                    cost += step * (heating_rate * heating
                                     + .15 * (updated[key] - context['baseline']) ** 2)
             temperatures = updated
         if not coasting:

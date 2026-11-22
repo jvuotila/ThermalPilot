@@ -7,6 +7,11 @@ from bisect import bisect_left
 from datetime import datetime, timezone
 from contextlib import contextmanager
 
+from .cop import (
+    COP_HISTORY_DAYS, COP_MAX_READING, COP_READING_SECONDS, COP_SAMPLE_SECONDS,
+    summarize_cop_interval,
+)
+
 
 class HistoryDatabase:
     def __init__(self, path):
@@ -89,6 +94,49 @@ class HistoryDatabase:
             if encoded != previous:
                 con.execute("INSERT OR REPLACE INTO metadata VALUES ('weather_forecast_hours',?)", (encoded,))
         return [row for row in ordered if row['time'] < now]
+
+    def record_heat_pump_cop(
+        self, sources: tuple[str, str], now: float, cop: float | None, outdoor: float | None,
+        reported: float | None = None,
+    ) -> list[dict]:
+        """Save a 15-minute summary and the inputs for the current interval."""
+        bucket = int(now) // COP_SAMPLE_SECONDS * COP_SAMPLE_SECONDS
+        reading_time = int(now) // COP_READING_SECONDS * COP_READING_SECONDS
+        cutoff = bucket - COP_HISTORY_DAYS * 86400
+        with self._connect() as con:
+            stored = con.execute("SELECT value FROM metadata WHERE key='heat_pump_cop'").fetchone()
+            previous = stored[0] if stored else '{}'
+            record = json.loads(previous)
+            # A different pump sensor or outdoor sensor needs its own calibration.
+            readings = record['readings'] if record.get('sources') == list(sources) else []
+            readings = [row for row in readings if cutoff < row['time'] <= bucket]
+            same_interval = bool(readings and readings[-1]['time'] == bucket)
+            samples = record.get('samples', []) if same_interval else []
+            if same_interval and not samples:
+                # A backup from the earlier single-reading format has no raw inputs.
+                samples = [readings[-1]]
+            last_report = samples[-1].get('reported') if samples else None
+            if not same_interval and readings:
+                last_report = readings[-1].get('reported')
+            new_report = reported is None or reported != last_report
+            if (cop is not None and 0 < cop <= COP_MAX_READING and outdoor is not None
+                    and new_report and (not samples or samples[-1]['time'] < reading_time)):
+                sample = {'time': reading_time, 'cop': cop, 'outdoor': outdoor}
+                if reported is not None:
+                    sample['reported'] = reported
+                samples.append(sample)
+                summary = summarize_cop_interval(bucket, samples)
+                if same_interval:
+                    readings[-1] = summary
+                else:
+                    readings.append(summary)
+            encoded = json.dumps(
+                {'sources': sources, 'readings': readings, 'samples': samples},
+                separators=(',', ':'), allow_nan=False,
+            )
+            if encoded != previous:
+                con.execute("INSERT OR REPLACE INTO metadata VALUES ('heat_pump_cop',?)", (encoded,))
+        return readings
 
     def append(self, rows, cutoff, season='unknown'):
         with self._connect() as con:

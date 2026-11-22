@@ -2,6 +2,9 @@
   "language": "fr",
   "name": "Français",
   "messages": {
+    "Heat pump COP sensor (optional)": "Capteur de COP de la pompe à chaleur (facultatif)",
+    "COP forecast": "Prévision du COP",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Choisissez un capteur de COP instantané en chauffage qui indique zéro ou est indisponible à l’arrêt. ThermalPilot apprend à partir du COP mesuré et des températures extérieures. ThermalPilot utilise la prévision pour estimer le coût du chauffage.",
     "Use Fan only between heating runs": "Utiliser la ventilation seule entre les cycles de chauffage",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Lorsque l’option est activée, la pompe à chaleur alterne entre le chauffage et la ventilation seule. Lorsqu’elle est désactivée, la pompe reste en mode chauffage pendant la saison de chauffe et ajuste la consigne selon la température cible de la pièce, la hausse et la baisse prévues. Si Home Assistant s’arrête pendant que le mode chauffage est sélectionné, la pompe peut maintenir la dernière consigne avec son propre thermostat. Le refroidissement et le changement de mode peuvent toujours faire quitter le mode chauffage. Entre les cycles de refroidissement, la pompe peut utiliser la ventilation seule dans les deux positions de l’interrupteur.",
     " and heating water temperature": " et température d’eau",
@@ -112,7 +115,7 @@
     "East": "Est",
     "Electric ceiling heating": "Chauffage électrique au plafond",
     "Electric floor heating": "Plancher chauffant électrique",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Le chauffage électrique bénéficie surtout des tarifs variables. Les autres sources sont observées sans programmation, commande ni capteur de prix obligatoire. Rendement et combustible ne sont pas modélisés.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Le chauffage électrique bénéficie surtout des tarifs variables. Les autres sources sont observées sans programmation, commande ni capteur de prix obligatoire.",
     "Electric panels": "Radiateurs électriques",
     "Electric resistance": "Résistance électrique",
     "Electricity optimization": "Optimisation électrique",

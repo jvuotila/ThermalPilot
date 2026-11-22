@@ -2,6 +2,9 @@
   "language": "pl",
   "name": "Polski",
   "messages": {
+    "Heat pump COP sensor (optional)": "Czujnik COP pompy ciepła (opcjonalny)",
+    "COP forecast": "Prognoza COP",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Wybierz czujnik chwilowego COP ogrzewania, który podczas postoju wskazuje zero lub jest niedostępny. ThermalPilot uczy się na podstawie zmierzonego COP i temperatur zewnętrznych. ThermalPilot wykorzystuje prognozę do szacowania kosztów ogrzewania.",
     "Use Fan only between heating runs": "Używaj samego wentylatora między cyklami grzania",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Po włączeniu tej opcji pompa ciepła przełącza się między grzaniem a trybem samego wentylatora. Po wyłączeniu pozostaje w trybie grzania w sezonie grzewczym i dostosowuje nastawę do temperatury docelowej pomieszczenia oraz ustawionego podwyższenia i obniżenia. Jeśli Home Assistant przestanie działać, gdy wybrany jest tryb grzania, pompa może utrzymać ostatnią nastawę za pomocą własnego termostatu. Chłodzenie i zmiana trybu nadal mogą zakończyć tryb grzania. Między cyklami chłodzenia pompa może używać samego wentylatora w obu położeniach przełącznika.",
     " and heating water temperature": " i temperatura wody",
@@ -112,7 +115,7 @@
     "East": "Wschód",
     "Electric ceiling heating": "Elektryczne ogrzewanie sufitowe",
     "Electric floor heating": "Elektryczne ogrzewanie podłogowe",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Ogrzewanie elektryczne korzysta głównie ze zmiennych taryf. Inne źródła są tylko obserwowane, bez harmonogramów, sterowania i obowiązkowego czujnika ceny. Sprawność i koszty paliwa nie są modelowane.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Ogrzewanie elektryczne korzysta głównie ze zmiennych taryf. Inne źródła są tylko obserwowane, bez harmonogramów, sterowania i obowiązkowego czujnika ceny.",
     "Electric panels": "Grzejniki elektryczne",
     "Electric resistance": "Grzałka elektryczna",
     "Electricity optimization": "Optymalizacja kosztów prądu",

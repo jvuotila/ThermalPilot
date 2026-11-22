@@ -2,6 +2,9 @@
   "language": "pt",
   "name": "Português",
   "messages": {
+    "Heat pump COP sensor (optional)": "Sensor de COP da bomba de calor (opcional)",
+    "COP forecast": "Previsão de COP",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Selecione um sensor de COP instantâneo de aquecimento que indique zero ou esteja indisponível em repouso. O ThermalPilot aprende com o COP medido e as temperaturas exteriores. O ThermalPilot usa a previsão para estimar os custos de aquecimento.",
     "Use Fan only between heating runs": "Usar apenas a ventoinha entre ciclos de aquecimento",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Com a opção ativada, a bomba de calor alterna entre o aquecimento e o modo de ventilação sem aquecimento. Com a opção desativada, a bomba permanece em modo de aquecimento durante a época de aquecimento e ajusta a temperatura definida com base na temperatura pretendida para a divisão, no aumento e na redução. Se o Home Assistant parar enquanto o modo de aquecimento estiver selecionado, a bomba pode manter a última temperatura definida com o seu próprio termóstato. O arrefecimento e a mudança de modo podem ainda terminar o modo de aquecimento. Entre ciclos de arrefecimento, a bomba pode usar o modo de ventilação com a opção ativada ou desativada.",
     " and heating water temperature": " e temperatura da água",
@@ -112,7 +115,7 @@
     "East": "Este",
     "Electric ceiling heating": "Aquecimento elétrico de teto",
     "Electric floor heating": "Piso radiante elétrico",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "O aquecimento elétrico beneficia sobretudo de tarifas variáveis. Outras fontes são apenas observadas, sem horários, controlo ou sensor de preço obrigatório. Eficiência e custos de combustível não são modelados.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "O aquecimento elétrico beneficia sobretudo de tarifas variáveis. Outras fontes são apenas observadas, sem horários, controlo ou sensor de preço obrigatório.",
     "Electric panels": "Painéis elétricos",
     "Electric resistance": "Resistência elétrica",
     "Electricity optimization": "Otimização de eletricidade",

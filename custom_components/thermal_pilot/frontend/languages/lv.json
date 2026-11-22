@@ -2,6 +2,9 @@
   "language": "lv",
   "name": "Latviešu",
   "messages": {
+    "Heat pump COP sensor (optional)": "Siltumsūkņa COP sensors (neobligāts)",
+    "COP forecast": "COP prognoze",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Atlasiet pašreizējā apkures COP sensoru, kas dīkstāvē rāda nulli vai nav pieejams. ThermalPilot mācās no izmērītā COP un āra temperatūras. ThermalPilot izmanto prognozi, lai novērtētu apkures izmaksas.",
     "Use Fan only between heating runs": "Starp apkures cikliem izmantot tikai ventilatoru",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kad iestatījums ir ieslēgts, siltumsūknis pārslēdzas starp apkuri un režīmu, kurā darbojas tikai ventilators. Izslēdzot šo iestatījumu, siltumsūknis apkures sezonā paliek apkures režīmā un pielāgo iestatīto temperatūru atbilstoši telpas mērķa temperatūrai, paaugstinājumam un pazeminājumam. Ja Home Assistant pārstāj darboties, kamēr izvēlēts apkures režīms, siltumsūknis ar savu termostatu var uzturēt pēdējo iestatīto temperatūru. Dzesēšana un režīma maiņa joprojām var pārtraukt apkures režīmu. Starp dzesēšanas cikliem siltumsūknis var izmantot tikai ventilatoru abās slēdža pozīcijās.",
     " and heating water temperature": " un ūdens temperatūra",
@@ -112,7 +115,7 @@
     "East": "Austrumi",
     "Electric ceiling heating": "Elektriskā griestu apkure",
     "Electric floor heating": "Elektriskā grīdas apkure",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Elektriskā apkure gūst labumu no mainīgiem tarifiem. Citus avotus tikai novēro bez grafikiem, vadības vai obligāta cenas sensora. Lietderību un kurināmā izmaksas nemodelē.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Elektriskā apkure gūst labumu no mainīgiem tarifiem. Citus avotus tikai novēro bez grafikiem, vadības vai obligāta cenas sensora.",
     "Electric panels": "Elektriskie paneļi",
     "Electric resistance": "Elektriskā pretestība",
     "Electricity optimization": "Elektrības izmaksu optimizācija",

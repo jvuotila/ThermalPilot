@@ -73,6 +73,7 @@ SOURCE_FIELDS = [
  ('outdoor_entity','Outdoor temperature','sensor',{'kind':'temperature'}),
  ('wind_entity','Wind speed (optional)','sensor',{'kind':'wind'}),
  ('water_entity','Heating water (optional)','sensor,climate',{'kind':'water'}),
+ ('heat_pump_cop_entity', 'Heat pump COP sensor (optional)', 'sensor', {'kind': 'cop'}),
  (
      'fireplace_entity',
      'Fireplace activity sensor (optional)',
@@ -572,6 +573,7 @@ def validate(payload, hass=None, *, require_outdoor=True):
         if key in ('air_minimum', 'air_maximum', 'air_boost', 'air_setback') and result[key] is None:
             continue  # Existing installations inherit the shared values until edited.
         unused_water = key == 'water_entity' and not water_distribution(result)
+        unused_cop = key == 'heat_pump_cop_entity' and result['house_heat_source'] != 'air_to_water'
         unused_price_sensor = (
             key in ('price_entity', 'price_forecast_entity') and not electric_heating(result)
             or key == 'price_entity' and result['price_entity'] in PRICE_SOURCE_CHOICES
@@ -579,7 +581,7 @@ def validate(payload, hass=None, *, require_outdoor=True):
         )
         # Built-in sources are not sensor entity IDs. An unused forecast choice
         # is retained so switching back from static prices stays reversible.
-        if unused_water or unused_price_sensor or (key == 'away_zone' and not result['away_automatic']) or (key == 'tibber_price_entity' and result['price_entity'] != 'tibber'):
+        if unused_water or unused_cop or unused_price_sensor or (key == 'away_zone' and not result['away_automatic']) or (key == 'tibber_price_entity' and result['price_entity'] != 'tibber'):
             fields.append((key, field[1], 'text'))
         else:
             fields.append(field)

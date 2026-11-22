@@ -2,6 +2,9 @@
   "language": "cs",
   "name": "Čeština",
   "messages": {
+    "Heat pump COP sensor (optional)": "Snímač COP tepelného čerpadla (volitelné)",
+    "COP forecast": "Předpověď COP",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Vyberte snímač aktuálního COP při vytápění, který mimo provoz hlásí nulu nebo je nedostupný. ThermalPilot se učí z měřeného COP a venkovních teplot. ThermalPilot používá předpověď k odhadu nákladů na vytápění.",
     "Use Fan only between heating runs": "Mezi cykly vytápění používat pouze ventilátor",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Při zapnutí tepelné čerpadlo přepíná mezi vytápěním a režimem pouze s ventilátorem. Při vypnutí zůstává během topné sezóny v režimu vytápění a mění nastavenou teplotu podle cílové teploty místnosti, zvýšení a snížení. Pokud se Home Assistant zastaví v době, kdy je zvoleno vytápění, čerpadlo může svým termostatem udržovat poslední nastavenou teplotu. Chlazení a změna režimu mohou režim vytápění ukončit. Mezi cykly chlazení může čerpadlo používat pouze ventilátor v obou polohách přepínače.",
     " and heating water temperature": " a teplota vody",
@@ -112,7 +115,7 @@
     "East": "Východ",
     "Electric ceiling heating": "Elektrické stropní topení",
     "Electric floor heating": "Elektrické podlahové topení",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Elektrické topení využívá proměnlivé tarify. Jiné zdroje pouze pozoruje, bez plánů, řízení či povinné ceny. Účinnost a palivo nemodeluje.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Elektrické topení využívá proměnlivé tarify. Jiné zdroje pouze pozoruje, bez plánů, řízení či povinné ceny.",
     "Electric panels": "Elektrické panely",
     "Electric resistance": "Elektrický odpor",
     "Electricity optimization": "Optimalizace elektřiny",

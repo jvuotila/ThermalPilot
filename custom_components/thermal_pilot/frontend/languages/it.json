@@ -2,6 +2,9 @@
   "language": "it",
   "name": "Italiano",
   "messages": {
+    "Heat pump COP sensor (optional)": "Sensore COP della pompa di calore (facoltativo)",
+    "COP forecast": "Previsione del COP",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Scegli un sensore del COP istantaneo in riscaldamento che a riposo riporti zero o non sia disponibile. ThermalPilot apprende dal COP misurato e dalle temperature esterne. ThermalPilot usa la previsione per stimare i costi di riscaldamento.",
     "Use Fan only between heating runs": "Usa solo la ventola tra i cicli di riscaldamento",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Quando l’opzione è attiva, la pompa di calore alterna il riscaldamento e la modalità di sola ventilazione. Quando è disattivata, la pompa resta in modalità riscaldamento durante la stagione termica e regola la temperatura impostata in base all’obiettivo della stanza, all’aumento e alla riduzione. Se Home Assistant si arresta mentre è selezionata la modalità riscaldamento, la pompa può mantenere l’ultima temperatura impostata tramite il proprio termostato. Il raffrescamento e il cambio di modalità possono comunque far uscire la pompa dalla modalità riscaldamento. Tra i cicli di raffrescamento, la pompa può usare la sola ventilazione in entrambe le posizioni dell’interruttore.",
     " and heating water temperature": " e temperatura acqua",
@@ -112,7 +115,7 @@
     "East": "Est",
     "Electric ceiling heating": "Riscaldamento elettrico a soffitto",
     "Electric floor heating": "Riscaldamento a pavimento elettrico",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Il riscaldamento elettrico beneficia di tariffe variabili. Le altre fonti sono solo osservate, senza programmi, controllo o sensore prezzo obbligatorio. Efficienza e combustibili non sono modellati.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Il riscaldamento elettrico beneficia di tariffe variabili. Le altre fonti sono solo osservate, senza programmi, controllo o sensore prezzo obbligatorio.",
     "Electric panels": "Pannelli elettrici",
     "Electric resistance": "Resistenza elettrica",
     "Electricity optimization": "Ottimizzazione elettricità",

@@ -2,6 +2,9 @@
   "language": "hr",
   "name": "Hrvatski",
   "messages": {
+    "Heat pump COP sensor (optional)": "Senzor COP-a dizalice topline (neobavezno)",
+    "COP forecast": "Prognoza COP-a",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Odaberite senzor trenutnog COP-a grijanja koji u mirovanju javlja nulu ili je nedostupan. ThermalPilot uči iz izmjerenog COP-a i vanjskih temperatura. ThermalPilot koristi prognozu za procjenu troškova grijanja.",
     "Use Fan only between heating runs": "Koristi samo ventilator između ciklusa grijanja",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kad je postavka uključena, dizalica topline prebacuje se između grijanja i rada samo s ventilatorom. Kad je isključena, ostaje u načinu grijanja tijekom sezone grijanja i prilagođava zadanu temperaturu prema ciljnoj temperaturi prostorije, povišenju i sniženju. Ako se Home Assistant zaustavi dok je odabrano grijanje, dizalica može vlastitim termostatom održavati posljednju zadanu temperaturu. Hlađenje i promjena načina rada i dalje mogu prekinuti način grijanja. Između ciklusa hlađenja dizalica može koristiti samo ventilator u oba položaja prekidača.",
     " and heating water temperature": " i temperatura vode",
@@ -112,7 +115,7 @@
     "East": "Istok",
     "Electric ceiling heating": "Električno stropno grijanje",
     "Electric floor heating": "Električno podno grijanje",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Električno grijanje koristi promjenjive tarife. Ostali izvori samo se opažaju, bez rasporeda, upravljanja ili obveznog senzora cijene. Učinkovitost i gorivo ne modeliraju se.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Električno grijanje koristi promjenjive tarife. Ostali izvori samo se opažaju, bez rasporeda, upravljanja ili obveznog senzora cijene.",
     "Electric panels": "Električni paneli",
     "Electric resistance": "Električni grijač",
     "Electricity optimization": "Optimizacija struje",

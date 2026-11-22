@@ -2,6 +2,9 @@
   "language": "da",
   "name": "Dansk",
   "messages": {
+    "Heat pump COP sensor (optional)": "Varmepumpens COP-sensor (valgfri)",
+    "COP forecast": "COP-prognose",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Vælg en sensor for den aktuelle COP ved opvarmning, der viser nul eller er utilgængelig i hvile. ThermalPilot lærer af målt COP og udetemperatur. ThermalPilot bruger prognosen til at anslå varmeomkostningerne.",
     "Use Fan only between heating runs": "Brug kun ventilator mellem opvarmningsperioder",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Når indstillingen er slået til, skifter varmepumpen mellem varme og kun ventilator. Når den er slået fra, forbliver pumpen i varmetilstand i fyringssæsonen og justerer temperaturindstillingen efter rummets måltemperatur samt de indstillede forhøjelser og sænkninger. Hvis Home Assistant stopper, mens varmetilstanden er valgt, kan pumpen holde den senest indstillede temperatur med sin egen termostat. Køling og skift af driftstilstand kan stadig afbryde varmetilstanden. Mellem køleperioder kan pumpen bruge kun ventilator, uanset om indstillingen er slået til eller fra.",
     " and heating water temperature": " og vandtemperatur",
@@ -112,7 +115,7 @@
     "East": "Øst",
     "Electric ceiling heating": "Elektrisk loftvarme",
     "Electric floor heating": "Elektrisk gulvvarme",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Elvarme gavnes især af variable elpriser. Andre kilder observeres uden tidsplaner, styring eller påkrævet prissensor. Virkningsgrad og brændselspriser modelleres ikke.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Elvarme gavnes især af variable elpriser. Andre kilder observeres uden tidsplaner, styring eller påkrævet prissensor.",
     "Electric panels": "Elpaneler",
     "Electric resistance": "Elmodstand",
     "Electricity optimization": "Elprisoptimering",

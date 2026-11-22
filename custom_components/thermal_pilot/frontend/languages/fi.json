@@ -2,6 +2,9 @@
   "language": "fi",
   "name": "Finnish",
   "messages": {
+    "Heat pump COP sensor (optional)": "Lämpöpumpun COP-anturi (valinnainen)",
+    "COP forecast": "COP-ennuste",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Valitse lämmityksen hetkellinen COP-anturi, jonka lukema on nolla tai ei ole saatavilla pumpun ollessa lepotilassa. ThermalPilot oppii mitatusta COP-arvosta ja ulkolämpötilasta. ThermalPilot arvioi lämmityksen kustannuksia ennusteen avulla.",
     "Heat pump: minimum allowed temperature must not exceed maximum allowed temperature.": "Ilmalämpöpumppu: alin sallittu lämpötila ei saa ylittää ylintä sallittua lämpötilaa.",
     "Use Fan only between heating runs": "Käytä puhallustilaa lämmitysjaksojen välillä",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kun asetus on päällä, pumppu vaihtaa lämmityksen ja pelkän puhalluksen välillä. Kun asetus on pois päältä, pumppu pysyy lämmitystilassa lämmityskaudella. Asetuslämpötilaa muutetaan huoneen tavoitteen, korotuksen ja alennuksen mukaan. Jos Home Assistant pysähtyy pumpun ollessa lämmitystilassa, pumppu voi ylläpitää viimeistä asetuslämpötilaa omalla termostaatillaan. Jäähdytys ja tilanvaihto voivat silti vaihtaa pumpun pois lämmitystilasta. Jäähdytysjaksojen välillä pumppu voi käyttää puhallustilaa tämän asetuksen kummassakin asennossa.",
@@ -757,7 +760,7 @@
     "These settings apply to every room.": "Nämä asetukset koskevat kaikkia huoneita.",
     "Room response is learned from observed heating and cooling, starting with internal estimates.": "Huoneen vaste opitaan havaitusta lämmityksestä ja jäähtymisestä. Aluksi käytetään lähtöarvioita.",
     "Choose your heating system and house details. Heat distribution determines which sensor inputs are needed.": "Valitse lämmitysjärjestelmä ja talon tiedot. Lämmönjako määrittää tarvittavat anturit.",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Sähkölämmitys hyötyy ennen kaikkea muuttuvista sähkön hinnoista. Muilla lämmönlähteillä käytetään mukavuuden seurantaa: ei lämmitysaikatauluja, termostaattiohjausta tai pakollista hinta-anturia. Lämpöpumpun hyötysuhdetta ja polttoainekustannuksia ei mallinneta.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Sähkölämmitys hyötyy ennen kaikkea muuttuvista sähkön hinnoista. Muilla lämmönlähteillä käytetään mukavuuden seurantaa: ei lämmitysaikatauluja, termostaattiohjausta tai pakollista hinta-anturia.",
     "Today and tomorrow · past thermostat activity and future heating suggestions": "Tänään ja huomenna · aiempi termostaattitoiminta ja tulevat lämmitysehdotukset",
     "No usable electricity price list is available.": "Käyttökelpoista sähkön hintalistaa ei ole saatavilla.",
     "No electricity prices are available for this period. Recorded thermostat activity is shown below.": "Tälle ajanjaksolle ei ole sähkön hintoja. Tallennettu termostaattitoiminta näkyy alla.",

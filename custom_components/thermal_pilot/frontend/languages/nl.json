@@ -2,6 +2,9 @@
   "language": "nl",
   "name": "Nederlands",
   "messages": {
+    "Heat pump COP sensor (optional)": "COP-sensor van de warmtepomp (optioneel)",
+    "COP forecast": "COP-voorspelling",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Kies een sensor voor de actuele COP bij verwarmen die bij stilstand nul aangeeft of niet beschikbaar is. ThermalPilot leert van gemeten COP en buitentemperaturen. ThermalPilot gebruikt de voorspelling om de verwarmingskosten te schatten.",
     "Use Fan only between heating runs": "Gebruik alleen de ventilator tussen verwarmingscycli",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Als deze optie aanstaat, schakelt de warmtepomp tussen verwarmen en alleen ventileren. Als de optie uitstaat, blijft de pomp tijdens het stookseizoen in de verwarmingsmodus en past hij de ingestelde temperatuur aan op basis van de gewenste kamertemperatuur, de verhoging en de verlaging. Als Home Assistant stopt terwijl de verwarmingsmodus is geselecteerd, kan de pomp de laatst ingestelde temperatuur met zijn eigen thermostaat aanhouden. Koeling en een wisseling van bedrijfsmodus kunnen de verwarmingsmodus nog steeds beëindigen. Tussen koelcycli kan de pomp in beide standen van de schakelaar alleen ventileren.",
     " and heating water temperature": " en watertemperatuur",
@@ -112,7 +115,7 @@
     "East": "Oost",
     "Electric ceiling heating": "Elektrische plafondverwarming",
     "Electric floor heating": "Elektrische vloerverwarming",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Elektrische verwarming profiteert van variabele tarieven. Andere bronnen: alleen waarneming, geen planning of regeling en geen verplichte prijssensor. Rendement en brandstofkosten niet gemodelleerd.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Elektrische verwarming profiteert van variabele tarieven. Andere bronnen: alleen waarneming, geen planning of regeling en geen verplichte prijssensor.",
     "Electric panels": "Elektrische panelen",
     "Electric resistance": "Elektrische weerstand",
     "Electricity optimization": "Stroomoptimalisatie",

@@ -2,6 +2,9 @@
   "language": "lt",
   "name": "Lietuvių",
   "messages": {
+    "Heat pump COP sensor (optional)": "Šilumos siurblio COP jutiklis (pasirenkamas)",
+    "COP forecast": "COP prognozė",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Pasirinkite momentinio šildymo COP jutiklį, kuris neveikiant siurbliui rodo nulį arba yra nepasiekiamas. ThermalPilot mokosi iš išmatuoto COP ir lauko temperatūrų. ThermalPilot naudoja prognozę šildymo išlaidoms įvertinti.",
     "Use Fan only between heating runs": "Tarp šildymo ciklų naudoti tik ventiliatorių",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Įjungus šią parinktį šilumos siurblys perjungia šildymo ir vien ventiliatoriaus režimus. Išjungus parinktį šildymo sezonu išlieka šildymo režimas, o nustatyta temperatūra keičiama pagal patalpos tikslinę temperatūrą, padidinimą ir sumažinimą. Jei Home Assistant nustoja veikti pasirinkus šildymo režimą, siurblys savo termostatu gali palaikyti paskutinę nustatytą temperatūrą. Vėsinant ar keičiant režimą šildymo režimas vis tiek gali būti išjungtas. Tarp vėsinimo ciklų siurblys gali naudoti vien ventiliatorių esant bet kuriai jungiklio padėčiai.",
     " and heating water temperature": " ir vandens temperatūra",
@@ -112,7 +115,7 @@
     "East": "Rytai",
     "Electric ceiling heating": "Elektrinis lubų šildymas",
     "Electric floor heating": "Elektrinis grindų šildymas",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Elektrinis šildymas naudingiausias esant kintamiems tarifams. Kiti šaltiniai tik stebimi, be grafikų, valdymo ar privalomo kainos jutiklio. Našumas ir kuro išlaidos nemodeliuojami.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Elektrinis šildymas naudingiausias esant kintamiems tarifams. Kiti šaltiniai tik stebimi, be grafikų, valdymo ar privalomo kainos jutiklio.",
     "Electric panels": "Elektrinės plokštės",
     "Electric resistance": "Elektrinė varža",
     "Electricity optimization": "Elektros sąnaudų optimizavimas",

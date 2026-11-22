@@ -36,6 +36,11 @@ class Slot:
     start: datetime
     end: datetime
     price: float
+    heating_cost_rate: float | None = None
+
+    @property
+    def planning_rate(self) -> float:
+        return self.price if self.heating_cost_rate is None else self.heating_cost_rate
 
 
 def tariff_minutes(value):
@@ -892,8 +897,8 @@ def plan(
 ) -> dict[str, Any] | None:
     """Search a bounded set of schedules, preferring safety, comfort, then cost.
 
-    Costs are normalized to one kW of heating input. The first interval uses only
-    its remaining duration. A final coasting forecast discourages schedules that
+    Costs use the tariff or a normalized COP-adjusted heating rate. The first
+    interval uses only its remaining duration. A final coasting forecast discourages schedules that
     use all stored warmth just as the confirmed electricity prices run out.
     """
     room = {**DEFAULTS, **room}
@@ -942,7 +947,7 @@ def plan(
         previous_pause = max(0, room.get('previous_pause_hours', pause_hours))
         run_hours = -min(pause_hours, previous_pause)
 
-    known_prices = sorted((slot.price for slot in slots))
+    known_prices = sorted(slot.planning_rate for slot in slots)
     middle = len(known_prices) // 2
     high_price = (known_prices[(len(known_prices) - 1) // 2] + known_prices[middle]) / 2
     reduction_available = bool(room.get('reduction_available', previous_mode in ('boost', 'reduced')))
@@ -954,6 +959,7 @@ def plan(
     beam_limit = 120
     cheap_path_limit = 40
     for slot_index, slot in enumerate(slots):
+        planning_rate = slot.planning_rate
         hours = (slot.end - max(now, slot.start)).total_seconds() / 3600
         if hours <= 0:
             continue
@@ -979,7 +985,7 @@ def plan(
                 boosted = mode == 2
                 if mode == 1 and (
                     not reduction_credit or last_mode == 2
-                    or response <= .05 or slot.price <= high_price
+                    or response <= .05 or planning_rate <= high_price
                 ):
                     # A reduced target spends stored warmth after an earlier boost.
                     continue
@@ -1050,7 +1056,7 @@ def plan(
                 # Preserve score priority: limit violations and comfort shortfall
                 # are separate tuple fields, ahead of this price/switching score.
                 next_cost = (
-                    cost + slot.price * heating * hours
+                    cost + planning_rate * heating * hours
                     + .3 * abs(boosted - (last_mode == 2))
                     + .02 * (mode != last_mode)
                     + .15 * hours * (predicted - baseline) ** 2
@@ -1076,6 +1082,8 @@ def plan(
                     'temperature': round(predicted, 3),
                     'setpoint': round(requested_target, 2),
                 }
+                if slot.heating_cost_rate is not None:
+                    row['heating_cost_rate'] = slot.heating_cost_rate
                 if boosted:
                     elapsed_run = run_duration if last_mode == 2 else 0
                     next_run_duration = min(minimum_run, elapsed_run + hours)

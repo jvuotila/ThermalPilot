@@ -2,6 +2,9 @@
   "language": "et",
   "name": "Eesti",
   "messages": {
+    "Heat pump COP sensor (optional)": "Soojuspumba COP-andur (valikuline)",
+    "COP forecast": "COP-i prognoos",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Vali jooksva kütte-COP-i andur, mis näitab seisaku ajal nulli või pole saadaval. ThermalPilot õpib mõõdetud COP-i ja välistemperatuuride põhjal. ThermalPilot hindab prognoosi abil küttekulu.",
     "Use Fan only between heating runs": "Kasuta kütmistsüklite vahel ainult ventilaatorit",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Kui säte on sisse lülitatud, vahetab soojuspump kütterežiimi ja ainult ventilaatoriga režiimi vahel. Kui säte on välja lülitatud, jääb pump kütteperioodil kütterežiimi ning muudab seadistatud temperatuuri ruumi sihttemperatuuri, tõste ja alanduse järgi. Kui Home Assistant seiskub ajal, mil pump on kütterežiimis, saab pump viimast seadistatud temperatuuri oma termostaadiga hoida. Jahutamine ja režiimi vahetamine võivad pumba siiski kütterežiimist välja viia. Jahutustsüklite vahel saab pump kasutada ainult ventilaatorit lüliti mõlemas asendis.",
     " and heating water temperature": " ja veetemperatuur",
@@ -112,7 +115,7 @@
     "East": "Ida",
     "Electric ceiling heating": "Elektriline laeküte",
     "Electric floor heating": "Elektripõrandaküte",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Elektriküte saab kasu muutuvatest tariifidest. Muid allikaid ainult vaadeldakse, ilma ajakava, juhtimise või kohustusliku hinnaandurita. Kasutegurit ja kütusekulu ei modelleerita.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Elektriküte saab kasu muutuvatest tariifidest. Muid allikaid ainult vaadeldakse, ilma ajakava, juhtimise või kohustusliku hinnaandurita.",
     "Electric panels": "Elektriradiaatorid",
     "Electric resistance": "Elektriline takistusküte",
     "Electricity optimization": "Elektrikulu optimeerimine",

@@ -2,6 +2,9 @@
   "language": "hu",
   "name": "Magyar",
   "messages": {
+    "Heat pump COP sensor (optional)": "Hőszivattyú COP-érzékelője (opcionális)",
+    "COP forecast": "COP-előrejelzés",
+    "Choose a live heating COP sensor that reports zero or unavailable while idle. ThermalPilot learns from measured COP and outdoor temperatures. ThermalPilot uses the forecast to estimate heating costs.": "Válasszon pillanatnyi fűtési COP-érzékelőt, amely álló helyzetben nullát jelez vagy nem érhető el. A ThermalPilot a mért COP-ból és a kültéri hőmérsékletből tanul. A ThermalPilot az előrejelzés alapján becsüli a fűtési költségeket.",
     "Use Fan only between heating runs": "Csak ventilátor használata a fűtési ciklusok között",
     "On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.": "Bekapcsolva a hőszivattyú a fűtés és a csak ventilátoros üzemmód között vált. Kikapcsolva a fűtési idényben fűtési üzemmódban marad, és a helyiség célhőmérséklete, az emelés és a csökkentés alapján módosítja a beállított hőmérsékletet. Ha a Home Assistant leáll, miközben a fűtési üzemmód van kiválasztva, a hőszivattyú a saját termosztátjával tarthatja az utoljára beállított hőmérsékletet. A hűtés és az üzemmódváltás továbbra is megszakíthatja a fűtési üzemmódot. A hűtési ciklusok között a hőszivattyú a kapcsoló mindkét állásában használhatja a csak ventilátoros üzemmódot.",
     " and heating water temperature": " és vízhőmérséklet",
@@ -112,7 +115,7 @@
     "East": "Kelet",
     "Electric ceiling heating": "Elektromos mennyezetfűtés",
     "Electric floor heating": "Elektromos padlófűtés",
-    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor. Heat-pump efficiency and fuel costs are not modeled.": "Az elektromos fűtés változó tarifákból profitál. Más forrás csak megfigyelt, terv, vezérlés és kötelező árérzékelő nélkül. Hatásfok és tüzelőanyag nincs modellezve.",
+    "Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.": "Az elektromos fűtés változó tarifákból profitál. Más forrás csak megfigyelt, terv, vezérlés és kötelező árérzékelő nélkül.",
     "Electric panels": "Elektromos panelek",
     "Electric resistance": "Elektromos ellenállásfűtés",
     "Electricity optimization": "Áramoptimalizálás",
