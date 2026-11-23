@@ -510,9 +510,11 @@ class ThermalPilotPanel extends HTMLElement {
   awayCalendarButton(){
     const away=this.info?.data?.away;
     const active=away?.active;
-    const scheduled=Boolean(away?.schedule);
-    const title=this.t(active?'Away temperatures active':scheduled?'Scheduled absence':'Away calendar');
-    return `<button type="button" id="away-calendar" data-away-calendar class="header-icon-button away-calendar-button${active?' active':scheduled?' scheduled':''}" aria-label="${escapeHTML(title)}" title="${escapeHTML(title)}" ${this.info?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18M8 14h2M14 14h2M8 17h2"/></svg></button>`;
+    const count=away?.occurrence_count??away?.occurrences?.length??away?.schedules?.length??Number(Boolean(away?.schedule));
+    const badgeCount=away?.has_ongoing_series?`${count}+`:count;
+    const title=this.t(active?'Away temperatures active':count?'Scheduled absence':'Away calendar');
+    const label=count?`${title} (${badgeCount})`:title;
+    return `<button type="button" id="away-calendar" data-away-calendar class="header-icon-button away-calendar-button${active?' active':count?' scheduled':''}" aria-label="${escapeHTML(label)}" title="${escapeHTML(label)}" ${this.info?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18M8 14h2M14 14h2M8 17h2"/></svg>${count?`<span class="header-count" aria-hidden="true">${badgeCount}</span>`:''}</button>`;
   }
   async subscribeNotifications(){
     const connection=this._hass?.connection,entryId=this.entry;
@@ -543,7 +545,7 @@ class ThermalPilotPanel extends HTMLElement {
     subscription.unsubscribe?.().catch(()=>{});
   }
   notificationButton(){
-    return `<button type="button" id="notification-center" class="header-icon-button notification-button" aria-label="Notifications" title="Notifications" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12a2 2 0 0 0 4 0"/></svg><span class="notification-count" aria-hidden="true" hidden></span></button>`;
+    return `<button type="button" id="notification-center" class="header-icon-button notification-button" aria-label="Notifications" title="Notifications" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12a2 2 0 0 0 4 0"/></svg><span class="header-count notification-count" aria-hidden="true" hidden></span></button>`;
   }
   updateNotifications(){
     const button=this.shadowRoot.querySelector('#notification-center');
@@ -683,49 +685,301 @@ class ThermalPilotPanel extends HTMLElement {
     const dialog=document.createElement('dialog');this.awayDialog=dialog;
     dialog.className='thermal-pilot-away-dialog';dialog.setAttribute('aria-labelledby','away-title');
     const locale=this.settings.language||'en';dialog.setAttribute('lang',locale);
-    const away=this.info.data?.away||{};
-    const heatingTarget=this.info.settings?.away_temperature??away.temperature??16;
-    const coolingTarget=this.info.settings?.away_cooling_temperature??away.cooling_temperature??26;
-    const timeZone=away.time_zone||this._hass.config?.time_zone||Intl.DateTimeFormat().resolvedOptions().timeZone;
+    let away=this.info?.data?.away||{};
+    const heatingTarget=this.info?.settings?.away_temperature??away.temperature??16;
+    const coolingTarget=this.info?.settings?.away_cooling_temperature??away.cooling_temperature??26;
+    const timeZone=away.time_zone||this._hass?.config?.time_zone||Intl.DateTimeFormat().resolvedOptions().timeZone;
     const parts=timestamp=>{
       const values=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(timestamp).map(part=>[part.type,part.value]));
       return {date:`${values.year}-${values.month}-${values.day}`,time:`${values.hour}:${values.minute}`};
     };
     const today=parts(Date.now());
-    const start=away.schedule?parts(away.schedule.start*1000):{date:'',time:''};
-    const end=away.schedule?parts(away.schedule.end*1000):{date:'',time:''};
-    const selected={start:start.date,end:end.date};
-    const initialDate=start.date||today.date;
-    let month=new Date(Number(initialDate.slice(0,4)),Number(initialDate.slice(5,7))-1,1,12);
-    let picking='start';
+    const selected={start:'',end:''};
+    const defaultHour={start:'08',end:'16'};
+    const hours=Array.from({length:24},(_,hour)=>String(hour).padStart(2,'0'));
+    const minutes=['00','15','30','45'];
+    const repeatLabels={once:'Does not repeat',daily:'Daily',weekly:'Weekly'};
+    const localDateTime=new Intl.DateTimeFormat(locale,{timeZone,dateStyle:'medium',timeStyle:'short'});
+    const calendarDate=new Intl.DateTimeFormat(locale,{timeZone:'UTC',dateStyle:'medium'});
+    const dateStamp=date=>Date.parse(date+'T00:00:00Z');
+    const dayMs=86400000;
+    const canRepeat=(start,end)=>{
+      const days=(dateStamp(end)-dateStamp(start))/dayMs+1;
+      return days>=2&&days<=6;
+    };
+    let month=new Date(today.date+'T12:00:00');
+    month.setDate(1);
+    let picking='start',editing=null,pendingRemoval=null,saving=false;
+    let bookingPage=0,bookingPageCount=1;
+    const pageSize=10;
+    const bookings=()=>away.schedules??(away.schedule?[{...away.schedule,id:'legacy',repeat:'once',active:away.source==='calendar'&&away.active}]:[]);
     const title=this.t('Away calendar');
     const icon='<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle cx="10" cy="6" r=".7"/></svg>';
-    const tooltip=(id,text)=>`<span class="help"><button type="button" data-help="${id}" aria-label="${escapeHTML(this.t('How this works'))}" aria-expanded="false" aria-describedby="${id}">${icon}</button><span id="${id}" class="tip" role="tooltip" hidden>${escapeHTML(this.t(text))}</span></span>`;
+    const megaphone='<svg viewBox="0 0 20 20" aria-hidden="true"><path stroke-linejoin="round" d="M3 8h4l8-4v12l-8-4H3zM5 12l1.5 4h2L7 12m10-5 1-1m-1 4h2m-2 3 1 1"/></svg>';
+    const tooltip=(id,text,reminder=false)=>{
+      const key=escapeHTML(id);
+      const label=this.t(reminder?'Reminder lead time':'How this works');
+      return `<span class="help${reminder?' reminder-indicator':''}"><button type="button" data-help="${key}" aria-label="${escapeHTML(label)}" aria-expanded="false" aria-describedby="${key}">${reminder?megaphone:icon}</button><span id="${key}" class="tip" role="tooltip" hidden>${escapeHTML(this.t(text))}</span></span>`;
+    };
     const help='Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.';
     const cancelHelp='Cancels the booking only. Automatic away temperatures may remain active after the absence delay.';
-    const status=away.active?this.t(away.source==='calendar'?'Calendar absence active':'Automatic absence active'):away.schedule?this.t('Scheduled absence'):this.t('No calendar absence');
+    const timeSelect=(key,unit,values)=>`<span class="calendar-select"><select name="${key}-${unit}" aria-label="${escapeHTML(this.t(unit==='hour'?'hours':'minutes'))}"><option value="">–</option>${values.map(value=>`<option value="${value}">${value}</option>`).join('')}</select></span>`;
     dialog.innerHTML=`<style>
-      .thermal-pilot-away-dialog{color:var(--primary-text-color,#213547);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8e0e4);border-radius:20px;padding:24px;width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;box-shadow:0 20px 80px #142e4540;font:14px system-ui}.thermal-pilot-away-dialog::backdrop{background:#182b3c65}.thermal-pilot-away-dialog *{box-sizing:border-box}.thermal-pilot-away-dialog button,.thermal-pilot-away-dialog input{font:inherit;color:inherit}.thermal-pilot-away-dialog header,.thermal-pilot-away-dialog .month-nav{display:flex;align-items:center;justify-content:space-between;gap:12px}.thermal-pilot-away-dialog h2{font-size:22px;margin:0}.thermal-pilot-away-dialog .heading{display:flex;align-items:center;gap:10px}.thermal-pilot-away-dialog button{cursor:pointer}.thermal-pilot-away-dialog button:focus-visible,.thermal-pilot-away-dialog input:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}.thermal-pilot-away-dialog .close{border:0;background:transparent;font-size:26px;min-width:40px;min-height:40px}.thermal-pilot-away-dialog .status{color:var(--secondary-text-color,#526b75);margin:8px 0 18px}.thermal-pilot-away-dialog .targets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.thermal-pilot-away-dialog .targets span{padding:6px 10px;border-radius:8px;background:#829aa313;font-size:13px}.thermal-pilot-away-dialog .dates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.thermal-pilot-away-dialog .date-card{padding:12px;border:1px solid var(--divider-color,#d8e0e4);border-radius:12px;background:var(--secondary-background-color,#f5f8fa)}.thermal-pilot-away-dialog .date-card.active{border-color:var(--primary-color,#00838f);box-shadow:0 0 0 1px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .pick{font-weight:600;border:0;background:transparent;padding:0 0 8px;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog .date-inputs{display:grid;grid-template-columns:minmax(0,1fr) 94px;gap:8px}.thermal-pilot-away-dialog input{min-width:0;width:100%;border:1px solid #b6c8d0;border-radius:6px;background:var(--card-background-color,#fff);padding:8px;min-height:40px}.thermal-pilot-away-dialog .month-nav{margin:16px 0 8px}.thermal-pilot-away-dialog .month-nav button{border:0;border-radius:8px;background:#829aa310;font-size:24px;width:40px;height:40px}.thermal-pilot-away-dialog .month-nav span{font-size:13px;color:var(--secondary-text-color,#526b75)}.thermal-pilot-away-dialog .months{display:grid;grid-template-columns:1fr 1fr;gap:24px}.thermal-pilot-away-dialog .month h3{font-size:15px;text-align:center;margin:8px 0 12px}.thermal-pilot-away-dialog .days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.thermal-pilot-away-dialog .weekday{font-size:11px;color:var(--secondary-text-color,#526b75);text-align:center;padding:6px 0}.thermal-pilot-away-dialog .day{height:36px;min-width:0;border:0;border-radius:7px;background:transparent;padding:0}.thermal-pilot-away-dialog .day.other{opacity:.35}.thermal-pilot-away-dialog .day.range{background:#00838f12;border-radius:3px}.thermal-pilot-away-dialog .day.today{box-shadow:inset 0 0 0 1px #829aa370}.thermal-pilot-away-dialog .day.selected{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);font-weight:700;border-radius:8px}.thermal-pilot-away-dialog .day:hover{box-shadow:inset 0 0 0 2px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .zone{color:var(--secondary-text-color,#526b75);font-size:12px;line-height:1.6;margin:16px 0}.thermal-pilot-away-dialog footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-top:16px;border-top:1px solid var(--divider-color,#d8e0e4)}.thermal-pilot-away-dialog footer button{min-height:40px;border:0;border-radius:20px;padding:8px 14px;background:transparent;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog footer .save{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);margin-left:auto}.thermal-pilot-away-dialog footer .stop{color:var(--error-color,#ba4d43);border:1px solid #d2837b55}.thermal-pilot-away-dialog .help{position:relative;display:inline-flex;align-items:center}.thermal-pilot-away-dialog .help>button{display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--primary-color,#00838f);width:32px;min-height:32px;padding:6px}.thermal-pilot-away-dialog .help svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}.thermal-pilot-away-dialog .tip{position:absolute;z-index:10;top:100%;left:0;width:min(340px,calc(100vw - 72px));padding:12px 14px;border-radius:10px;background:#18282f;color:#fff;font-size:13px;line-height:1.6;box-shadow:0 6px 24px #0003}.thermal-pilot-away-dialog .heading .tip{left:0;right:auto}.thermal-pilot-away-dialog footer .tip{top:auto;bottom:100%}.thermal-pilot-away-dialog [hidden]{display:none!important}.thermal-pilot-away-dialog [role=alert]{color:var(--error-color,#b23b34);line-height:1.5}.thermal-pilot-away-dialog button:disabled{opacity:.5;cursor:default}@media(max-width:600px){.thermal-pilot-away-dialog{padding:18px}.thermal-pilot-away-dialog .months{grid-template-columns:1fr}.thermal-pilot-away-dialog .month:nth-child(2){display:none}.thermal-pilot-away-dialog .dates{gap:8px}.thermal-pilot-away-dialog .date-inputs{grid-template-columns:1fr}.thermal-pilot-away-dialog .day{height:40px}.thermal-pilot-away-dialog footer .tip{position:fixed;left:32px;bottom:90px;top:auto}.thermal-pilot-away-dialog .heading .tip{position:fixed;top:110px;left:32px;right:auto}}
-    </style><form novalidate><header><div class="heading"><h2 id="away-title">${escapeHTML(title)}</h2>${tooltip('calendar-help',help)}</div><button type="button" class="close" aria-label="${escapeHTML(this.t('Close'))}">×</button></header><p class="status">${escapeHTML(status)}</p><div class="targets"><span>${escapeHTML(this.t('Heating'))} ${escapeHTML(heatingTarget)} °C</span><span>${escapeHTML(this.t('Cooling'))} ${escapeHTML(coolingTarget)} °C</span></div><div class="dates">${['start','end'].map(key=>`<div class="date-card" data-date-card="${key}"><button type="button" class="pick" data-pick="${key}">${escapeHTML(this.t(key==='start'?'Start':'End'))}</button><div class="date-inputs"><input type="date" name="${key}-date" aria-label="${escapeHTML(this.t(key==='start'?'Start date':'End date'))}" value="${key==='start'?start.date:end.date}"><input type="time" name="${key}-time" aria-label="${escapeHTML(this.t(key==='start'?'Start time':'End time'))}" value="${key==='start'?start.time:end.time}" step="60"></div></div>`).join('')}</div><div class="month-nav"><button type="button" data-month="-1" aria-label="${escapeHTML(this.t('Previous month'))}">‹</button><span>${escapeHTML(this.t('Select the first and last day'))}</span><button type="button" data-month="1" aria-label="${escapeHTML(this.t('Next month'))}">›</button></div><div class="months"></div><p class="zone">${escapeHTML(this.t('Home Assistant time zone'))}: <span data-user-text>${escapeHTML(timeZone)}</span></p><p role="alert" hidden></p><footer>${away.schedule?`<button type="button" class="stop">${escapeHTML(this.t('Cancel period'))}</button>${tooltip('cancel-help',cancelHelp)}`:''}<button type="button" class="dismiss">${escapeHTML(this.t('Close'))}</button><button type="submit" class="save">${escapeHTML(this.t(away.schedule?'Update period':'Schedule absence'))}</button></footer></form>`;
+      .thermal-pilot-away-dialog{color:var(--primary-text-color,#213547);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8e0e4);border-radius:20px;padding:24px;width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;box-shadow:0 20px 80px #142e4540;font:14px system-ui}.thermal-pilot-away-dialog::backdrop{background:#182b3c65}.thermal-pilot-away-dialog *{box-sizing:border-box}.thermal-pilot-away-dialog button,.thermal-pilot-away-dialog input{font:inherit;color:inherit}.thermal-pilot-away-dialog header,.thermal-pilot-away-dialog .month-nav{display:flex;align-items:center;justify-content:space-between;gap:12px}.thermal-pilot-away-dialog h2{font-size:22px;margin:0}.thermal-pilot-away-dialog .heading{display:flex;align-items:center;gap:10px}.thermal-pilot-away-dialog button{cursor:pointer}.thermal-pilot-away-dialog button:focus-visible,.thermal-pilot-away-dialog input:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}.thermal-pilot-away-dialog .close{border:0;background:transparent;font-size:26px;min-width:40px;min-height:40px}.thermal-pilot-away-dialog .status{color:var(--secondary-text-color,#526b75);margin:8px 0 18px}.thermal-pilot-away-dialog .targets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.thermal-pilot-away-dialog .targets span{padding:6px 10px;border-radius:8px;background:#829aa313;font-size:13px}.thermal-pilot-away-dialog .dates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.thermal-pilot-away-dialog .date-card{padding:12px;border:1px solid var(--divider-color,#d8e0e4);border-radius:12px;background:var(--secondary-background-color,#f5f8fa)}.thermal-pilot-away-dialog .date-card.active{border-color:var(--primary-color,#00838f);box-shadow:0 0 0 1px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .pick{font-weight:600;border:0;background:transparent;padding:0 0 8px;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog .date-inputs{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:8px}.thermal-pilot-away-dialog input{min-width:0;width:100%;border:1px solid #b6c8d0;border-radius:6px;background:var(--card-background-color,#fff);padding:8px;min-height:40px}.thermal-pilot-away-dialog .month-nav{margin:16px 0 8px}.thermal-pilot-away-dialog .month-nav button{border:0;border-radius:8px;background:#829aa310;font-size:24px;width:40px;height:40px}.thermal-pilot-away-dialog .month-nav span{font-size:13px;color:var(--secondary-text-color,#526b75)}.thermal-pilot-away-dialog .calendar-picker{width:min(100%,420px);margin-inline:auto}.thermal-pilot-away-dialog .date-prompt{font-weight:600;color:var(--primary-text-color,#213547)}.thermal-pilot-away-dialog .month h3{font-size:15px;text-align:center;margin:8px 0 12px}.thermal-pilot-away-dialog .days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.thermal-pilot-away-dialog .weekday{font-size:11px;color:var(--secondary-text-color,#526b75);text-align:center;padding:6px 0}.thermal-pilot-away-dialog .day{height:36px;min-width:0;border:0;border-radius:7px;background:transparent;padding:0}.thermal-pilot-away-dialog .day.other{opacity:.35}.thermal-pilot-away-dialog .day.range{background:#00838f12;border-radius:3px}.thermal-pilot-away-dialog .day.today{box-shadow:inset 0 0 0 1px #829aa370}.thermal-pilot-away-dialog .day.selected{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);font-weight:700;border-radius:8px}.thermal-pilot-away-dialog .day:hover{box-shadow:inset 0 0 0 2px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .zone{color:var(--secondary-text-color,#526b75);font-size:12px;line-height:1.6;margin:0;margin-inline-end:auto}.thermal-pilot-away-dialog footer{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;margin-top:16px}.thermal-pilot-away-dialog footer button{min-height:40px;border:0;border-radius:20px;padding:8px 14px;background:transparent;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog footer .save{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);margin-left:auto}.thermal-pilot-away-dialog footer .stop{color:var(--error-color,#ba4d43);border:1px solid #d2837b55}.thermal-pilot-away-dialog .help{position:relative;display:inline-flex;align-items:center}.thermal-pilot-away-dialog .help>button{display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--primary-color,#00838f);width:32px;min-height:32px;padding:6px}.thermal-pilot-away-dialog .help svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}.thermal-pilot-away-dialog .tip{position:fixed;z-index:10;padding:12px 14px;border-radius:10px;background:#18282f;color:#fff;font-size:13px;font-weight:400;line-height:1.6;overflow:auto;overflow-wrap:anywhere;box-shadow:0 6px 24px #0003}.thermal-pilot-away-dialog [hidden]{display:none!important}.thermal-pilot-away-dialog [role=alert]{color:var(--error-color,#b23b34);line-height:1.5}.thermal-pilot-away-dialog button:disabled{opacity:.5;cursor:default}@media(max-width:600px){.thermal-pilot-away-dialog{padding:18px}.thermal-pilot-away-dialog .dates{gap:8px}.thermal-pilot-away-dialog .date-inputs{grid-template-columns:1fr}.thermal-pilot-away-dialog .day{height:40px}}
+      .thermal-pilot-away-dialog .calendar-options{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:12px 0}
+      .thermal-pilot-away-dialog .calendar-options input[type=number]{width:112px}
+      .thermal-pilot-away-dialog .calendar-options input[type=checkbox]{width:auto;min-height:0;accent-color:var(--primary-color,#00838f)}
+      .thermal-pilot-away-dialog .calendar-checkbox{display:inline-flex;align-items:center;gap:8px}
+      .thermal-pilot-away-dialog .calendar-checkbox input{margin:0}
+      .thermal-pilot-away-dialog .repeat-limit>label{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px}
+      .thermal-pilot-away-dialog .repeat-summary{color:var(--secondary-text-color,#526b75);margin:0}
+      .thermal-pilot-away-dialog .reminder-lead{margin:0}
+      .thermal-pilot-away-dialog .time-inputs{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:4px}
+      .thermal-pilot-away-dialog .calendar-select{position:relative;display:inline-flex}
+      .thermal-pilot-away-dialog .calendar-select select{appearance:none;padding-inline-end:30px}
+      .thermal-pilot-away-dialog .calendar-select::after{content:'';position:absolute;inset-inline-end:12px;top:50%;width:6px;height:6px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:translateY(-70%) rotate(45deg);pointer-events:none}
+      .thermal-pilot-away-dialog .time-inputs select{width:100%;min-width:0;padding:6px;padding-inline-end:24px}
+      .thermal-pilot-away-dialog select{font:inherit;color:inherit;min-height:40px;padding:6px 12px;border:1px solid #b6c8d0;border-radius:6px;background:var(--card-background-color,#fff)}
+      .thermal-pilot-away-dialog .upcoming{margin-top:20px;border-top:1px solid var(--divider-color,#d8e0e4);padding-top:16px}
+      .thermal-pilot-away-dialog .upcoming h3{font-size:16px;margin:0 0 8px}
+      .thermal-pilot-away-dialog .bookings{padding:0;margin:0;list-style:none}
+      .thermal-pilot-away-dialog .booking-pages{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:8px 0}
+      .thermal-pilot-away-dialog .booking-pages button{min-width:36px}
+      .thermal-pilot-away-dialog .bookings li{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 16px;padding:10px 0;border-bottom:1px solid var(--divider-color,#d8e0e4)}
+      .thermal-pilot-away-dialog .booking-meta{display:block;color:var(--secondary-text-color,#526b75);font-size:12px;margin-top:4px}
+      .thermal-pilot-away-dialog .booking-actions,.thermal-pilot-away-dialog .remove-actions{display:flex;gap:8px;flex-wrap:wrap}
+      .thermal-pilot-away-dialog .upcoming button{min-height:36px;padding:6px 10px;color:var(--primary-color,#00838f);background:transparent;border:1px solid var(--divider-color,#d8e0e4);border-radius:8px}
+      .thermal-pilot-away-dialog .reminder-indicator{vertical-align:middle;margin-inline-start:4px}
+      .thermal-pilot-away-dialog .reminder-indicator>button{padding:5px;border:0;min-height:28px;width:28px}
+      .thermal-pilot-away-dialog .upcoming [data-remove-booking],.thermal-pilot-away-dialog .upcoming [data-removal="cancel"]{color:var(--error-color,#ba4d43)}
+      .thermal-pilot-away-dialog .remove-choice{flex:0 0 100%;margin-top:4px;padding:10px 12px;background:var(--secondary-background-color,#f5f8fa);border-radius:8px}
+      .thermal-pilot-away-dialog .remove-choice p{margin:0 0 8px}
+    </style><form novalidate>
+      <header><div class="heading"><h2 id="away-title">${escapeHTML(title)}</h2>${tooltip('calendar-help',help)}</div><button type="button" class="close" aria-label="${escapeHTML(this.t('Close'))}">×</button></header>
+      <p class="status"></p>
+      <div class="targets"><span>${escapeHTML(this.t('Heating'))} ${escapeHTML(heatingTarget)} °C</span><span>${escapeHTML(this.t('Cooling'))} ${escapeHTML(coolingTarget)} °C</span></div>
+      <div class="dates">${['start','end'].map(key=>`<div class="date-card" data-date-card="${key}"><button type="button" class="pick" data-pick="${key}">${escapeHTML(this.t(key==='start'?'Start':'End'))}</button><div class="date-inputs"><input type="date" name="${key}-date" aria-label="${escapeHTML(this.t(key==='start'?'Start date':'End date'))}" value=""><div class="time-inputs" role="group" aria-label="${escapeHTML(this.t(key==='start'?'Start time':'End time'))}">${timeSelect(key,'hour',hours)}<span aria-hidden="true">:</span>${timeSelect(key,'minute',minutes)}</div></div></div>`).join('')}</div>
+      <div class="calendar-picker"><div class="month-nav"><button type="button" data-month="-1" aria-label="${escapeHTML(this.t('Previous month'))}">‹</button><span class="date-prompt" aria-live="polite"></span><button type="button" data-month="1" aria-label="${escapeHTML(this.t('Next month'))}">›</button></div><div class="months"></div></div>
+      <div class="calendar-options repeat" hidden><label class="calendar-checkbox"><input name="repeat" type="checkbox"> ${escapeHTML(this.t('Repeat weekly'))}</label></div>
+      <div class="calendar-options repeat-limit" hidden><label class="repeat-count-label">${escapeHTML(this.t('Repeat for'))} <input name="repeat-count" type="number" min="1" max="365" step="1"> ${escapeHTML(this.t('weeks'))}</label><p class="repeat-summary" aria-live="polite" hidden></p></div>
+      <div class="calendar-options"><label class="calendar-checkbox"><input name="reminder" type="checkbox"> ${escapeHTML(this.t('Remind me before the absence'))}</label><div class="calendar-options reminder-lead" hidden><input name="reminder-amount" type="number" value="24" min="1" max="720" step="1" aria-label="${escapeHTML(this.t('Reminder lead time'))}"><span class="calendar-select"><select name="reminder-unit" aria-label="${escapeHTML(this.t('Reminder time unit'))}"><option value="hours">${escapeHTML(this.t('hours'))}</option><option value="days">${escapeHTML(this.t('days'))}</option></select></span></div></div>
+      <p role="alert" hidden></p>
+      <footer><p class="zone">${escapeHTML(this.t('Home Assistant time zone'))}: <span data-user-text>${escapeHTML(timeZone)}</span></p><button type="button" class="cancel-edit" hidden>${escapeHTML(this.t('Cancel'))}</button><button type="submit" class="save"></button></footer>
+      <section class="upcoming"><h3>${escapeHTML(this.t('Upcoming absences'))} ${tooltip('cancel-help',cancelHelp)}</h3><p class="no-bookings">${escapeHTML(this.t('No calendar absence'))}</p><div class="booking-pages" role="group" aria-label="${escapeHTML(this.t('Upcoming absences'))}" hidden><button type="button" data-booking-page="-1" aria-label="${escapeHTML(this.t('Previous page'))}">‹</button><span class="booking-page-number" aria-live="polite"></span><button type="button" data-booking-page="1" aria-label="${escapeHTML(this.t('Next page'))}">›</button></div><ul class="bookings"></ul></section>
+    </form>`;
+    const field=name=>dialog.querySelector(`[name="${name}"]`);
+    const fillDefaultTime=key=>{
+      const hour=field(key+'-hour'),minute=field(key+'-minute');
+      if(!hour.value)hour.value=defaultHour[key];
+      if(!minute.value)minute.value='00';
+    };
+    for(const key of ['start','end']){
+      const minute=field(key+'-minute');
+      field(key+'-hour').addEventListener('change',()=>{
+        const savedMinute=minute.querySelector('[data-saved-minute]');
+        if(!savedMinute)return;
+        if(minute.value===savedMinute.value)minute.value='00';
+        savedMinute.remove();
+      });
+      minute.addEventListener('change',()=>minute.querySelector('[data-saved-minute]')?.remove());
+    }
+    const repeatEnabled=()=>canRepeat(field('start-date').value,field('end-date').value)&&field('repeat').checked;
+    const showOptions=()=>{
+      const start=field('start-date').value;
+      const end=field('end-date').value;
+      const eligible=canRepeat(start,end);
+      dialog.querySelector('.repeat').hidden=!eligible;
+      const repeating=repeatEnabled();
+      dialog.querySelector('.repeat-count-label').hidden=!repeating;
+      field('repeat-count').required=repeating;
+      const count=Number(field('repeat-count').value);
+      const summary=dialog.querySelector('.repeat-summary');
+      summary.textContent='';
+      if(repeating&&Number.isInteger(count)&&count>=1&&count<=365){
+        // Shift civil calendar dates by weeks, independent of DST offsets.
+        const offset=(count-1)*7*dayMs;
+        const lastRange=calendarDate.formatRange(dateStamp(start)+offset,dateStamp(end)+offset);
+        summary.textContent=`${this.t('Last period')} · ${lastRange}`;
+      }else if(!eligible&&editing&&field('repeat').checked){
+        summary.textContent=this.t('Does not repeat');
+      }
+      summary.hidden=!summary.textContent;
+      dialog.querySelector('.repeat-limit').hidden=!repeating&&summary.hidden;
+      dialog.querySelector('.reminder-lead').hidden=!field('reminder').checked;
+      field('reminder-amount').max=field('reminder-unit').value==='days'?30:720;
+    };
+    for(const name of ['repeat','reminder','reminder-unit'])field(name).addEventListener('change',showOptions);
+    field('repeat-count').addEventListener('input',showOptions);
+    const draftButtons=()=>{
+      dialog.querySelector('.cancel-edit').hidden=editing===null;
+      dialog.querySelector('.save').textContent=this.t(editing?'Update period':'Schedule absence');
+    };
+    const updatePageButtons=()=>{
+      dialog.querySelector('[data-booking-page="-1"]').disabled=saving||bookingPage===0;
+      dialog.querySelector('[data-booking-page="1"]').disabled=saving||bookingPage===bookingPageCount-1;
+    };
+    const drawBookings=()=>{
+      const entries=bookings();
+      const occurrences=away.occurrences??entries;
+      bookingPageCount=Math.max(1,Math.ceil(occurrences.length/pageSize));
+      bookingPage=Math.max(0,Math.min(bookingPage,bookingPageCount-1));
+      dialog.querySelector('.booking-pages').hidden=bookingPageCount===1;
+      dialog.querySelector('.booking-page-number').textContent=`${bookingPage+1} / ${bookingPageCount}`;
+      updatePageButtons();
+      const status=away.active?this.t(away.source==='calendar'?'Calendar absence active':'Automatic absence active'):entries.length?this.t('Scheduled absence'):this.t('No calendar absence');
+      dialog.querySelector('.status').textContent=status;
+      dialog.querySelector('.no-bookings').hidden=entries.length>0;
+      const visible=occurrences.slice(bookingPage*pageSize,(bookingPage+1)*pageSize);
+      dialog.querySelector('.bookings').innerHTML=visible.map(entry=>{
+        const id=escapeHTML(entry.id);
+        const range=`${localDateTime.format(entry.start*1000)} – ${localDateTime.format(entry.end*1000)}`;
+        let reminder='';
+        if(entry.reminder_hours>0){
+          const inDays=entry.reminder_hours%24===0;
+          const duration=new Intl.NumberFormat(locale,{style:'unit',unit:inDays?'day':'hour',unitDisplay:'long'})
+            .format(inDays?entry.reminder_hours/24:entry.reminder_hours);
+          reminder=tooltip(`reminder-${entry.id}-${entry.start}`,`${this.t('Reminder lead time')} · ${duration}`,true);
+        }
+        const meta=[entry.active?this.t('Calendar absence active'):'',entry.repeat!=='once'?this.t(repeatLabels[entry.repeat]):''].filter(Boolean).join(' · ');
+        const canEdit=entry.repeat==='once'||(entry.repeat==='weekly'&&canRepeat(parts(entry.start*1000).date,parts(entry.end*1000).date));
+        const edit=canEdit?`<button type="button" data-edit-booking="${id}">${escapeHTML(this.t(entry.repeat==='once'?'Edit':'Edit series'))}</button>`:'';
+        const isChoosing=pendingRemoval?.id===entry.id&&pendingRemoval.start===entry.start;
+        const choice=isChoosing?`<div class="remove-choice"><p>${escapeHTML(this.t('Cancel this occurrence or the whole series?'))}</p><div class="remove-actions"><button type="button" data-removal="skip">${escapeHTML(this.t('This occurrence'))}</button><button type="button" data-removal="cancel">${escapeHTML(this.t('Whole series'))}</button><button type="button" data-removal="keep">${escapeHTML(this.t('Keep schedule'))}</button></div></div>`:'';
+        return `<li><div>${escapeHTML(range)}${reminder}${meta?`<span class="booking-meta">${escapeHTML(meta)}</span>`:''}</div><div class="booking-actions">${edit}<button type="button" data-remove-booking="${id}" data-occurrence="${entry.start}"${entry.repeat==='once'?'':` aria-expanded="${isChoosing}"`}>${escapeHTML(this.t('Cancel period'))}</button></div>${choice}</li>`;
+      }).join('');
+    };
     const draw=()=>{
-      dialog.querySelector('.months').innerHTML=[0,1].map(offset=>awayCalendarMonth(new Date(month.getFullYear(),month.getMonth()+offset,1,12),selected,today.date,locale)).join('');
-      dialog.querySelectorAll('[data-date-card]').forEach(card=>card.classList.toggle('active',card.dataset.dateCard===picking));
+      showOptions();
+      dialog.querySelector('.months').innerHTML=awayCalendarMonth(month,selected,today.date,locale);
+      dialog.querySelector('.date-prompt').textContent=this.t(picking==='start'?'Choose a start date':'Choose an end date');
+      dialog.querySelectorAll('[data-date-card]').forEach(card=>{
+        const active=card.dataset.dateCard===picking;
+        card.classList.toggle('active',active);
+        card.querySelector('.pick').setAttribute('aria-pressed',String(active));
+      });
+    };
+    const loadDraft=booking=>{
+      editing=booking?.id??null;
+      dialog.querySelector('[role=alert]').hidden=true;
+      for(const key of ['start','end']){
+        const values=booking?parts(booking[key]*1000):{date:'',time:''};
+        selected[key]=field(key+'-date').value=values.date;
+        const [hour,minute='']=values.time.split(':');
+        const minuteField=field(key+'-minute');
+        minuteField.querySelector('[data-saved-minute]')?.remove();
+        // Keep existing bookings exact when editing other fields.
+        if(minute&&!minutes.includes(minute)){
+          minuteField.insertAdjacentHTML('beforeend',`<option data-saved-minute disabled value="${escapeHTML(minute)}">${escapeHTML(minute)}</option>`);
+        }
+        field(key+'-hour').value=hour;
+        minuteField.value=minute;
+      }
+      field('repeat').checked=booking?.repeat==='weekly';
+      field('repeat-count').value=booking?.repeat_count||'';
+      const reminderHours=booking?.reminder_hours||0;
+      const useDays=reminderHours>0&&reminderHours%24===0;
+      field('reminder').checked=reminderHours>0;
+      field('reminder-unit').value=useDays?'days':'hours';
+      field('reminder-amount').value=useDays?reminderHours/24:reminderHours||24;
+      month=new Date((selected.start||today.date)+'T12:00:00');
+      month.setDate(1);
+      picking='start';
+      draftButtons();
+      draw();
     };
     const select=date=>{
       selected[picking]=date;
+      fillDefaultTime(picking);
       if(picking==='start'&&selected.end&&selected.end<date)selected.end=date;
       if(picking==='end'&&selected.start&&selected.start>date)selected.start=date;
-      for(const key of ['start','end'])dialog.querySelector(`[name="${key}-date"]`).value=selected[key];
+      for(const key of ['start','end'])field(key+'-date').value=selected[key];
+      month=new Date(date+'T12:00:00');month.setDate(1);
       picking=picking==='start'?'end':'start';draw();
+      dialog.querySelector(`[data-calendar-date="${date}"]`)?.focus({preventScroll:true});
     };
+    let openHelp=null;
+    const closeHelp=()=>{
+      if(!openHelp)return;
+      const tip=dialog.querySelector('#'+CSS.escape(openHelp.dataset.help));
+      if(tip)tip.hidden=true;
+      openHelp.setAttribute('aria-expanded','false');
+      openHelp=null;
+    };
+    const showHelp=button=>{
+      closeHelp();
+      const tip=dialog.querySelector('#'+CSS.escape(button.dataset.help));
+      const bounds=dialog.getBoundingClientRect();
+      const anchor=button.getBoundingClientRect();
+      const margin=8;
+      const left=bounds.left+dialog.clientLeft+margin;
+      const top=bounds.top+dialog.clientTop+margin;
+      const right=left+dialog.clientWidth-2*margin;
+      const bottom=top+dialog.clientHeight-2*margin;
+      tip.style.width=Math.min(340,right-left)+'px';
+      tip.style.maxHeight=(bottom-top)+'px';
+      tip.hidden=false;
+      const {width,height}=tip.getBoundingClientRect();
+      const below=anchor.bottom+margin;
+      const preferredTop=below+height<=bottom?below:anchor.top-margin-height;
+      tip.style.left=Math.max(left,Math.min(anchor.left,right-width))+'px';
+      tip.style.top=Math.max(top,Math.min(preferredTop,bottom-height))+'px';
+      button.setAttribute('aria-expanded','true');
+      openHelp=button;
+    };
+    dialog.addEventListener('scroll',closeHelp);
+    const helpResize=typeof ResizeObserver==='undefined'?null:new ResizeObserver(closeHelp);
     dialog.addEventListener('click',event=>{
       const day=event.target.closest('[data-calendar-date]');if(day)select(day.dataset.calendarDate);
-      const picker=event.target.closest('[data-pick]');if(picker){picking=picker.dataset.pick;draw();}
+      const picker=event.target.closest('[data-pick]');
+      if(picker){
+        picking=picker.dataset.pick;
+        if(selected[picking]){
+          month=new Date(selected[picking]+'T12:00:00');month.setDate(1);
+        }
+        draw();
+      }
       const navigation=event.target.closest('[data-month]');if(navigation){month=new Date(month.getFullYear(),month.getMonth()+Number(navigation.dataset.month),1,12);draw();}
-      const help=event.target.closest('[data-help]');if(!help&&!event.target.closest('.tip'))dialog.querySelectorAll('[data-help]').forEach(button=>{button.setAttribute('aria-expanded','false');dialog.querySelector('#'+button.dataset.help).hidden=true;});if(help){const tip=dialog.querySelector('#'+help.dataset.help);tip.hidden=!tip.hidden;help.setAttribute('aria-expanded',String(!tip.hidden));}
+      const pagination=event.target.closest('[data-booking-page]');
+      if(pagination&&!saving){
+        bookingPage+=Number(pagination.dataset.bookingPage);
+        pendingRemoval=null;
+        drawBookings();
+        if(pagination.disabled){
+          dialog.querySelector('.booking-pages button:not(:disabled)')?.focus();
+        }
+      }
+      const edit=event.target.closest('[data-edit-booking]');
+      if(edit&&!saving){
+        pendingRemoval=null;
+        drawBookings();
+        loadDraft(bookings().find(entry=>entry.id===edit.dataset.editBooking));
+        field('start-date').focus();
+      }
+      const removal=event.target.closest('[data-remove-booking]');
+      if(removal&&!saving){
+        const entry=(away.occurrences??bookings()).find(item=>item.id===removal.dataset.removeBooking&&item.start===Number(removal.dataset.occurrence));
+        if(entry?.repeat==='once')void submit({action:'cancel',booking_id:entry.id});
+        else if(entry){
+          pendingRemoval=entry;
+          drawBookings();
+          dialog.querySelector('[data-removal="skip"]')?.focus();
+        }
+      }
+      const decision=event.target.closest('[data-removal]')?.dataset.removal;
+      if(decision&&pendingRemoval&&!saving){
+        if(decision==='keep'){
+          const {id,start}=pendingRemoval;
+          pendingRemoval=null;
+          drawBookings();
+          dialog.querySelector(`[data-remove-booking="${CSS.escape(id)}"][data-occurrence="${start}"]`)?.focus();
+        }else void submit({action:decision,booking_id:pendingRemoval.id,occurrence:pendingRemoval.start});
+      }
+      const help=event.target.closest('[data-help]');
+      if(help&&help!==openHelp)showHelp(help);
+      else if(!event.target.closest('.tip'))closeHelp();
     });
     dialog.addEventListener('keydown',event=>{
-      if(event.key==='Escape'&&dialog.querySelector('.tip:not([hidden])')){event.preventDefault();event.stopPropagation();dialog.querySelectorAll('[data-help]').forEach(button=>{button.setAttribute('aria-expanded','false');dialog.querySelector('#'+button.dataset.help).hidden=true;});return;}
+      if(event.key==='Escape'&&openHelp){event.preventDefault();event.stopPropagation();closeHelp();return;}
       const button=event.target.closest('[data-calendar-date]');
       const shift={ArrowLeft:-1,ArrowRight:1,ArrowUp:-7,ArrowDown:7};
       if(!button||!Object.hasOwn(shift,event.key))return;
@@ -734,29 +988,68 @@ class ThermalPilotPanel extends HTMLElement {
       if(![...dialog.querySelectorAll(`[data-calendar-date="${key}"]`)].some(day=>day.getClientRects().length)){month=new Date(date.getFullYear(),date.getMonth(),1,12);draw();}
       dialog.querySelector(`[data-calendar-date="${key}"]`)?.focus();
     });
-    for(const key of ['start','end'])dialog.querySelector(`[name="${key}-date"]`).addEventListener('change',event=>{selected[key]=event.target.value;picking=key;if(event.target.value)month=new Date(event.target.value+'T12:00:00');draw();});
-    const submit=async cancel=>{
-      const alert=dialog.querySelector('[role=alert]');alert.hidden=true;
-      const startValue=dialog.querySelector('[name="start-date"]').value+'T'+dialog.querySelector('[name="start-time"]').value;
-      const endValue=dialog.querySelector('[name="end-date"]').value+'T'+dialog.querySelector('[name="end-time"]').value;
-      let validationError='';
-      if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(startValue)||!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(endValue)){
-        validationError='Choose valid start and end dates and times.';
-      }else if(endValue<=startValue){
-        validationError='The end must be after the start and in the future.';
+    for(const key of ['start','end'])field(key+'-date').addEventListener('change',event=>{
+      selected[key]=event.target.value;picking=key;
+      if(event.target.value){
+        month=new Date(event.target.value+'T12:00:00');month.setDate(1);
+        fillDefaultTime(key);
       }
-      if(!cancel&&validationError){alert.textContent=this.t(validationError);alert.hidden=false;return;}
+      draw();
+    });
+    const submit=async request=>{
+      if(saving)return;
+      const alert=dialog.querySelector('[role=alert]');alert.hidden=true;
+      if(request.action==='set'){
+        const dateTime=key=>`${field(key+'-date').value}T${field(key+'-hour').value}:${field(key+'-minute').value}`;
+        const start=dateTime('start');
+        const end=dateTime('end');
+        let validationError='';
+        if(!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(start)||!/^\d{4}-\d\d-\d\dT\d\d:\d\d$/.test(end)){
+          validationError='Choose valid start and end dates and times.';
+        }else if(end<=start){
+          validationError='The end must be after the start and in the future.';
+        }
+        const repeat=repeatEnabled()?'weekly':'once';
+        const repeatCount=repeat==='once'?0:Number(field('repeat-count').value);
+        const reminderAmount=Number(field('reminder-amount').value);
+        const reminderHours=field('reminder').checked?reminderAmount*(field('reminder-unit').value==='days'?24:1):0;
+        if(!validationError&&repeat!=='once'&&(!Number.isInteger(repeatCount)||repeatCount<1||repeatCount>365)){
+          validationError='Enter a whole number from 1 to 365.';
+        }
+        if(!validationError&&field('reminder').checked&&(!Number.isInteger(reminderAmount)||reminderHours<1||reminderHours>720)){
+          validationError='Choose a reminder from 1 hour to 30 days.';
+        }
+        if(validationError){alert.textContent=this.t(validationError);alert.hidden=false;return;}
+        Object.assign(request,{start,end,repeat,repeat_count:repeatCount,reminder_hours:reminderHours});
+        if(editing)request.booking_id=editing;
+      }
+      saving=true;
       dialog.querySelectorAll('button').forEach(button=>button.disabled=true);
       try{
-        const result=await this.call('away',{action:cancel?'cancel':'set',...(cancel?{}:{start:startValue,end:endValue})});
-        this.info.data=result.data;dialog.close();this.render();
-      }catch(error){alert.textContent=this.t(error.message||'Unable to save the absence period.');alert.hidden=false;dialog.querySelectorAll('button').forEach(button=>button.disabled=false);}
+        const result=await this.call('away',request);
+        this.info.data=result.data;
+        away=result.away??result.data.away;
+        this.render();
+        if(dialog.open){
+          pendingRemoval=null;
+          if(request.action==='set'||request.booking_id===editing)loadDraft(null);
+          drawBookings();
+          field('start-date').focus();
+        }
+      }catch(error){
+        alert.textContent=this.t(error.message||'Unable to save the absence period.');alert.hidden=false;
+      }finally{
+        saving=false;
+        dialog.querySelectorAll('button').forEach(button=>button.disabled=false);
+        if(dialog.open)updatePageButtons();
+      }
     };
-    dialog.querySelector('form').addEventListener('submit',event=>{event.preventDefault();submit(false);});
-    dialog.querySelector('.stop')?.addEventListener('click',()=>submit(true));
-    dialog.querySelectorAll('.close,.dismiss').forEach(button=>button.addEventListener('click',()=>dialog.close()));
-    dialog.addEventListener('close',()=>{dialog.remove();if(this.awayDialog===dialog)this.awayDialog=null;[...this.shadowRoot.querySelectorAll('[data-away-calendar]')].find(button=>button.getClientRects().length)?.focus();},{once:true});
-    document.body.append(dialog);draw();dialog.showModal();
+    dialog.querySelector('form').addEventListener('submit',event=>{event.preventDefault();void submit({action:'set'});});
+    dialog.querySelector('.cancel-edit').addEventListener('click',()=>{loadDraft(null);field('start-date').focus();});
+    dialog.querySelector('.close').addEventListener('click',()=>dialog.close());
+    dialog.addEventListener('close',()=>{helpResize?.disconnect();dialog.remove();if(this.awayDialog===dialog)this.awayDialog=null;[...this.shadowRoot.querySelectorAll('[data-away-calendar]')].find(button=>button.getClientRects().length)?.focus();},{once:true});
+    document.body.append(dialog);loadDraft(null);drawBookings();dialog.showModal();
+    helpResize?.observe(dialog);
   }
   openManualSession(id,mode,trigger){
     const control=this.info?.manual_controls?.[id];if(!control)return;
@@ -2516,7 +2809,7 @@ details{scroll-margin-block:16px}
 .notification-button[data-severity="error"]{--notification-accent:#d64545}
 .header-icon-button.notification-button:is([data-severity="warning"],[data-severity="error"]){border:2px solid var(--notification-accent);animation:tp-notification-pulse 1.7s ease-in-out infinite}
 @keyframes tp-notification-pulse{0%,100%{border-color:var(--notification-accent);box-shadow:0 0 0 1px var(--notification-accent)}50%{border-color:color-mix(in srgb,var(--notification-accent) 35%,transparent);box-shadow:0 0 0 3px transparent}}
-.notification-count{position:absolute;top:-5px;right:-5px;min-width:18px;padding:0 4px;border-radius:10px;background:var(--notification-accent,var(--primary-color,#00838f));color:#fff;font:bold 11px/18px system-ui;text-align:center}
+.header-count{position:absolute;top:-5px;right:-5px;min-width:18px;padding:0 4px;border-radius:10px;background:var(--notification-accent,var(--primary-color,#00838f));color:#fff;font:bold 11px/18px system-ui;text-align:center}
 .notification-button[data-severity="warning"] .notification-count{color:#26200b}
 @media(prefers-reduced-motion:reduce){.header-icon-button.notification-button:is([data-severity="warning"],[data-severity="error"]){animation:none}}
 @media(max-width:1199px){.page-title{min-height:92px;align-items:flex-start}.page-title h1{align-self:flex-start;margin-top:4px}}
@@ -2656,7 +2949,7 @@ details{scroll-margin-block:16px}
 #settings .away-settings-fields>.grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:600px){#settings .away-settings-fields>.grid{grid-template-columns:minmax(0,1fr)}}
 </style>
-    <header class="page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}"><div class="page-title"><button type="button" class="menu-button" id="ha-menu" aria-label="Open Home Assistant menu" title="Open Home Assistant menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><img class="header-logo" src="/thermal_pilot/icon.png" width="36" height="36" alt="" aria-hidden="true"><h1>ThermalPilot</h1></div>${this.headerStatus()}<div class="header-tools"><div class="header-actions">${this.awayCalendarButton()}${this.notificationButton()}</div>${this.compactStatusView()}</div><nav class="tab-list" role="tablist" aria-label="ThermalPilot pages">${[['overview','Plan'],['history','History'],['rooms','Rooms and zones'],['settings','Settings']].map(([id,label])=>`<button id="tab-${id}" role="tab" aria-selected="${this.tab===id}" aria-controls="thermal-pilot-tab-panel" tabindex="${this.tab===id?0:-1}" data-tab="${id}" class="${this.tab===id?'active':''}">${label}</button>`).join('')}</nav>${this.message&&!this.saveConfirmation&&!(['settings','rooms'].includes(this.tab)&&this.messageLevel==='error')?`${statusNotice(this.message,this.messageLevel||'info','message')}`:''}</header><main id="thermal-pilot-tab-panel" role="tabpanel" aria-labelledby="tab-${this.tab}" class="tab-panel page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}">${!this.info?'Loading…':['settings','rooms'].includes(this.tab)?this.settingsView(this.tab):this.tab==='history'?this.historyView():this.overview()}</main>${this.message&&this.saveConfirmation?`<div class="message save-toast notice-info" role="status" aria-live="polite">${statusIcon('info')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span></div>`:''}${this.message&&!this.saveConfirmation&&['settings','rooms'].includes(this.tab)&&this.messageLevel==='error'?`<div class="message save-toast notice-error save-error" role="alert" aria-live="assertive" tabindex="-1">${statusIcon('error')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span><button type="button" id="dismiss-save-error" aria-label="Dismiss error notification" title="Dismiss error notification">×</button></div>`:''}`;
+    <header class="page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}"><div class="page-title"><button type="button" class="menu-button" id="ha-menu" aria-label="Open Home Assistant menu" title="Open Home Assistant menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><img class="header-logo" src="/thermal_pilot/icon.png" width="36" height="36" alt="" aria-hidden="true"><h1>ThermalPilot</h1></div>${this.headerStatus()}<div class="header-tools"><div class="header-actions">${this.notificationButton()}${this.awayCalendarButton()}</div>${this.compactStatusView()}</div><nav class="tab-list" role="tablist" aria-label="ThermalPilot pages">${[['overview','Plan'],['history','History'],['rooms','Rooms and zones'],['settings','Settings']].map(([id,label])=>`<button id="tab-${id}" role="tab" aria-selected="${this.tab===id}" aria-controls="thermal-pilot-tab-panel" tabindex="${this.tab===id?0:-1}" data-tab="${id}" class="${this.tab===id?'active':''}">${label}</button>`).join('')}</nav>${this.message&&!this.saveConfirmation&&!(['settings','rooms'].includes(this.tab)&&this.messageLevel==='error')?`${statusNotice(this.message,this.messageLevel||'info','message')}`:''}</header><main id="thermal-pilot-tab-panel" role="tabpanel" aria-labelledby="tab-${this.tab}" class="tab-panel page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}">${!this.info?'Loading…':['settings','rooms'].includes(this.tab)?this.settingsView(this.tab):this.tab==='history'?this.historyView():this.overview()}</main>${this.message&&this.saveConfirmation?`<div class="message save-toast notice-info" role="status" aria-live="polite">${statusIcon('info')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span></div>`:''}${this.message&&!this.saveConfirmation&&['settings','rooms'].includes(this.tab)&&this.messageLevel==='error'?`<div class="message save-toast notice-error save-error" role="alert" aria-live="assertive" tabindex="-1">${statusIcon('error')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span><button type="button" id="dismiss-save-error" aria-label="Dismiss error notification" title="Dismiss error notification">×</button></div>`:''}`;
     this.shadowRoot.querySelector('#dismiss-save-error')?.addEventListener('click',()=>{this.message='';this.saveConfirmation=false;this.shadowRoot.querySelector('.save-error')?.remove();});
     this.shadowRoot.querySelector('.save-error')?.focus?.({preventScroll:true});
     this.shadowRoot.querySelector('#ha-menu')?.addEventListener('click',()=>this.openSidebar());

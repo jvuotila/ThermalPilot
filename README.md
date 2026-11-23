@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.106 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.107 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -346,12 +346,27 @@ counts pause automatic absence detection and restore normal automatic targets.
 The confirmed absence timer survives restarts.
 
 The header calendar icon opens a date-range calendar with start and end times.
+Picking dates fills in 08:00 for the start and 16:00 for the end. Both times
+can be changed. Absences spanning two to six calendar dates can repeat weekly.
+The list below the calendar shows each active or upcoming booking, with
+10 dates per page. Use **Edit series** to edit a recurring booking from any
+of its dates. Previously saved unlimited series show their next 52 dates.
+Overlapping bookings
+keep away temperatures active for as long as any booking is active. The calendar
+badge counts remaining dates. A plus sign indicates a previously saved unlimited series.
+For weekly repeats, enter a whole number from 1 to 365. The calendar shows
+the last period's dates as you change the count. Skipping a date does
+not extend the series. Use **Cancel period** to remove an individual
+booking. For a series, choose **This occurrence** or **Whole series**.
+Enable **Remind me before the absence** to get a Home Assistant notification
+before each occurrence. Set the lead time in hours or days, up to 30 days.
 Calendar bookings work with automatic detection disabled. In that mode, they
 end only at the selected time or through **Cancel period** in the popup. With
-automatic detection enabled, a detected return also cancels an active booking;
-a future booking made while home waits for departure. Dates use Home Assistant’s
-time zone, even when the browser is travelling. Normal targets resume at the
-end or on return; there is no advance warm-up, so room recovery takes time.
+automatic detection enabled, a detected return ends the active occurrence and
+keeps later repeats. A future booking waits for departure if someone is home
+at the start. Dates and repeats use Home Assistant’s time zone. Normal targets
+resume when no absence remains active. Room recovery takes time because there
+is no advance warm-up.
 Cancelling a booking does not disable automatic detection: its away targets
 can remain active if the absence delay has already elapsed.
 

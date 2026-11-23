@@ -1,7 +1,9 @@
-"""Companion notification delivery; independent of physical climate control."""
+"""Home Assistant notification delivery, independent of climate control."""
+from datetime import datetime
 from functools import lru_cache
 import json
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 
 @lru_cache(maxsize=25)
@@ -9,6 +11,20 @@ def notification_messages(language):
     """Reuse the panel's language catalog, loaded in HA's executor."""
     path = Path(__file__).parent / 'frontend' / 'languages' / f'{language}.json'
     return json.loads(path.read_text(encoding='utf-8'))['messages']
+
+
+async def notify_away_reminder(hass, language, zone, period, notification_id):
+    """Post one date-specific reminder in Home Assistant's notifications."""
+    messages = await hass.async_add_executor_job(notification_messages, language)
+    local_zone = ZoneInfo(zone)
+    start = datetime.fromtimestamp(period['start'], local_zone).strftime('%Y-%m-%d %H:%M')
+    end = datetime.fromtimestamp(period['end'], local_zone).strftime('%Y-%m-%d %H:%M')
+    title = 'Upcoming ThermalPilot absence'
+    await hass.services.async_call('persistent_notification', 'create', {
+        'title': messages.get(title, title),
+        'message': f'{start} – {end} ({zone})',
+        'notification_id': notification_id,
+    }, blocking=True)
 
 
 async def notify_manual_door_pause(hass, target, language, room, doors, mode, tag):

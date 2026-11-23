@@ -414,9 +414,14 @@ async def ws_manual(hass, connection, msg):
 @websocket_api.websocket_command({
     vol.Required('type'): 'thermal_pilot/away',
     vol.Required('entry_id'): str,
-    vol.Required('action'): vol.In(('set', 'cancel')),
+    vol.Required('action'): vol.In(('set', 'cancel', 'skip')),
     vol.Optional('start'): str,
     vol.Optional('end'): str,
+    vol.Optional('booking_id'): str,
+    vol.Optional('repeat', default='once'): vol.In(('once', 'daily', 'weekly')),
+    vol.Optional('occurrence'): vol.Coerce(float),
+    vol.Optional('reminder_hours', default=0): int,
+    vol.Optional('repeat_count', default=0): int,
 })
 @websocket_api.require_admin
 @websocket_api.async_response
@@ -427,7 +432,9 @@ async def ws_away(hass, connection, msg):
     try:
         async with coordinator.backup_lock:
             result = await coordinator.set_away_schedule(
-                msg['action'], msg.get('start'), msg.get('end'), dt_util.utcnow())
+                msg['action'], msg.get('start'), msg.get('end'), dt_util.utcnow(),
+                msg.get('booking_id'), msg.get('repeat', 'once'), msg.get('occurrence'),
+                msg.get('reminder_hours', 0), msg.get('repeat_count', 0))
     except ValueError as error:
         connection.send_error(msg['id'], 'invalid_away_schedule', str(error))
         return

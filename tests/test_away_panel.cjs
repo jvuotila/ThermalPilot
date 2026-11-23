@@ -11,10 +11,23 @@ class Dialog extends Node{
  constructor(){super();this.nodes={};this.groups={};}
  set innerHTML(value){this.html=value;
   for(const match of value.matchAll(/name="([^"]+)"[^>]*value="([^"]*)"/g))this.nodes[`[name="${match[1]}"]`]=new Node(match[2]);
-  for(const selector of ['.months','[role=alert]','form','.close','.dismiss','.save'])this.nodes[selector]=new Node();
-  if(value.includes('class="stop"'))this.nodes['.stop']=new Node();
-  this.groups['[data-date-card]']=['start','end'].map(key=>{const node=new Node();node.dataset.dateCard=key;return node;});
-  this.groups['.close,.dismiss']=[this.nodes['.close'],this.nodes['.dismiss']];
+  for(const selector of ['.months','.date-prompt','[role=alert]','form','.close','.save','.cancel-edit','.bookings','.no-bookings','.status','.repeat','.repeat-limit','.repeat-count-label','.repeat-summary','.reminder-lead','#cancel-help'])this.nodes[selector]=new Node();
+  for(const selector of ['.booking-pages','.booking-page-number','[data-booking-page="-1"]','[data-booking-page="1"]'])this.nodes[selector]=new Node();
+  for(const name of ['repeat','repeat-count','reminder','reminder-amount','reminder-unit'])this.nodes[`[name="${name}"]`]=new Node();
+  for(const key of ['start','end']){
+   this.nodes[`[name="${key}-hour"]`]=new Node();
+   const minute=this.nodes[`[name="${key}-minute"]`]=new Node();
+   minute.querySelector=()=>minute.savedMinute;
+   minute.insertAdjacentHTML=(_,html)=>{
+    minute.savedMinute={value:html.match(/value="([^"]+)"/)[1],remove:()=>{minute.savedMinute=null;}};
+   };
+  }
+  this.groups['[data-date-card]']=['start','end'].map(key=>{
+   const node=new Node(), button=new Node();
+   node.dataset.dateCard=key;
+   node.querySelector=()=>button;
+   return node;
+  });
   this.groups['button']=Object.values(this.nodes);
   this.groups['[data-help]']=[];
  }
@@ -25,7 +38,7 @@ class Dialog extends Node{
  remove(){this.removed=true;}
 }
 class Element{attachShadow(){this.shadowRoot={innerHTML:'',querySelector:()=>null,querySelectorAll:()=>[]};}}
-const context={HTMLElement:Element,customElements:{get:()=>undefined,define:(_,value)=>Panel=value},structuredClone,Intl,Date,Number,String,Object,Math,JSON,Infinity,console,setTimeout,clearTimeout,setInterval,clearInterval};
+const context={CSS:{escape:value=>value},HTMLElement:Element,customElements:{get:()=>undefined,define:(_,value)=>Panel=value},structuredClone,Intl,Date,Number,String,Object,Math,JSON,Infinity,console,setTimeout,clearTimeout,setInterval,clearInterval};
 vm.createContext(context);vm.runInContext(readFrontendSource(path.join(__dirname,'../custom_components/thermal_pilot/frontend/panel.js')),context);
 const info=JSON.parse(fs.readFileSync(path.join(__dirname,'../PREVIEW.html'),'utf8').match(/const demo=([\s\S]*?);const states=/)[1]);
 const panel=new Panel();panel.info=structuredClone(info);panel.settings=structuredClone(info.settings);panel.tab='settings';
@@ -47,7 +60,7 @@ assert.match(markup,/data-field="room0.away_exempt"/);assert.match(markup,/aquar
 assert.match(panel.awayCalendarButton(),/id="away-calendar"/);
 const panelSource=fs.readFileSync(path.join(__dirname,'../custom_components/thermal_pilot/frontend/panel.js'),'utf8');
 assert.match(panelSource,/header-tools>\.header-actions\{position:absolute;top:16px;right:24px/);
-assert.match(panelSource,/<div class="header-actions">\$\{this.awayCalendarButton\(\)\}\$\{this.notificationButton\(\)\}/);
+assert.match(panelSource,/<div class="header-actions">\$\{this.notificationButton\(\)\}\$\{this.awayCalendarButton\(\)\}/);
 assert.match(panelSource,/header-icon-button:hover:not\(:disabled\)/);
 panel.info.data.away={active:true,source:'calendar',schedule:{start:1794844800,end:1795377600},temperature:16,cooling_temperature:26,time_zone:'Europe/Helsinki'};
 assert.match(panel.awayCalendarButton(),/class="header-icon-button away-calendar-button active"/);
@@ -59,40 +72,196 @@ context.document={createElement:()=>currentDialog=new Dialog(),body:{append:()=>
 // The calendar must prefer that acknowledged configuration over stale away data.
 panel.info.settings.away_temperature=18;panel.info.settings.away_cooling_temperature=27;
 panel.settings.away_temperature=19;panel.settings.away_cooling_temperature=29;
-panel.settings.language='fi';panel.openAwayCalendar();
+panel.settings.language='fi';
+panel.info.data.fallback_season={season:'summer'};
+panel.openAwayCalendar();
+assert.match(currentDialog.html,/Jäähdytys 27 °C/);assert.match(currentDialog.html,/Lämmitys 18 °C/);
+panel.info.data.fallback_season.season='winter';
+panel.openAwayCalendar();
 assert.match(currentDialog.html,/Lämmitys 18 °C/);assert.match(currentDialog.html,/Jäähdytys 27 °C/);
 assert.doesNotMatch(currentDialog.html,/Lämmitys 19 °C|Jäähdytys 29 °C/);
 assert.equal(currentDialog.open,true);
-assert.equal(currentDialog.nodes['[name="start-date"]'].value,'2026-11-16');assert.equal(currentDialog.nodes['[name="start-time"]'].value,'18:00');
-assert.equal(currentDialog.nodes['[name="end-date"]'].value,'2026-11-22');assert.equal(currentDialog.nodes['[name="end-time"]'].value,'22:00');assert.match(currentDialog.html,/Poissaolokalenteri/);assert.match(currentDialog.html,/Peruuta ajanjakso/);
+assert.match(currentDialog.html,/Poissaolokalenteri/);
 assert.match(currentDialog.html,/Tunnistus pois/);assert.match(currentDialog.html,/Automaattiset poissaololämpötilat voivat jäädä/);
 assert.match(currentDialog.html,/Europe\/Helsinki/);assert.match(currentDialog.html,/max-width:600px/);
-let requests=[];panel.call=async(type,payload)=>{requests.push({type,...payload});return {data:{...panel.info.data,away:{active:false,schedule:null}}};};
+assert.match(currentDialog.nodes['.bookings'].innerHTML,/Peruuta ajanjakso/);
+const requests=[];
 let renders=0;panel.render=()=>renders++;
 const draft=panel.settings;draft.away_temperature=17;
+const dispatch=(selector,data)=>currentDialog.listeners.click({target:{closest:query=>query===selector?{dataset:data}:null}});
+const values=name=>currentDialog.nodes[`[name="${name}"]`];
+const settle=()=>new Promise(setImmediate);
+const initialStart=1796745780;
+let occurrences=[
+ {id:'weekly',start:initialStart,end:initialStart+93600,repeat:'weekly',repeat_count:2,reminder_hours:24,active:false},
+ {id:'once',start:initialStart+86400,end:initialStart+90000,repeat:'once',active:false},
+ {id:'weekly',start:initialStart+7*86400,end:initialStart+7*86400+7200,repeat:'weekly',active:false},
+];
+panel.call=async(type,payload)=>{
+ requests.push({type,...payload});
+ if(payload.action==='skip')occurrences=occurrences.filter(item=>item.id!==payload.booking_id||item.start!==payload.occurrence);
+ if(payload.action==='cancel')occurrences=occurrences.filter(item=>item.id!==payload.booking_id);
+ const schedules=occurrences.filter((item,index)=>occurrences.findIndex(entry=>entry.id===item.id)===index);
+ const away={active:false,schedules,occurrences,occurrence_count:occurrences.length,time_zone:'Europe/Helsinki'};
+ return {away,data:{...panel.info.data,away}};
+};
+
 (async()=>{
- await currentDialog.nodes['.stop'].listeners.click();
- assert.equal(requests[0].action,'cancel');assert.equal(requests[0].type,'away');
+ const tip=currentDialog.nodes['#cancel-help'];
+ tip.style={};
+ tip.getBoundingClientRect=()=>({width:Number.parseFloat(tip.style.width),height:90});
+ const helpButton=new Node();
+ helpButton.dataset.help='cancel-help';
+ helpButton.getBoundingClientRect=()=>({left:288,top:482,bottom:518});
+ Object.assign(currentDialog,{clientWidth:298,clientHeight:498,clientTop:1,clientLeft:1,
+  getBoundingClientRect:()=>({left:24,top:50})});
+ currentDialog.listeners.click({target:{closest:selector=>selector==='[data-help]'?helpButton:null}});
+ assert.equal(tip.hidden,false);
+ assert.equal(tip.style.width,'282px');
+ assert.equal(tip.style.left,'33px');
+ assert.equal(tip.style.top,'384px');
+ currentDialog.listeners.scroll();
+ assert.equal(tip.hidden,true);
+ assert.match(currentDialog.html,/class="calendar-checkbox"><input name="repeat"/);
+ assert.match(currentDialog.html,/class="calendar-checkbox"><input name="reminder"/);
+ assert.match(currentDialog.html,/class="calendar-select"><select name="reminder-unit"/);
+ assert.match(currentDialog.html,/class="calendar-options repeat-limit"[^\n]+<\/label><p class="repeat-summary"/);
+ assert.doesNotMatch(currentDialog.html,/\.thermal-pilot-away-dialog footer\{[^}]*border-top/);
+ dispatch('[data-remove-booking]',{removeBooking:'legacy',occurrence:1794844800});
+ await settle();
+ assert.equal(requests[0].action,'cancel');assert.equal(requests[0].type,'away');assert.equal(requests[0].booking_id,'legacy');
  assert.equal(panel.settings,draft,'calendar actions preserve unsaved Settings drafts');assert.equal(panel.settings.away_temperature,17);
- assert.equal(currentDialog.removed,true);assert.equal(renders,1);
- panel.info.data.away={active:false,schedule:null,time_zone:'Europe/Helsinki'};
- panel.openAwayCalendar();assert.equal(currentDialog.nodes['.stop'],undefined);
- for(const key of ['start-date','start-time','end-date','end-time'])assert.equal(currentDialog.nodes[`[name="${key}"]`].value,'',key+' starts empty');
- assert.equal(currentDialog.groups['[data-date-card]'][0].dataset.dateCard,'start');
- assert.equal(currentDialog.groups['[data-date-card]'][0].active,true);assert.equal(currentDialog.groups['[data-date-card]'][1].active,false);
+ assert.equal(currentDialog.open,true);assert.equal(renders,1);
+ assert.match(panel.awayCalendarButton(),/class="header-count" aria-hidden="true">3<\/span>/);
+ panel.info.data.away.has_ongoing_series=true;
+ assert.match(panel.awayCalendarButton(),/class="header-count" aria-hidden="true">3\+<\/span>/);
+ panel.info.data.away.has_ongoing_series=false;
+ assert.equal(currentDialog.nodes['.cancel-edit'].hidden,true);
+ assert.doesNotMatch(currentDialog.html,/class="dismiss"|class="new"/);
+ assert.match(currentDialog.nodes['.bookings'].innerHTML,/Viikoittain/);
+ const reminderRows=currentDialog.nodes['.bookings'].innerHTML.split('</li>');
+ assert.match(reminderRows[0],new RegExp(`reminder-weekly-${initialStart}`));
+ assert.match(reminderRows[0],/Muistutuksen ennakkoaika · 1 päivä/);
+ assert.doesNotMatch(reminderRows[1],/reminder-indicator/);
+ for(const key of ['start','end']){
+  for(const field of ['date','hour','minute'])assert.equal(values(key+'-'+field).value,'',`${key} ${field} starts empty`);
+  const menu=currentDialog.html.match(new RegExp(`<select name="${key}-minute"[^>]*>(.*?)</select>`))[1];
+  assert.deepEqual([...menu.matchAll(/value="(\d+)"/g)].map(option=>option[1]),['00','15','30','45']);
+ }
+ assert.equal(currentDialog.groups['[data-date-card]'][0].active,true);
+ assert.equal(currentDialog.groups['[data-date-card]'][1].active,false);
+ assert.equal(currentDialog.nodes['.date-prompt'].textContent,'Valitse alkupäivä');
+ assert.equal((currentDialog.nodes['.months'].innerHTML.match(/data-calendar-date=/g)||[]).length,42);
  const emptyMonth=context.awayCalendarMonth(new Date(2026,10,1,12),{start:'',end:''},'2026-11-16','fi');
  assert.doesNotMatch(emptyMonth,/day selected|day range/);assert.match(emptyMonth,/aria-current="date"/);
  const endOnly=context.awayCalendarMonth(new Date(2026,10,1,12),{start:'',end:'2026-11-22'},'2026-11-16','fi');
  assert.doesNotMatch(endOnly,/day range/);
- // Selecting just the start date does not invent an end date or either time.
- currentDialog.listeners.click({target:{closest:selector=>selector==='[data-calendar-date]'?{dataset:{calendarDate:'2026-11-16'}}:null}});
- assert.equal(currentDialog.nodes['[name="start-date"]'].value,'2026-11-16');
- for(const key of ['start-time','end-date','end-time'])assert.equal(currentDialog.nodes[`[name="${key}"]`].value,'');
- currentDialog.nodes['[name="start-date"]'].value='2026-11-16';currentDialog.nodes['[name="start-time"]'].value='18:00';
- currentDialog.nodes['[name="end-date"]'].value='2026-11-22';currentDialog.nodes['[name="end-time"]'].value='22:00';
- currentDialog.nodes.form.listeners.submit({preventDefault:()=>{}});
- await new Promise(setImmediate);
- assert.equal(requests[1].start,'2026-11-16T18:00','wall-clock date is sent intact; backend owns the time zone');
- assert.equal(requests[1].end,'2026-11-22T22:00');assert.equal(requests[1].action,'set');
- console.log('Away UI: settings visibility, zone filtering, exemptions/help, Finnish date grid, save/cancel and preserved drafts passed.');
+ dispatch('[data-calendar-date]',{calendarDate:'2026-12-01'});
+ assert.equal(values('start-date').value,'2026-12-01');
+ assert.equal(values('start-hour').value,'08');
+ assert.equal(values('start-minute').value,'00');
+ assert.equal(values('end-date').value,'');
+ assert.equal(values('end-hour').value,'');
+ assert.equal(currentDialog.nodes['.repeat'].hidden,true);
+ assert.equal(currentDialog.nodes['.date-prompt'].textContent,'Valitse loppupäivä');
+ dispatch('[data-month]',{month:'1'});
+ assert.match(currentDialog.nodes['.months'].innerHTML,/tammikuu 2027/);
+ assert.equal(currentDialog.nodes['.date-prompt'].textContent,'Valitse loppupäivä');
+ dispatch('[data-month]',{month:'-1'});
+ dispatch('[data-calendar-date]',{calendarDate:'2026-12-03'});
+ assert.equal(values('end-hour').value,'16');
+ assert.equal(values('end-minute').value,'00');
+ assert.equal(currentDialog.nodes['.repeat'].hidden,false);
+ assert.equal(currentDialog.nodes['.repeat-limit'].hidden,true);
+ values('repeat').checked=true;
+ values('repeat').listeners.change();
+ assert.equal(currentDialog.nodes['.repeat-limit'].hidden,false);
+ currentDialog.nodes.form.listeners.submit({preventDefault(){}});
+ assert.equal(currentDialog.nodes['[role=alert]'].hidden,false);
+ assert.equal(requests.length,1);
+ values('repeat-count').value='1';
+ values('repeat-count').listeners.input();
+ assert.match(currentDialog.nodes['.repeat-summary'].textContent,/1.–3\.12\.2026/);
+ values('repeat-count').value='3';
+ values('repeat-count').listeners.input();
+ assert.match(currentDialog.nodes['.repeat-summary'].textContent,/15.–17\.12\.2026/);
+ for(const [end,hidden] of [['2026-12-01',true],['2026-12-02',false],['2026-12-06',false],['2026-12-07',true],['2026-12-03',false]]){
+  values('end-date').value=end;
+  values('end-date').listeners.change({target:values('end-date')});
+  assert.equal(currentDialog.nodes['.repeat'].hidden,hidden,end);
+  assert.equal(currentDialog.nodes['.repeat-summary'].hidden,hidden,end);
+ }
+ values('reminder').checked=true;
+ values('reminder').listeners.change();
+ assert.equal(currentDialog.nodes['.reminder-lead'].hidden,false);
+ values('reminder-amount').value='2';
+ values('reminder-unit').value='days';
+ currentDialog.nodes.form.listeners.submit({preventDefault(){}});
+ await settle();
+ assert.deepEqual(requests[1],{type:'away',action:'set',start:'2026-12-01T08:00',end:'2026-12-03T16:00',repeat:'weekly',repeat_count:3,reminder_hours:48});
+ dispatch('[data-edit-booking]',{editBooking:'weekly'});
+ assert.equal(values('repeat').checked,true);
+ assert.equal(values('start-minute').value,'03');
+ assert.equal(values('start-minute').savedMinute.value,'03');
+ values('start-hour').listeners.change();
+ assert.equal(values('start-minute').value,'00');
+ assert.notEqual(values('start-date').value,'');
+ assert.equal(currentDialog.nodes['.cancel-edit'].hidden,false);
+ currentDialog.nodes['.cancel-edit'].listeners.click();
+ assert.equal(currentDialog.open,true);
+ assert.equal(currentDialog.nodes['.cancel-edit'].hidden,true);
+ assert.equal(values('start-date').value,'');
+ assert.equal(values('repeat').checked,false);
+ assert.equal(requests.length,2);
+ dispatch('[data-edit-booking]',{editBooking:'weekly'});
+ currentDialog.nodes.form.listeners.submit({preventDefault(){}});
+ await settle();
+ assert.equal(requests[2].booking_id,'weekly');
+ assert.match(requests[2].start,/:03$/);
+ const laterDate=initialStart+7*86400;
+ dispatch('[data-remove-booking]',{removeBooking:'weekly',occurrence:laterDate});
+ assert.equal(requests.length,3,'Ask before cancelling a recurring booking');
+ const rows=currentDialog.nodes['.bookings'].innerHTML.split('</li>');
+ assert.doesNotMatch(rows[0],/remove-choice/);
+ assert.doesNotMatch(rows[1],/remove-choice/);
+ assert.match(rows[2],/Vain tämä kerta.*Koko sarja/);
+ dispatch('[data-removal]',{removal:'skip'});
+ await settle();
+ assert.deepEqual(requests[3],{type:'away',action:'skip',booking_id:'weekly',occurrence:laterDate});
+ assert.equal(occurrences[0].start,initialStart);
+ assert.equal(occurrences.length,2);
+ dispatch('[data-remove-booking]',{removeBooking:'weekly',occurrence:initialStart});
+ dispatch('[data-removal]',{removal:'cancel'});
+ await settle();
+ assert.equal(requests[4].action,'cancel');assert.equal(requests[4].booking_id,'weekly');
+ assert.equal(occurrences.length,1);
+ dispatch('[data-remove-booking]',{removeBooking:'once',occurrence:initialStart+86400});
+ await settle();
+ assert.equal(requests[5].action,'cancel');assert.equal(requests[5].booking_id,'once');
+ assert.doesNotMatch(panel.awayCalendarButton(),/class="header-count"/);
+ assert.equal(currentDialog.nodes['.no-bookings'].hidden,false);
+ occurrences=Array.from({length:11},(_,index)=>{
+  const start=initialStart+index*7*86400;
+  return {id:'paged',start,end:start+93600,repeat:'weekly',repeat_count:11,active:false};
+ });
+ panel.info.data.away={schedules:[occurrences[0]],occurrences,occurrence_count:11,time_zone:'Europe/Helsinki'};
+ panel.openAwayCalendar();
+ assert.equal(currentDialog.nodes['.booking-pages'].hidden,false);
+ assert.equal(currentDialog.nodes['.booking-page-number'].textContent,'1 / 2');
+ assert.equal((currentDialog.nodes['.bookings'].innerHTML.match(/<li>/g)||[]).length,10);
+ dispatch('[data-booking-page]',{bookingPage:'1'});
+ assert.equal(currentDialog.nodes['.booking-page-number'].textContent,'2 / 2');
+ assert.equal((currentDialog.nodes['.bookings'].innerHTML.match(/<li>/g)||[]).length,1);
+ assert.match(currentDialog.nodes['.bookings'].innerHTML,/Muokkaa sarjaa/);
+ const pageTwoStart=occurrences[10].start;
+ dispatch('[data-edit-booking]',{editBooking:'paged'});
+ assert.equal(values('repeat-count').value,11);
+ currentDialog.nodes['.cancel-edit'].listeners.click();
+ dispatch('[data-remove-booking]',{removeBooking:'paged',occurrence:pageTwoStart});
+ dispatch('[data-removal]',{removal:'skip'});
+ await settle();
+ assert.deepEqual(requests.at(-1),{type:'away',action:'skip',booking_id:'paged',occurrence:pageTwoStart});
+ assert.equal(currentDialog.nodes['.booking-pages'].hidden,true);
+ assert.equal((currentDialog.nodes['.bookings'].innerHTML.match(/<li>/g)||[]).length,10);
+ console.log('Away calendar defaults, badge, editing, independent cancellation, recurrence choices and settings drafts passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

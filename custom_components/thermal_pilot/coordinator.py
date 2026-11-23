@@ -17,8 +17,10 @@ from .control import ThermostatControl
 from .air_control import AirHeatPumpControl, zone_temperature, binary
 from .heating_assistance import update_room as update_assistance_room, forecast as assistance_forecast
 from .solar_heating import SOLAR_THRESHOLD_SECONDS, production_kw, update_sessions
-from .notifications import notify_manual_door_pause, notify_garage_door_open
-from .away import person_count, parse_schedule, room_exempt, update as update_away, overlay_plan as away_plan
+from .notifications import notify_away_reminder, notify_manual_door_pause, notify_garage_door_open
+from .away import calendar_periods, change_calendar, person_count, room_exempt
+from .away import overlay_plan as away_plan
+from .away import update as update_away
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
@@ -175,8 +177,10 @@ class PilotCoordinator(DataUpdateCoordinator):
             for deadline in (assistance.get('minimum_until', 0), (assistance.get('pump_since') or 0) + 1800):
                 if deadline > now.timestamp():
                     future.append(datetime.fromtimestamp(deadline, now.tzinfo))
-        schedule = self.away.get('schedule') or {}
-        for deadline in (schedule.get('start'), schedule.get('end'), self.away_status.get('automatic_start')):
+        away_deadlines = [period[key] for period in calendar_periods(self.away_status) for key in ('start', 'end')]
+        away_deadlines.append(self.away_status.get('automatic_start'))
+        away_deadlines.extend(reminder['deadline'] for reminder in self.away_status.get('reminders', []))
+        for deadline in away_deadlines:
             if deadline is not None and deadline > now.timestamp():
                 future.append(datetime.fromtimestamp(deadline, now.tzinfo))
         for deadline in self.garage_door_warning_deadlines:
@@ -1337,7 +1341,22 @@ class PilotCoordinator(DataUpdateCoordinator):
     async def update_away_status(self, data: dict[str, Any], now: datetime) -> dict[str, Any]:
         """Persist presence continuity and calendar cancellation before control."""
         zone = self.hass.states.get(self.settings['away_zone'])
-        state, status = update_away(self.away, self.settings, person_count(zone), now.timestamp())
+        state, status = update_away(self.away, self.settings, person_count(zone), now.timestamp(),
+                                    self.hass.config.time_zone)
+        due = [reminder for reminder in status['reminders'] if reminder['deadline'] <= now.timestamp()]
+        if due:
+            bookings = {booking['id']: booking for booking in state['schedules']}
+            for reminder in due:
+                booking_id, start = reminder['id'], reminder['start']
+                notification_id = f'{DOMAIN}_{self.entry.entry_id}_away_{booking_id}_{int(start)}'
+                try:
+                    await notify_away_reminder(self.hass, self.settings['language'],
+                                               self.hass.config.time_zone, reminder, notification_id)
+                except Exception:
+                    # A Home Assistant service failure must not interrupt climate control.
+                    _LOGGER.warning('Away reminder could not be created', exc_info=True)
+                else:
+                    bookings[booking_id].setdefault('reminded_starts', []).append(start)
         if state != self.away:
             await self.store.async_save({**self.storage_data(), 'away': state})
             self.away = state
@@ -1362,14 +1381,13 @@ class PilotCoordinator(DataUpdateCoordinator):
         return status
 
     async def set_away_schedule(self, action: str, start: str | None, end: str | None,
-                                now: datetime) -> dict[str, Any]:
+                                now: datetime, booking_id: str | None = None,
+                                repeat: str = 'once', occurrence: float | None = None,
+                                reminder_hours: int = 0, repeat_count: int = 0) -> dict[str, Any]:
         """Called under backup_lock; calendar dates use HA's zone, not the browser's."""
         state = deepcopy(self.away)
-        if action == 'cancel':
-            state.pop('schedule', None)
-        else:
-            state['schedule'] = parse_schedule(start, end, self.hass.config.time_zone, now)
-        state.pop('manual_started', None)
+        change_calendar(state, action, start, end, now, self.hass.config.time_zone,
+                        booking_id, repeat, occurrence, reminder_hours, repeat_count)
         state.pop('last_cancel_reason', None)
         await self.store.async_save({**self.storage_data(), 'away': state})
         self.away = state
