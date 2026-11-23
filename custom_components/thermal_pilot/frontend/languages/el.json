@@ -286,6 +286,7 @@
     "Not configured": "Δεν έχει ρυθμιστεί",
     "Not selected": "Μη επιλεγμένο",
     "Notifications": "Ειδοποιήσεις",
+    "No active notifications.": "Δεν υπάρχουν ενεργές ειδοποιήσεις.",
     "Notify in Home Assistant when a room temperature sensor stays unchanged or unavailable for this many hours. A stable room can also have an unchanged reading, so the warning asks you to check the sensor. ThermalPilot sends at most one sensor notification per calendar day. Monitoring runs while ThermalPilot is active; long monitoring gaps restart the timer.": "Προειδοποίηση μετά αυτόν τον χρόνο χωρίς νέα θερμοκρασία.",
     "Now": "Τώρα",
     "Observation and learning are enabled.": "Παρατήρηση και μάθηση ενεργές.",

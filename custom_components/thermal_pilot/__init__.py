@@ -39,7 +39,8 @@ async def async_setup_entry(hass, entry):
                 str(Path(__file__).parent/'brand'/'icon.png'), False),
             StaticPathConfig('/thermal_pilot/rooms-floor-plan.png',
                 str(Path(__file__).parent/'frontend'/'rooms-floor-plan.png'), False)])
-        for handler in (ws_get, ws_retention, ws_plan_chart, ws_save, ws_history, ws_reset, ws_manual, ws_away, ws_test_sources):
+        for handler in (ws_get, ws_subscribe_notifications, ws_retention, ws_plan_chart, ws_save,
+                        ws_history, ws_reset, ws_manual, ws_away, ws_test_sources):
             websocket_api.async_register_command(hass, handler)
         frontend.add_extra_js_url(hass, f'/thermal_pilot/heat-retention-card.js?v={VERSION}')
         frontend.add_extra_js_url(hass, f'/thermal_pilot/plan-chart-card.js?v={VERSION}')
@@ -158,6 +159,38 @@ def ws_get(hass, connection, msg):
         }, 'manual_controls':c.manual_controls(), 'notification_targets':companion_notification_targets(hass),
             'room_entities':room_entities,
             'price_provider_options':price_provider_options(hass), 'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS})
+
+
+@websocket_api.websocket_command({
+    vol.Required('type'): 'thermal_pilot/subscribe_notifications',
+    vol.Required('entry_id'): str,
+})
+@websocket_api.require_admin
+@callback
+def ws_subscribe_notifications(hass, connection, msg):
+    """Send active panel notices on change without making the panel reload its settings."""
+    coordinator = get_coordinator(hass, connection, msg)
+    if coordinator is None:
+        return
+    subscription_id = msg['id']
+    previous = None
+
+    @callback
+    def send_notifications():
+        nonlocal previous
+        data = coordinator.data or {}
+        outlook = data.get('price_outlook') or {}
+        snapshot = {
+            'warnings': list(data.get('warnings', [])),
+            'price_outlook': {key: outlook[key] for key in ('enabled', 'available', 'reason') if key in outlook},
+        }
+        if snapshot != previous:
+            previous = snapshot
+            connection.send_event(subscription_id, snapshot)
+
+    connection.subscriptions[subscription_id] = coordinator.async_add_listener(send_notifications)
+    connection.send_result(subscription_id)
+    send_notifications()
 
 
 @websocket_api.websocket_command({vol.Required('type'):'thermal_pilot/retention', vol.Optional('entry_id'):str})

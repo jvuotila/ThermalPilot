@@ -286,6 +286,7 @@
     "Not configured": "Nav konfigurēts",
     "Not selected": "Nav izvēlēts",
     "Notifications": "Paziņojumi",
+    "No active notifications.": "Nav aktīvu paziņojumu.",
     "Notify in Home Assistant when a room temperature sensor stays unchanged or unavailable for this many hours. A stable room can also have an unchanged reading, so the warning asks you to check the sensor. ThermalPilot sends at most one sensor notification per calendar day. Monitoring runs while ThermalPilot is active; long monitoring gaps restart the timer.": "Brīdināt pēc šī laika ar nemainīgu vai trūkstošu temperatūru.",
     "Now": "Tagad",
     "Observation and learning are enabled.": "Novērošana un mācīšanās iespējota.",

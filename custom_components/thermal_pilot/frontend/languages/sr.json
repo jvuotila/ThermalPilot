@@ -286,6 +286,7 @@
     "Not configured": "Није подешено",
     "Not selected": "Није изабрано",
     "Notifications": "Обавештења",
+    "No active notifications.": "Nema aktivnih obaveštenja.",
     "Notify in Home Assistant when a room temperature sensor stays unchanged or unavailable for this many hours. A stable room can also have an unchanged reading, so the warning asks you to check the sensor. ThermalPilot sends at most one sensor notification per calendar day. Monitoring runs while ThermalPilot is active; long monitoring gaps restart the timer.": "Упозори после овог времена без нове температуре.",
     "Now": "Сада",
     "Observation and learning are enabled.": "Посматрање и учење укључени.",

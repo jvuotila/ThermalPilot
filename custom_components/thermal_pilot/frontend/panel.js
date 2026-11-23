@@ -312,6 +312,38 @@ function statusNotice(text,level='info',extra=''){
   const safeLevel=['error','warning','info'].includes(level)?level:'info';
   return `<p class="notice notice-${safeLevel} ${extra}" role="${safeLevel==='error'?'alert':'status'}">${statusIcon(safeLevel)}<span class="notice-text">${escapeHTML(text)}</span></p>`;
 }
+const notificationLevels=['error','warning','info'];
+function activeNotifications(data){
+  const messages=new Map((data?.warnings||[]).map(text=>[text,statusMessageLevel(text)]));
+  const outlook=data?.price_outlook;
+  if(outlook?.enabled&&!outlook.available){
+    const reason=outlook.reason||'Waiting for confirmed prices.';
+    messages.set(`Price forecast: ${reason}`,'warning');
+  }
+  return notificationLevels.flatMap(level=>[...messages].filter(([,severity])=>severity===level).map(([text])=>({text,level})));
+}
+const notificationDrawerStyles=`
+ .tp-notification-drawer{position:fixed;inset:0 0 0 auto;margin:0;box-sizing:border-box;width:min(64vw,1024px);max-width:100%;height:100%;max-height:100%;padding:0;border:0;border-left:1px solid var(--divider-color,#c6d2d8);background:var(--card-background-color,#fff);color:var(--primary-text-color,#213547);font:15px system-ui;box-shadow:-12px 0 36px #0003;overflow:hidden}
+ .tp-notification-drawer[open]{display:flex;flex-direction:column;animation:tp-drawer-in .24s ease-out}
+ .tp-notification-drawer::backdrop{background:#13232d55}
+ @keyframes tp-drawer-in{from{transform:translateX(100%)}to{transform:translateX(0)}}
+ .tp-notification-drawer header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px;border-bottom:1px solid var(--divider-color,#c6d2d8)}
+ .tp-notification-drawer h2{font-size:21px;margin:0}
+ .tp-notification-drawer button{flex:none;width:44px;height:44px;border:1px solid transparent;border-radius:9px;background:transparent;color:inherit;font:26px system-ui;cursor:pointer}
+ .tp-notification-drawer button:hover{background:var(--secondary-background-color,#ecf1f3)}
+ .tp-notification-drawer button:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}
+ .tp-notification-drawer .notification-content{overflow:auto;overscroll-behavior:contain;padding:20px 24px}
+ .tp-notification-drawer ul{list-style:none;padding:0;margin:0;display:grid;gap:12px}
+ .tp-notification-drawer li{--accent:#3498db;box-sizing:border-box;overflow:hidden;display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:8px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card-background-color,#fff));line-height:1.5;overflow-wrap:anywhere}
+ .tp-notification-drawer li[aria-hidden="true"]{pointer-events:none}
+ .tp-notification-drawer li[data-severity="error"]{--accent:#d64545}
+ .tp-notification-drawer li[data-severity="warning"]{--accent:#d9a400}
+ .tp-notification-drawer .notice-icon{flex:0 0 20px;width:20px;height:20px;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+ .tp-notification-drawer .notice-level{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .tp-notification-drawer p{margin:0;color:var(--secondary-text-color,#526b75)}
+ @media(max-width:600px){.tp-notification-drawer{width:100%;border-left:0}.tp-notification-drawer header,.tp-notification-drawer .notification-content{padding:12px 16px}}
+ @media(prefers-reduced-motion:reduce){.tp-notification-drawer[open]{animation:none}}
+`;
 const HEATING_FLAME='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2c1 5-3 6-3 10-2-1-3-3-3-5-3 3-5 6-5 9a10 10 0 0 0 20 0c0-6-5-9-9-14Z"/></svg>';
 const COOLING_SNOWFLAKE='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M3.34 7l17.32 10M3.34 17 20.66 7M9 4l3 3 3-3M9 20l3-3 3 3M3.5 10l4-1-1-4M20.5 14l-4 1 1 4M3.5 14l4 1-1 4M20.5 10l-4-1 1-4"/></svg>';
 const tpI18n=globalThis.__thermalPilotLocalization;
@@ -409,10 +441,18 @@ class ThermalPilotPanel extends HTMLElement {
     const dark=value?.themes?.darkMode===true;
     this.style?.setProperty('color-scheme',dark?'dark':'light');
     this.style?.setProperty('--tp-floorplan-opacity',dark?'.04':'.2');
-    this._hass=value;this.updateFireplaceReading();this.updateSourceReadings();if(this.isConnected && !this.loaded && !this.loading)this.load();}
-  set panel(value){this._panel=value;if(this.isConnected && this._hass && !this.loaded)this.load();}
-  connectedCallback(){if(this._hass)this.load();this.timer=setInterval(()=>{if(!['settings','rooms'].includes(this.tab))this.load();},60000);}
-  disconnectedCallback(){this.awayDialog?.close();this.manualDialog?.close();this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearTimeout(this.manualSessionTimer);clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
+    this._hass=value;this.updateFireplaceReading();this.updateSourceReadings();if(this.isConnected && !this.loaded && !this.loading)this.load();
+    if(this.isConnected)this.subscribeNotifications();}
+  set panel(value){this._panel=value;if(this.isConnected && this._hass && !this.loaded)this.load();if(this.isConnected)this.subscribeNotifications();}
+  connectedCallback(){
+    if(this._hass)this.load();
+    this.subscribeNotifications();
+    this.timer=setInterval(()=>{
+      this.subscribeNotifications();
+      if(!['settings','rooms'].includes(this.tab))this.load();
+    },60000);
+  }
+  disconnectedCallback(){this.stopNotificationSubscription();this.notificationDrawer?.close();this.awayDialog?.close();this.manualDialog?.close();this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearTimeout(this.manualSessionTimer);clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
   get entry(){return this._panel?.config?.entry_id;}
   manualControlStatus(id){
     const control=this.info?.manual_controls?.[id];
@@ -471,7 +511,170 @@ class ThermalPilotPanel extends HTMLElement {
     const active=away?.active;
     const scheduled=Boolean(away?.schedule);
     const title=this.t(active?'Away temperatures active':scheduled?'Scheduled absence':'Away calendar');
-    return `<button type="button" id="away-calendar" data-away-calendar class="away-calendar-button${active?' active':scheduled?' scheduled':''}" aria-label="${escapeHTML(title)}" title="${escapeHTML(title)}" ${this.info?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18M8 14h2M14 14h2M8 17h2"/></svg></button>`;
+    return `<button type="button" id="away-calendar" data-away-calendar class="header-icon-button away-calendar-button${active?' active':scheduled?' scheduled':''}" aria-label="${escapeHTML(title)}" title="${escapeHTML(title)}" ${this.info?'':'disabled'}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 10h18M8 14h2M14 14h2M8 17h2"/></svg></button>`;
+  }
+  async subscribeNotifications(){
+    const connection=this._hass?.connection,entryId=this.entry;
+    const current=this.notificationSubscription;
+    if(current?.connection===connection&&current?.entryId===entryId)return;
+    this.stopNotificationSubscription();
+    if(!entryId||!connection?.subscribeMessage)return;
+    const subscription={connection,entryId};
+    this.notificationSubscription=subscription;
+    try{
+      const unsubscribe=await connection.subscribeMessage(data=>{
+        if(this.notificationSubscription!==subscription)return;
+        this.notificationData=data;
+        this.updateNotifications();
+      },{type:'thermal_pilot/subscribe_notifications',entry_id:entryId});
+      if(this.notificationSubscription===subscription)subscription.unsubscribe=unsubscribe;
+      else await unsubscribe();
+    }catch{
+      // Keep the last panel snapshot available and retry on the next refresh.
+      if(this.notificationSubscription===subscription)this.stopNotificationSubscription();
+    }
+  }
+  stopNotificationSubscription(){
+    const subscription=this.notificationSubscription;
+    if(!subscription)return;
+    this.notificationSubscription=null;
+    this.notificationData=null;
+    subscription.unsubscribe?.().catch(()=>{});
+  }
+  notificationButton(){
+    return `<button type="button" id="notification-center" class="header-icon-button notification-button" aria-label="Notifications" title="Notifications" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-8 12a2 2 0 0 0 4 0"/></svg><span class="notification-count" aria-hidden="true" hidden></span></button>`;
+  }
+  updateNotifications(){
+    const button=this.shadowRoot.querySelector('#notification-center');
+    if(!button)return;
+    const notices=activeNotifications(this.notificationData??this.info?.data);
+    const errors=new Set(notices.filter(notice=>notice.level==='error').map(notice=>notice.text));
+    // Closing the drawer acknowledges the current errors for this visit.
+    // A newly active error can draw attention again after a recovery.
+    const hasNewError=[...errors].some(text=>!this.notificationErrors?.has(text));
+    this.notificationErrors=errors;
+    const severity=notices[0]?.level;
+    if(severity)button.dataset.severity=severity;
+    else delete button.dataset.severity;
+    const count=button.querySelector('.notification-count');
+    count.hidden=!notices.length;
+    count.textContent=notices.length;
+    let label=this.t('Notifications');
+    if(severity)label+=` (${notices.length}) · ${this.t(severity[0].toUpperCase()+severity.slice(1)+':').replace(/:$/, '')}`;
+    button.setAttribute('aria-label',label);
+    button.title=label;
+    button.setAttribute('aria-expanded',String(Boolean(this.notificationDrawer?.open)));
+    const drawer=this.notificationDrawer;
+    if(drawer?.open){
+      this.renderNotificationList(notices);
+      if(drawer.openedAutomatically&&!notices.length){
+        drawer.autoCloseTimer??=setTimeout(()=>{
+          if(this.notificationDrawer===drawer&&drawer.open)drawer.close();
+        },2000);
+      }else{
+        clearTimeout(drawer.autoCloseTimer);
+        drawer.autoCloseTimer=null;
+      }
+      return;
+    }
+    if(hasNewError)this.openNotifications({automatic:true});
+  }
+  openNotifications({automatic=false}={}){
+    if(this.notificationDrawer?.open)return;
+    const dialog=document.createElement('dialog');
+    dialog.openedAutomatically=automatic;
+    dialog.notificationRows=new Map();
+    this.notificationDrawer=dialog;
+    dialog.className='tp-notification-drawer';
+    const theme=getComputedStyle(this);
+    dialog.style.colorScheme=theme.colorScheme;
+    for(const property of ['--card-background-color','--primary-text-color','--secondary-text-color','--secondary-background-color','--divider-color','--primary-color']){
+      const value=theme.getPropertyValue(property);
+      if(value)dialog.style.setProperty(property,value);
+    }
+    dialog.setAttribute('aria-labelledby','tp-notification-title');
+    dialog.innerHTML=`<style>${notificationDrawerStyles}</style><header><h2 id="tp-notification-title"></h2><button type="button" autofocus>×</button></header><div class="notification-content" aria-live="polite"><ul></ul><p hidden></p></div>`;
+    dialog.querySelector('button').addEventListener('click',()=>dialog.close());
+    // Native dialogs receive backdrop events themselves. Check the bounds so
+    // clicking empty space inside the drawer or dragging out of it keeps it open.
+    const onBackdrop=event=>{
+      if(event.target!==dialog)return false;
+      const {left,right,top,bottom}=dialog.getBoundingClientRect();
+      return event.clientX<left||event.clientX>=right||event.clientY<top||event.clientY>=bottom;
+    };
+    let backdropPress=false;
+    dialog.addEventListener('pointerdown',event=>{backdropPress=onBackdrop(event);});
+    dialog.addEventListener('click',event=>{if(backdropPress&&onBackdrop(event))dialog.close();});
+    dialog.addEventListener('close',()=>{
+      clearTimeout(dialog.autoCloseTimer);
+      for(const row of dialog.notificationRows.values())row.exitAnimation?.cancel();
+      dialog.remove();
+      if(this.notificationDrawer!==dialog)return;
+      this.notificationDrawer=null;
+      const trigger=this.shadowRoot.querySelector('#notification-center');
+      trigger?.setAttribute('aria-expanded','false');
+      trigger?.focus({preventScroll:true});
+    },{once:true});
+    this.renderNotificationList(activeNotifications(this.notificationData??this.info?.data));
+    document.body.append(dialog);
+    dialog.showModal();
+    this.shadowRoot.querySelector('#notification-center')?.setAttribute('aria-expanded','true');
+  }
+  renderNotificationList(notices){
+    const dialog=this.notificationDrawer;
+    const language=this.settings?.language||'en',signature=JSON.stringify([language,notices]);
+    if(dialog.notificationSignature===signature)return;
+    dialog.notificationSignature=signature;
+    dialog.lang=language;
+    dialog.querySelector('h2').textContent=this.t('Notifications');
+    dialog.querySelector('button').setAttribute('aria-label',this.t('Close'));
+    const list=dialog.querySelector('.notification-content ul');
+    const empty=dialog.querySelector('.notification-content p');
+    empty.textContent=this.t('No active notifications.');
+    const active=new Set(notices.map(notice=>notice.text));
+    const removed=[...list.children].filter(row=>!active.has(row.notificationText)&&!row.exitAnimation).reverse();
+    const reduceMotion=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const stagger=Math.min(80,960/Math.max(1,removed.length-1));
+    for(const [index,row] of removed.entries()){
+      const removeRow=()=>{
+        dialog.notificationRows.delete(row.notificationText);
+        row.remove();
+        empty.hidden=list.children.length>0;
+      };
+      if(reduceMotion||!row.animate){
+        removeRow();
+        continue;
+      }
+      row.setAttribute('aria-hidden','true');
+      const animation=row.animate([
+        {opacity:1,transform:'translateY(0)',height:`${row.getBoundingClientRect().height}px`,paddingBlock:'12px'},
+        {opacity:0,transform:'translateY(-12px)',height:'0px',paddingBlock:'0px'},
+      ],{duration:280,delay:index*stagger,easing:'ease-in-out',fill:'forwards'});
+      row.exitAnimation=animation;
+      animation.onfinish=()=>{
+        if(row.exitAnimation===animation)removeRow();
+      };
+    }
+    // Keep outgoing notices in place until their animation finishes.
+    let next=list.firstElementChild;
+    for(const {text,level} of notices){
+      let row=dialog.notificationRows.get(text);
+      if(!row){
+        row=document.createElement('li');
+        row.notificationText=text;
+        dialog.notificationRows.set(text,row);
+      }
+      row.exitAnimation?.cancel();
+      row.exitAnimation=null;
+      row.removeAttribute('aria-hidden');
+      row.dataset.severity=level;
+      row.innerHTML=`${statusIcon(level)}<span>${escapeHTML(text)}</span>`;
+      this.translateRoot(row);
+      while(next&&!active.has(next.notificationText))next=next.nextElementSibling;
+      if(row!==next)list.insertBefore(row,next);
+      next=row.nextElementSibling;
+    }
+    empty.hidden=list.children.length>0;
   }
   openAwayCalendar(){
     this.awayDialog?.close();
@@ -1803,8 +2006,8 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
       <div class="status-block"><dt>Data collection</dt><dd><span class="status-pill ${data.collection?.collecting?'active':'paused'}">${data.collection?.collecting?'Active':'Paused'}</span><span class="status-pill quality quality-${quality.level}" tabindex="0" title="${escapeHTML(quality.detail)}">${escapeHTML(this.t('Data coverage: '+quality.label))}${tooltipInfoIcon}</span></dd></div>
       <div class="status-block"><dt>Stored history</dt><dd>${escapeHTML(Number(data.history_info?.rows??0).toLocaleString())}<span class="status-unit"> samples</span></dd><small class="collection-date">Collection started: ${data.history_info?.started_at!=null?escapeHTML(dateLabel(data.history_info.started_at*1000)):'No observations yet'}</small><small>Local database: ${((data.history_info?.bytes??0)/1048576).toFixed(1)} MiB</small></div>
       <div class="status-block"><dt>Last update</dt><dd class="status-time">${escapeHTML(data.updated?timeLabel(data.updated):'—')}</dd><small>Latest calculation and observation.</small></div>
-    </dl></section>${(data.warnings||[]).map(w=>statusNotice(w,statusMessageLevel(w))).join('')}${!rooms.length?'<section>Add rooms on the Settings page.</section>':''}
-    ${data.price_outlook?.enabled&&!data.price_outlook.available?`<p class="notice notice-warning" role="status">${statusIcon('warning')}<span class="notice-text">Price forecast: ${escapeHTML(data.price_outlook.reason||'Waiting for confirmed prices.')}</span></p>`:''}<div class="plan-comparison-grid">${(electricHeating(this.settings)||(this.settings.heating_zones||[]).length)?this.priceChart(false):''}${this.heatRetentionView()}</div>${rooms.length?`<section class="room-cards-group"><details class="observation-accordion" id="room-cards-accordion" ${this.historySectionOpen('overview:room-cards-accordion',false)?'open':''}><summary><h2>${escapeHTML(this.t('Rooms'))}</h2></summary><div class="observation-content"><div class="observation-cards">${rooms.map(([roomId,room])=>this.roomPlanView(roomId,room)).join('')}</div></div></details></section>`:''}`;
+    </dl></section>${!rooms.length?'<section>Add rooms on the Settings page.</section>':''}
+    <div class="plan-comparison-grid">${(electricHeating(this.settings)||(this.settings.heating_zones||[]).length)?this.priceChart(false):''}${this.heatRetentionView()}</div>${rooms.length?`<section class="room-cards-group"><details class="observation-accordion" id="room-cards-accordion" ${this.historySectionOpen('overview:room-cards-accordion',false)?'open':''}><summary><h2>${escapeHTML(this.t('Rooms'))}</h2></summary><div class="observation-content"><div class="observation-cards">${rooms.map(([roomId,room])=>this.roomPlanView(roomId,room)).join('')}</div></div></details></section>`:''}`;
   }
   roomPlanView(roomId, room) {
     const plan = room.plan;
@@ -2305,7 +2508,16 @@ details{scroll-margin-block:16px}
 :host{min-width:0;max-width:100%}
 .header-tools{position:absolute;top:24px;right:24px;display:flex;align-items:center;gap:16px}.page-title{padding-right:56px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
 .page-title h1{margin:0;min-width:0}
-.away-calendar-button{position:relative;z-index:30;display:inline-flex;align-items:center;justify-content:center;flex:none;width:40px;height:40px;padding:8px;border:1px solid var(--divider-color,#c6d2d8);border-radius:10px;background:transparent;color:var(--secondary-text-color,#526b75);cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s}.away-calendar-button:hover:not(:disabled){background:#00838f14;border-color:var(--primary-color,#00838f);color:var(--primary-color,#00838f);box-shadow:0 3px 12px #00838f26}.away-calendar-button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.away-calendar-button.active{color:var(--primary-color,#00838f);background:#00838f15;border-color:var(--primary-color,#00838f)}.away-calendar-button.scheduled{color:var(--primary-color,#00838f);border-style:dashed}.away-calendar-button:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}
+.header-icon-button{position:relative;margin:0;z-index:30;display:inline-flex;align-items:center;justify-content:center;flex:none;width:40px;height:40px;padding:8px;border:1px solid var(--divider-color,#c6d2d8);border-radius:10px;background:transparent;color:var(--secondary-text-color,#526b75);cursor:pointer;transition:background-color .16s,border-color .16s,box-shadow .16s}.header-icon-button:hover:not(:disabled){background:#00838f14;border-color:var(--primary-color,#00838f);color:var(--primary-color,#00838f);box-shadow:0 3px 12px #00838f26}.header-icon-button svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.away-calendar-button.active{color:var(--primary-color,#00838f);background:#00838f15;border-color:var(--primary-color,#00838f)}.away-calendar-button.scheduled{color:var(--primary-color,#00838f);border-style:dashed}.header-icon-button:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}
+.header-actions{display:grid;gap:12px}
+.notification-button[data-severity="warning"]{--notification-accent:#d9a400}
+.notification-button[data-severity="error"]{--notification-accent:#d64545}
+.header-icon-button.notification-button:is([data-severity="warning"],[data-severity="error"]){border:2px solid var(--notification-accent);animation:tp-notification-pulse 1.7s ease-in-out infinite}
+@keyframes tp-notification-pulse{0%,100%{border-color:var(--notification-accent);box-shadow:0 0 0 1px var(--notification-accent)}50%{border-color:color-mix(in srgb,var(--notification-accent) 35%,transparent);box-shadow:0 0 0 3px transparent}}
+.notification-count{position:absolute;top:-5px;right:-5px;min-width:18px;padding:0 4px;border-radius:10px;background:var(--notification-accent,var(--primary-color,#00838f));color:#fff;font:bold 11px/18px system-ui;text-align:center}
+.notification-button[data-severity="warning"] .notification-count{color:#26200b}
+@media(prefers-reduced-motion:reduce){.header-icon-button.notification-button:is([data-severity="warning"],[data-severity="error"]){animation:none}}
+@media(max-width:1199px){.page-title{min-height:92px;align-items:flex-start}.page-title h1{align-self:flex-start;margin-top:4px}}
 @media(max-width:360px){.page-title h1{font-size:22px}}
 .header-logo{display:block;width:36px;height:36px;object-fit:contain;flex:none}
 .menu-button{display:none;align-items:center;justify-content:center;flex:none;width:44px;height:44px;margin:0;padding:10px;border:0;background:transparent}
@@ -2391,7 +2603,7 @@ details{scroll-margin-block:16px}
  header.page-layout{display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,1279px);align-items:center;gap:0 32px;padding-top:20px;grid-template-rows:minmax(100px,auto) auto}
  header.page-layout .page-title{grid-column:1;grid-row:1;margin:0;padding:0}
  header.page-layout .header-tools{position:static;grid-column:2;grid-row:1;width:100%;min-width:0}
- .header-tools>.away-calendar-button{position:absolute;top:16px;right:24px}
+ .header-tools>.header-actions{position:absolute;top:16px;right:24px}
  .header-tools .compact-status{padding-right:56px;box-sizing:border-box}
  header.page-layout .page-title h1{font-size:30px}
  header.page-layout .header-status{display:none}
@@ -2442,10 +2654,11 @@ details{scroll-margin-block:16px}
 #settings .away-settings-fields>.grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:600px){#settings .away-settings-fields>.grid{grid-template-columns:minmax(0,1fr)}}
 </style>
-    <header class="page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}"><div class="page-title"><button type="button" class="menu-button" id="ha-menu" aria-label="Open Home Assistant menu" title="Open Home Assistant menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><img class="header-logo" src="/thermal_pilot/icon.png" width="36" height="36" alt="" aria-hidden="true"><h1>ThermalPilot</h1></div>${this.headerStatus()}<div class="header-tools">${this.awayCalendarButton()}${this.compactStatusView()}</div><nav class="tab-list" role="tablist" aria-label="ThermalPilot pages">${[['overview','Plan'],['history','History'],['rooms','Rooms and zones'],['settings','Settings']].map(([id,label])=>`<button id="tab-${id}" role="tab" aria-selected="${this.tab===id}" aria-controls="thermal-pilot-tab-panel" tabindex="${this.tab===id?0:-1}" data-tab="${id}" class="${this.tab===id?'active':''}">${label}</button>`).join('')}</nav>${this.message&&!this.saveConfirmation&&!(['settings','rooms'].includes(this.tab)&&this.messageLevel==='error')?`${statusNotice(this.message,this.messageLevel||'info','message')}`:''}</header><main id="thermal-pilot-tab-panel" role="tabpanel" aria-labelledby="tab-${this.tab}" class="tab-panel page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}">${!this.info?'Loading…':['settings','rooms'].includes(this.tab)?this.settingsView(this.tab):this.tab==='history'?this.historyView():this.overview()}</main>${this.message&&this.saveConfirmation?`<div class="message save-toast notice-info" role="status" aria-live="polite">${statusIcon('info')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span></div>`:''}${this.message&&!this.saveConfirmation&&['settings','rooms'].includes(this.tab)&&this.messageLevel==='error'?`<div class="message save-toast notice-error save-error" role="alert" aria-live="assertive" tabindex="-1">${statusIcon('error')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span><button type="button" id="dismiss-save-error" aria-label="Dismiss error notification" title="Dismiss error notification">×</button></div>`:''}`;
+    <header class="page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}"><div class="page-title"><button type="button" class="menu-button" id="ha-menu" aria-label="Open Home Assistant menu" title="Open Home Assistant menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><img class="header-logo" src="/thermal_pilot/icon.png" width="36" height="36" alt="" aria-hidden="true"><h1>ThermalPilot</h1></div>${this.headerStatus()}<div class="header-tools"><div class="header-actions">${this.awayCalendarButton()}${this.notificationButton()}</div>${this.compactStatusView()}</div><nav class="tab-list" role="tablist" aria-label="ThermalPilot pages">${[['overview','Plan'],['history','History'],['rooms','Rooms and zones'],['settings','Settings']].map(([id,label])=>`<button id="tab-${id}" role="tab" aria-selected="${this.tab===id}" aria-controls="thermal-pilot-tab-panel" tabindex="${this.tab===id?0:-1}" data-tab="${id}" class="${this.tab===id?'active':''}">${label}</button>`).join('')}</nav>${this.message&&!this.saveConfirmation&&!(['settings','rooms'].includes(this.tab)&&this.messageLevel==='error')?`${statusNotice(this.message,this.messageLevel||'info','message')}`:''}</header><main id="thermal-pilot-tab-panel" role="tabpanel" aria-labelledby="tab-${this.tab}" class="tab-panel page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}">${!this.info?'Loading…':['settings','rooms'].includes(this.tab)?this.settingsView(this.tab):this.tab==='history'?this.historyView():this.overview()}</main>${this.message&&this.saveConfirmation?`<div class="message save-toast notice-info" role="status" aria-live="polite">${statusIcon('info')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span></div>`:''}${this.message&&!this.saveConfirmation&&['settings','rooms'].includes(this.tab)&&this.messageLevel==='error'?`<div class="message save-toast notice-error save-error" role="alert" aria-live="assertive" tabindex="-1">${statusIcon('error')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span><button type="button" id="dismiss-save-error" aria-label="Dismiss error notification" title="Dismiss error notification">×</button></div>`:''}`;
     this.shadowRoot.querySelector('#dismiss-save-error')?.addEventListener('click',()=>{this.message='';this.saveConfirmation=false;this.shadowRoot.querySelector('.save-error')?.remove();});
     this.shadowRoot.querySelector('.save-error')?.focus?.({preventScroll:true});
     this.shadowRoot.querySelector('#ha-menu')?.addEventListener('click',()=>this.openSidebar());
+    this.shadowRoot.querySelector('#notification-center')?.addEventListener('click',()=>this.openNotifications());
     this.bindStatusTemperatures();
     this.bindHistorySections();
     this.bindResponsiveTemperatureCharts();
@@ -2469,6 +2682,7 @@ details{scroll-margin-block:16px}
     if(this.focusTabRequested){this.shadowRoot.querySelector(`[data-tab="${this.tab}"]`)?.focus();this.focusTabRequested=false;}
 
     this.translateRoot(this.shadowRoot);
+    this.updateNotifications();
     this.shadowRoot.querySelector('#add')?.addEventListener('click',()=>{this.message='';this.capture();this.settings.rooms.push({...this.info.room_defaults,id:roomId()});this.render();});
     this.shadowRoot.querySelectorAll('[data-remove]').forEach(b=>b.onclick=()=>{
       this.capture();const index=Number(b.dataset.remove),room=this.settings.rooms[index];if(!room)return;

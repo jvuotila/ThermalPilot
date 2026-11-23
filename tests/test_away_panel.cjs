@@ -46,10 +46,11 @@ const room=panel.settings.rooms.find(room=>!room.is_garage);markup=panel.roomSet
 assert.match(markup,/data-field="room0.away_exempt"/);assert.match(markup,/aquariums/);assert.match(markup,/Shared heat-pump zones/);
 assert.match(panel.awayCalendarButton(),/id="away-calendar"/);
 const panelSource=fs.readFileSync(path.join(__dirname,'../custom_components/thermal_pilot/frontend/panel.js'),'utf8');
-assert.match(panelSource,/header-tools>\.away-calendar-button\{position:absolute;top:16px;right:24px/);
-assert.match(panelSource,/away-calendar-button:hover:not\(:disabled\)/);
+assert.match(panelSource,/header-tools>\.header-actions\{position:absolute;top:16px;right:24px/);
+assert.match(panelSource,/<div class="header-actions">\$\{this.awayCalendarButton\(\)\}\$\{this.notificationButton\(\)\}/);
+assert.match(panelSource,/header-icon-button:hover:not\(:disabled\)/);
 panel.info.data.away={active:true,source:'calendar',schedule:{start:1794844800,end:1795377600},temperature:16,cooling_temperature:26,time_zone:'Europe/Helsinki'};
-assert.match(panel.awayCalendarButton(),/class="away-calendar-button active"/);
+assert.match(panel.awayCalendarButton(),/class="header-icon-button away-calendar-button active"/);
 const month=context.awayCalendarMonth(new Date(2026,10,1,12),{start:'2026-11-16',end:'2026-11-22'},'2026-11-16','fi');
 assert.equal((month.match(/data-calendar-date=/g)||[]).length,42);
 assert.match(month,/marraskuu/);assert.match(month,/aria-current="date"/);assert.match(month,/day range/);

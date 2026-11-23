@@ -53,7 +53,7 @@ class CardRegistrationTests(unittest.IsolatedAsyncioTestCase):
         namespace={'DOMAIN':'thermal_pilot','VERSION':'test-version','Path':Path,'__file__':str(SOURCE),
                    'StaticPathConfig':lambda *args:args,'frontend':frontend,'BackupView':lambda hass: 'backup-view',
                    'websocket_api':types.SimpleNamespace(async_register_command=lambda hass,handler:None)}
-        for name in ('ws_get','ws_retention','ws_plan_chart','ws_save','ws_history','ws_reset','ws_manual','ws_away','ws_test_sources'):namespace[name]=object()
+        for name in ('ws_get','ws_subscribe_notifications','ws_retention','ws_plan_chart','ws_save','ws_history','ws_reset','ws_manual','ws_away','ws_test_sources'):namespace[name]=object()
         exec(compile(ast.Module(body=[setup],type_ignores=[]),str(SOURCE),'exec'),namespace)
         hass=types.SimpleNamespace(data={},http=types.SimpleNamespace(async_register_static_paths=register_paths,register_view=lambda view:events.append(('view',view))))
         await namespace['async_setup_entry'](hass,None)
@@ -144,3 +144,51 @@ class PlanChartEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(self.connection.result['requires_selection'])
         await self.handler(self.hass,self.connection,{'id':1,'entry_id':'missing'})
         self.assertEqual(self.connection.error[1],'not_loaded')
+
+
+class NotificationSubscriptionTests(unittest.TestCase):
+    def test_sends_active_notices_and_recovery_only_when_data_changes(self):
+        tree = ast.parse(SOURCE.read_text())
+        handler = next(node for node in tree.body
+                       if isinstance(node, ast.FunctionDef) and node.name == 'ws_subscribe_notifications')
+        self.assertTrue(any(isinstance(item, ast.Attribute) and item.attr == 'require_admin'
+                            for item in handler.decorator_list))
+        handler.decorator_list = []
+        events = []
+        listeners = set()
+
+        def subscribe(listener):
+            listeners.add(listener)
+            return lambda: listeners.remove(listener)
+
+        coordinator = types.SimpleNamespace(
+            data={'warnings': ['Thermostat control: unavailable'], 'rooms': {'private': {}}},
+            async_add_listener=subscribe,
+        )
+        namespace = {'callback': lambda function: function,
+                     'get_coordinator': lambda *_: coordinator}
+        exec(compile(ast.Module(body=[handler], type_ignores=[]), str(SOURCE), 'exec'), namespace)
+        connection = types.SimpleNamespace(
+            subscriptions={},
+            send_result=lambda message_id: events.append(('ready', message_id)),
+            send_event=lambda message_id, payload: events.append((message_id, payload)),
+        )
+
+        namespace['ws_subscribe_notifications'](None, connection, {'id': 4, 'entry_id': 'home'})
+        self.assertEqual(events, [
+            ('ready', 4),
+            (4, {'warnings': ['Thermostat control: unavailable'], 'price_outlook': {}}),
+        ])
+        listener = next(iter(listeners))
+        coordinator.data['updated'] = 'another update'
+        listener()
+        self.assertEqual(len(events), 2)
+        coordinator.data['warnings'].clear()
+        coordinator.data['price_outlook'] = {'enabled': True, 'available': False, 'reason': 'No forecast',
+                                             'reserve_hours': 6}
+        listener()
+        self.assertEqual(events[-1], (4, {'warnings': [], 'price_outlook': {
+            'enabled': True, 'available': False, 'reason': 'No forecast',
+        }}))
+        connection.subscriptions.pop(4)()
+        self.assertFalse(listeners)

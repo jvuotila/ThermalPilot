@@ -1223,7 +1223,8 @@ for(const tab of ['overview','history','rooms','settings']){
  if(tab==='overview'){
   assert.equal((html.match(/id="header-status-help-mode"/g)||[]).length,1);
   assert.equal((html.match(/id="status-help-mode"/g)||[]).length,1,'Mobile and desktop help need distinct IDs');
-  assert.ok(html.indexOf('Missing essential input.')>html.indexOf('</dl></section>'),'Warnings must be outside the status card hidden on desktop');
+  assert.match(header,/id="notification-center"/);
+  assert.doesNotMatch(html,/Missing essential input\./,'Active warnings belong in the drawer');
  }
 }
 desktopStatus.statusDetailsOpen=true;assert.match(desktopStatus.compactStatusView(),/id="status-details" open/);
@@ -1968,11 +1969,13 @@ console.log('Companion recipient selector passed: explicit selection, legacy act
   assert.doesNotMatch(noticePanel.overview(),/Price forecast available|No extra heat storage|Extra heat storage considered/);
  }
  noticePanel.info.data.price_outlook={enabled:true,available:false,reason:'Forecast source unavailable'};
- assert.match(noticePanel.overview(),/notice notice-warning/);
- assert.match(noticePanel.overview(),/Price forecast: Forecast source unavailable/);
+ assert.doesNotMatch(noticePanel.overview(),/Price forecast: Forecast source unavailable/);
+ const activeNotices=vm.runInContext('activeNotifications',context);
+ assert.equal(activeNotices(noticePanel.info.data)[0].level,'warning');
+ assert.equal(activeNotices(noticePanel.info.data)[0].text,'Price forecast: Forecast source unavailable');
  noticePanel.info.data.price_outlook.enabled=false;
- assert.doesNotMatch(noticePanel.overview(),/Price forecast:/);
- console.log('Plan forecast notices show only unavailable-source warnings, without routine availability or reserve information.');
+ assert.equal(activeNotices(noticePanel.info.data).length,0);
+ console.log('Unavailable forecasts appear in the notification drawer rather than above the chart.');
 }
 
 {

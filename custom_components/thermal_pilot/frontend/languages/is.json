@@ -286,6 +286,7 @@
     "Not configured": "Ekki stillt",
     "Not selected": "Ekki valið",
     "Notifications": "Tilkynningar",
+    "No active notifications.": "Engar virkar tilkynningar.",
     "Notify in Home Assistant when a room temperature sensor stays unchanged or unavailable for this many hours. A stable room can also have an unchanged reading, so the warning asks you to check the sensor. ThermalPilot sends at most one sensor notification per calendar day. Monitoring runs while ThermalPilot is active; long monitoring gaps restart the timer.": "Vara við eftir þennan tíma án nýs herbergishita.",
     "Now": "Núna",
     "Observation and learning are enabled.": "Mælingar og nám virk.",
