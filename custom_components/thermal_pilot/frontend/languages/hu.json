@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "A munkamenet végén az automatikus vezérlés folytatódik.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "3 órás előrejelzések átlagos abszolút eltérése az elmúlt 7 napban:",
     "Backup": "Biztonsági mentés",
+    "Maintenance": "Karbantartás",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

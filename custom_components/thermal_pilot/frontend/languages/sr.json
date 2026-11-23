@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Аутоматско управљање се наставља по завршетку сесије.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Просечно апсолутно одступање 3-сатних прогноза у последњих 7 дана:",
     "Backup": "Направи резервну копију",
+    "Maintenance": "Održavanje",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

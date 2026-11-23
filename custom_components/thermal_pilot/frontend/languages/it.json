@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Il controllo automatico riprende al termine della sessione.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Scostamento assoluto medio delle previsioni a 3 ore negli ultimi 7 giorni:",
     "Backup": "Backup",
+    "Maintenance": "Manutenzione",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

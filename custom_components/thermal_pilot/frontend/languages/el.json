@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Ο αυτόματος έλεγχος συνεχίζεται όταν λήξει η συνεδρία.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Μέση απόλυτη απόκλιση προβλέψεων 3 ωρών τις τελευταίες 7 ημέρες:",
     "Backup": "Αντίγραφο ασφαλείας",
+    "Maintenance": "Συντήρηση",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

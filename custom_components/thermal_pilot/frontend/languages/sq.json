@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Kontrolli automatik rifillon kur përfundon seanca.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Devijimi absolut mesatar i parashikimeve 3-orëshe në 7 ditët e fundit:",
     "Backup": "Krijo kopje rezervë",
+    "Maintenance": "Mirëmbajtja",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

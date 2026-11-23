@@ -125,15 +125,18 @@ const settingHelp = {
   water_entity: 'Select the measured supply-water temperature. A temperature sensor uses its state; a climate entity uses its current_temperature attribute. This is the measured water temperature, not the thermostat’s target. Optional for water-based systems. A valid reading adjusts the estimated heating output. Without it, planning and learning continue from observed thermostat demand, without a water-temperature adjustment. Missing readings do not force fallback targets.',
   simulation_enabled: 'Simulation calculates heating suggestions without applying scheduled targets. Disable simulation and confirm to enable real thermostat control. If another automation controls these thermostats, disable it first. Observation and learning continue in both modes.',
 };
-const sourceSettingGroups = [
-  ['Integration settings',['heating_enabled','simulation_enabled','language']],
-  ['Electricity price settings',['price_entity','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode']],
-  ['Weather and forecast settings',['weather_entity','outdoor_entity','wind_entity','summer_minimum_temperature']],
-  ['Heating settings',['minimum_run_minutes','fireplace_entity','fireplace_active_state']],
-  ['Solar power heating settings',['solar_power_entity','solar_start_kw','solar_stop_kw','solar_minimum_run_minutes']],
-  ['Away heating and cooling',['away_automatic','away_zone','away_delay_hours','away_temperature','away_cooling_temperature']],
-  ['Notifications',['manual_notification_target']],
-  ['Miscellaneous',['sensor_warning_hours']],
+const sourceSettingColumns = [
+  [
+    ['Integration settings',['heating_enabled','simulation_enabled','language']],
+    ['Electricity price settings',['price_entity','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode']],
+    ['Heating settings',['minimum_run_minutes','fireplace_entity','fireplace_active_state']],
+    ['Solar power heating settings',['solar_power_entity','solar_start_kw','solar_stop_kw','solar_minimum_run_minutes']],
+  ],
+  [
+    ['Away heating and cooling',['away_automatic','away_zone','away_delay_hours','away_temperature','away_cooling_temperature']],
+    ['Weather and forecast settings',['weather_entity','outdoor_entity','wind_entity','summer_minimum_temperature']],
+    ['Notifications',['manual_notification_target','sensor_warning_hours']],
+  ],
 ];
 const sharedSettingGroups = [
   ['Thermostat settings',['summer_setpoint','minimum','maximum','boost','setback','apply_season_setpoints']],
@@ -1268,22 +1271,21 @@ class ThermalPilotPanel extends HTMLElement {
           const selected=keys.map(key=>available.find(field=>field[0]===key)).filter(Boolean);
           return selected.length?`<div class="grid price-fields">${selected.map(field=>this.field(field,this.settings,'source')).join('')}</div>`:'';
         };
-        // Keep energy inputs together, then transfer selection and complete
-        // time/rate pairs. Row boundaries stay the same at every desktop width.
+        // Explicit rows keep each transfer start time next to its rate.
         fieldMarkup=`<div class="price-settings-fields">
           ${row(['price_entity','static_price','price_unit'])}
           ${row(['nordpool_entry','nordpool_area'])}
           ${row(['nordpool_vat','nordpool_margin','tibber_price_entity'])}
           ${row(['price_forecast_entity'])}
           <div class="price-transfer-fields">
-            ${row(['transfer_tariff','transfer_fixed_price'])}
+            ${row(['transfer_tariff','pricing_mode'])}
+            ${row(['transfer_fixed_price'])}
             ${row(['transfer_day_start','transfer_day_price'])}
             ${row(['transfer_night_start','transfer_night_price'])}
           </div>
-          ${row(['pricing_mode'])}
         </div>`;
       }
-      return available.length?`<div class="settings-group" ${title==='Integration settings'?'data-integration-group':''} ${title==='Electricity price settings'?`data-electric-group ${electricHeating(this.settings)?'':'hidden'}`:title==='Air-to-air heat pump settings'?`data-air-group ${this.settings.rooms.some(r=>!r.is_garage&&r.heat_control==='air_to_air')||(this.settings.heating_zones||[]).some(z=>z.source_type!=='fireplace')||this.settings.house_heat_source==='air_to_air'?'':'hidden'}`:title==='Water heating'?`data-water-group ${waterDistribution(this.settings)?'':'hidden'}`:''}><h3>${escapeHTML(title)}</h3>${title==='Miscellaneous'?'<p>Warn when room temperature readings stay unchanged or unavailable.</p>':''}${fieldMarkup}${title==='Weather and forecast settings'?this.sourceCheckView():''}${title==='Miscellaneous'?this.backupControls():''}</div>`:'';
+      return available.length?`<div class="settings-group" data-setting-group="${keys[0]}" ${title==='Integration settings'?'data-integration-group':''} ${title==='Electricity price settings'?`data-electric-group ${electricHeating(this.settings)?'':'hidden'}`:title==='Air-to-air heat pump settings'?`data-air-group ${this.settings.rooms.some(r=>!r.is_garage&&r.heat_control==='air_to_air')||(this.settings.heating_zones||[]).some(z=>z.source_type!=='fireplace')||this.settings.house_heat_source==='air_to_air'?'':'hidden'}`:title==='Water heating'?`data-water-group ${waterDistribution(this.settings)?'':'hidden'}`:''}><h3>${escapeHTML(title)}</h3>${fieldMarkup}</div>`:'';
     }).join('');
   }
   sourceCheckView(){
@@ -1292,9 +1294,9 @@ class ThermalPilotPanel extends HTMLElement {
     const summary=(title,value)=>{
       if(!value)return '';
       const details=value.ok?`${value.unit}${value.kind?' · '+this.t({hourly:'Hourly',twice_daily:'Twice daily',daily:'Daily'}[value.kind]):' · '+value.interval_minutes.map(minutes=>new Intl.NumberFormat(this.settings.language||'en',{style:'unit',unit:'minute',unitDisplay:'short'}).format(minutes)).join(', ')}`:this.t(value.error);
-      return `<div><h4>${escapeHTML(this.t(title))}</h4><p>${escapeHTML(value.ok?this.t('Available')+' · '+details:details)}</p>${value.ok?`<p>${escapeHTML(date(value.start))} – ${escapeHTML(date(value.end))}</p>`:''}</div>`;
+      return `<div><h5>${escapeHTML(this.t(title))}</h5><p>${escapeHTML(value.ok?this.t('Available')+' · '+details:details)}</p>${value.ok?`<p>${escapeHTML(date(value.start))} – ${escapeHTML(date(value.end))}</p>`:''}</div>`;
     };
-    return `<details class="source-checks" data-settings-disclosure="source-checks"><summary>${escapeHTML(this.t('Source checks'))}</summary><button type="button" data-test-sources ${this.testingSources?'disabled':''}>${escapeHTML(this.t(this.testingSources?'Testing sources…':'Test sources'))}</button><div data-source-check-results role="status">${report?summary('Price sensor',report.prices)+summary('Weather forecast source',report.weather):''}${this.sourceCheckError?`<p>${escapeHTML(this.t(this.sourceCheckError))}</p>`:''}</div></details>`;
+    return `<div class="source-checks"><h4>${escapeHTML(this.t('Source checks'))}</h4><button type="button" data-test-sources ${this.testingSources?'disabled':''}>${escapeHTML(this.t(this.testingSources?'Testing sources…':'Test sources'))}</button><div data-source-check-results role="status">${report?summary('Price sensor',report.prices)+summary('Weather forecast source',report.weather):''}${this.sourceCheckError?`<p>${escapeHTML(this.t(this.sourceCheckError))}</p>`:''}</div></div>`;
   }
   async testSources(){
     if(this.testingSources)return;
@@ -1308,7 +1310,7 @@ class ThermalPilotPanel extends HTMLElement {
   }
   backupControls(){
     const help=(id,label,text)=>`<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t(label))}" aria-describedby="${id}"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle class="info-dot" cx="12" cy="7" r="1"/></svg></button><span id="${id}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t(text))}</span></span>`;
-    return `<div class="backup-controls" style="margin-top:20px"><h4>${escapeHTML(this.t('Backup and restore'))}</h4><div style="display:flex;flex-wrap:wrap;gap:16px"><span style="display:inline-flex;align-items:center"><button type="button" id="backup-export" ${this.backupBusy?'disabled':''}>${escapeHTML(this.t('Backup'))}</button>${help('backup-export-help','Backup','Export saved settings, learned models, all retained history, forecasts and season archives in one ZIP file. Unsaved edits are not included.')}</span><span style="display:inline-flex;align-items:center"><button type="button" id="backup-import" ${this.backupBusy?'disabled':''}>${escapeHTML(this.t('Restore'))}</button>${help('backup-import-help','Restore','Import replaces this integration’s settings and data and starts in simulation mode. Check entity references before enabling control. The file is not encrypted; keep it private.')}</span><input id="backup-file" type="file" accept=".zip,application/zip" hidden></div>${this.backupMessage?`<p role="status">${escapeHTML(this.t(this.backupMessage))}</p>`:'<span role="status"></span>'}</div>`;
+    return `<div class="backup-controls"><h4>${escapeHTML(this.t('Backup and restore'))}</h4><div style="display:flex;flex-wrap:wrap;gap:16px"><span style="display:inline-flex;align-items:center"><button type="button" id="backup-export" ${this.backupBusy?'disabled':''}>${escapeHTML(this.t('Backup'))}</button>${help('backup-export-help','Backup','Export saved settings, learned models, all retained history, forecasts and season archives in one ZIP file. Unsaved edits are not included.')}</span><span style="display:inline-flex;align-items:center"><button type="button" id="backup-import" ${this.backupBusy?'disabled':''}>${escapeHTML(this.t('Restore'))}</button>${help('backup-import-help','Restore','Import replaces this integration’s settings and data and starts in simulation mode. Check entity references before enabling control. The file is not encrypted; keep it private.')}</span><input id="backup-file" type="file" accept=".zip,application/zip" hidden></div>${this.backupMessage?`<p role="status">${escapeHTML(this.t(this.backupMessage))}</p>`:'<span role="status"></span>'}</div>`;
   }
   async transferBackup(file=null){
     if(this.backupBusy)return;
@@ -1386,7 +1388,179 @@ class ThermalPilotPanel extends HTMLElement {
       const second=savedOrder.get(b.room.id)??savedOrder.size+b.index;
       return first-second;
     });
-    const html=`<form id="settings" data-settings-page="${page}"><section class="settings-sources"><h2>ThermalPilot settings</h2>${this.settingsGroups(sourceSettingGroups)}</section>
+    const [sourceGroups,operationGroups]=sourceSettingColumns;
+    const html=`<form id="settings" data-settings-page="${page}"><section class="settings-sources"><h2>ThermalPilot settings</h2>
+    <div class="settings-source-columns">
+      <div class="settings-source-column">${this.settingsGroups(sourceGroups)}</div>
+      <div class="settings-source-column">
+        ${this.settingsGroups(operationGroups)}
+        <div class="settings-group maintenance-settings" data-setting-group="maintenance">
+          <h3>${escapeHTML(this.t('Maintenance'))}</h3>
+          ${this.sourceCheckView()}
+          ${this.backupControls()}
+        </div>
+      </div>
+    </div>
+    <div class="settings-pipework" aria-hidden="true">
+      <svg viewBox="0 0 900 600" fill="none" focusable="false">
+        <defs>
+          <linearGradient id="tp-matrix-wall-fade" x2="0%" y2="100%">
+            <stop stop-color="white" stop-opacity="0"/>
+            <stop offset=".18" stop-color="white"/>
+            <stop offset=".76" stop-color="white" stop-opacity=".65"/>
+            <stop offset="1" stop-color="white" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="tp-matrix-floor-fade" x2="0%" y2="100%">
+            <stop stop-color="white" stop-opacity=".1"/>
+            <stop offset=".36" stop-color="white"/>
+            <stop offset="1" stop-color="white" stop-opacity="0"/>
+          </linearGradient>
+          <mask id="tp-matrix-wall" maskUnits="userSpaceOnUse" x="0" y="0" width="900" height="455">
+            <rect width="900" height="455" fill="url(#tp-matrix-wall-fade)"/>
+          </mask>
+          <mask id="tp-matrix-floor" maskUnits="userSpaceOnUse" x="0" y="430" width="900" height="170">
+            <rect y="430" width="900" height="170" fill="url(#tp-matrix-floor-fade)"/>
+          </mask>
+          <g id="tp-matrix-stream" data-user-text="">
+            <text>01001011</text>
+            <text y="110" opacity=".5">10011010</text>
+            <text y="224">01101001</text>
+            <text y="345" opacity=".55">10100110</text>
+          </g>
+          <g id="tp-iso-tank">
+            <path class="pipework-surface" d="M-52 0v143c0 16 23 29 52 29s52-13 52-29V0Z"/>
+            <ellipse class="pipework-surface" rx="52" ry="29"/>
+            <path d="M-45 33v104m29 30v8m32-8v8" opacity=".6"/>
+            <ellipse cx="0" cy="-5" rx="12" ry="7"/>
+            <path d="M-12-5v6c0 9 24 9 24 0v-6"/>
+          </g>
+          <g id="tp-iso-module">
+            <!-- The top, front and end faces share the same two diagonal axes. -->
+            <path class="pipework-surface" d="M-9 68 76 21l145 80-86 47Z"/>
+            <path class="pipework-surface" d="M-9 68v6l144 80 86-47v-6m-86 47v6"/>
+            <path class="pipework-surface" d="M0 0 76-42l134 74-76 42Z"/>
+            <path class="pipework-surface" d="M0 0v67l134 74V74Z"/>
+            <path class="pipework-surface" d="M134 74v67l76-42V32Z"/>
+            <path d="M13 20 114 76q8 4 8 12v26q0 8-7 4L14 62q-7-4-7-12V25q0-8 6-5Z"/>
+            <path d="M146 80v46m12-53v46m12-53v46m12-53v46m12-53v46m-52-30 62-34m-62 48 62-34"/>
+            <path d="M30 4 81-24l115 63-51 28Z"/>
+            <path d="m43-3 115 63M55-10l115 63M68-17l115 63M53 17l51-28m-28 40 51-28m-28 41 51-28m-28 41 51-28"/>
+            <path class="pipework-accent" d="m43-3 115 63m-82-31 51-28m15 102 62-34"/>
+            <ellipse class="pipework-surface" cx="34" cy="-22" rx="10" ry="5"/>
+            <path class="pipework-surface" d="M28-45v21c0 5 12 5 12 0v-21Z"/>
+          </g>
+          <g id="tp-iso-coupling">
+            <ellipse class="pipework-surface" rx="6" ry="14" transform="rotate(28)"/>
+            <path d="M-7-2c-6 9-6 15-2 17m13-29c3 2 3 9-1 16" opacity=".62"/>
+          </g>
+          <path id="tp-iso-supply" d="M110 353l144 79q27 15 54 0l370-204"/>
+          <path id="tp-iso-return" d="M123 389l100 55q16 9 32 5l478-263"/>
+          <path id="tp-iso-upper-pipe" d="M161 140v-33q0-15 15-7l77 42q11 6 11 20v27"/>
+        </defs>
+
+        <!-- Static code rain and its perspective floor. -->
+        <g class="pipework-code" mask="url(#tp-matrix-wall)">
+          <use href="#tp-matrix-stream" x="76" y="38" opacity=".38"/>
+          <use href="#tp-matrix-stream" x="98" y="20" opacity=".60"/>
+          <use href="#tp-matrix-stream" x="121" y="72" opacity=".25"/>
+          <use href="#tp-matrix-stream" x="145" y="17" opacity=".62"/>
+          <use href="#tp-matrix-stream" x="177" y="56" opacity=".38"/>
+          <use href="#tp-matrix-stream" x="204" y="26" opacity=".51"/>
+          <use href="#tp-matrix-stream" x="238" y="62" opacity=".31"/>
+          <use href="#tp-matrix-stream" x="258" y="37" opacity=".57"/>
+          <use href="#tp-matrix-stream" x="295" y="69" opacity=".33"/>
+          <use href="#tp-matrix-stream" x="320" y="15" opacity=".59"/>
+          <use href="#tp-matrix-stream" x="353" y="47" opacity=".41"/>
+          <use href="#tp-matrix-stream" x="386" y="11" opacity=".55"/>
+          <use href="#tp-matrix-stream" x="421" y="63" opacity=".32"/>
+          <use href="#tp-matrix-stream" x="451" y="25" opacity=".58"/>
+          <use href="#tp-matrix-stream" x="483" y="48" opacity=".29"/>
+          <use href="#tp-matrix-stream" x="509" y="19" opacity=".46"/>
+          <use href="#tp-matrix-stream" x="539" y="55" opacity=".62"/>
+          <use href="#tp-matrix-stream" x="576" y="22" opacity=".55"/>
+          <use href="#tp-matrix-stream" x="605" y="59" opacity=".38"/>
+          <use href="#tp-matrix-stream" x="636" y="45" opacity=".48"/>
+          <use href="#tp-matrix-stream" x="668" y="14" opacity=".61"/>
+          <use href="#tp-matrix-stream" x="692" y="53" opacity=".27"/>
+          <use href="#tp-matrix-stream" x="729" y="18" opacity=".55"/>
+          <use href="#tp-matrix-stream" x="755" y="57" opacity=".28"/>
+          <use href="#tp-matrix-stream" x="778" y="29" opacity=".61"/>
+          <use href="#tp-matrix-stream" x="807" y="51" opacity=".41"/>
+          <use href="#tp-matrix-stream" x="832" y="29" opacity=".28"/>
+        </g>
+        <g class="pipework-code" mask="url(#tp-matrix-floor)" opacity=".50">
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 -.23 .36 116 443)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 -.19 .36 154 440)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 -.15 .36 193 434)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 -.11 .36 230 448)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 -.07 .36 269 438)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 -.03 .36 307 443)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .02 .36 350 439)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .06 .36 394 443)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .10 .36 440 436)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .14 .36 488 444)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .18 .36 537 437)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .22 .36 586 444)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .26 .36 636 440)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .30 .36 681 435)"/>
+          <use href="#tp-matrix-stream" transform="matrix(1.3 0 .34 .36 732 444)"/>
+        </g>
+
+        <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <!-- A few platform edges suggest the room without enclosing the image. -->
+          <path class="pipework-faint" d="M43 373 344 207l488 269-179 99M89 432l208 115m313 9 23 13M625 108l65-36 112 62"/>
+          <path class="pipework-faint" d="M109 280q-35 27 4 49l109 60q34 19 68 0l58-32q32-18 9-37"/>
+          <path class="pipework-accent" d="M105 288q-30 21 8 43l109 60q34 19 68 0l58-32q24-13 22-25"/>
+
+          <!-- Buffer vessels and their raised interconnection. -->
+          <use href="#tp-iso-tank" transform="translate(161 151)"/>
+          <use href="#tp-iso-tank" transform="translate(264 206)"/>
+          <use class="pipework-tube" href="#tp-iso-upper-pipe" stroke-width="11"/>
+          <use class="pipework-interior" href="#tp-iso-upper-pipe" stroke-width="8"/>
+          <path d="M196 106q-6 4-6 10m8-8q-6 4-6 10m55 20q-6 4-6 10m8-8q-6 4-6 10"/>
+
+          <!-- High-mounted heat exchanger and pump controls. -->
+          <path class="pipework-surface" d="M355 78q20-26 40-15l104 57q16 9 1 34-15 24-32 15l-104-57q-22-12-9-34Z"/>
+          <ellipse class="pipework-surface" cx="484" cy="145" rx="18" ry="28" transform="rotate(30 484 145)"/>
+          <ellipse class="pipework-accent" cx="488" cy="147" rx="11" ry="19" transform="rotate(30 488 147)"/>
+          <path d="M395 130q-14-8 1-33 9-14 19-16m10 66q-14-8 1-33 9-14 19-16m9 65q-14-8 1-33 9-14 19-16"/>
+          <path d="M368 117v11q0 10 11 16l119 66q13 7 28-1l52-29"/>
+          <path class="pipework-accent" d="M370 129q0 6 9 11l119 66q13 7 28-1l52-29M505 152l29 16 42-23"/>
+          <path class="pipework-surface" d="M553 100l44-24 48 26-44 24Zm0 0v95l48 26v-95m0 95 44-24v-95"/>
+          <path d="m610 136 27-15v28l-27 15Zm0 43 27-15v12l-27 15Z"/>
+          <path class="pipework-accent" d="m616 139 15-8m-15 13 15-8m-15 13 15-8m-15 39 5-3m4-2 5-3"/>
+
+          <!-- Electrical cabinet and its cable conduit. -->
+          <path class="pipework-surface" d="m664 200 56-31 107 59-56 31Z"/>
+          <path class="pipework-surface" d="M664 200v83l107 59v-83Z"/>
+          <path class="pipework-surface" d="M771 259v83l56-31v-83Z"/>
+          <path d="m676 221 29 16v17l-29-16Zm0 27 29 16v17l-29-16Zm107 19 33-18v23l-33 18Zm0 30 33-18v21l-33 18Z"/>
+          <path class="pipework-accent" d="m682 229 17 9m-17 18 17 9m91 6 18-10m-18 40 18-10m-91-24 32 18"/>
+          <path d="m645 191 8-4q5-3 11 0l16 9m-35 1 8-4q5-3 11 0l11 6"/>
+
+          <!-- Three circulation modules and the supply and return pipes. -->
+          <use href="#tp-iso-module" transform="translate(455 300)"/>
+          <use href="#tp-iso-module" transform="translate(351 357)"/>
+          <use href="#tp-iso-module" transform="translate(247 414)"/>
+          <path class="pipework-surface" d="M57 316v103c0 7 12 14 27 14s27-7 27-14V316Z"/>
+          <ellipse class="pipework-surface" cx="84" cy="316" rx="27" ry="15"/>
+          <path d="M57 349c0 7 12 14 27 14s27-7 27-14m-54 34c0 7 12 14 27 14s27-7 27-14m-31-74v-13h8v13"/>
+          <use class="pipework-tube" href="#tp-iso-return" stroke-width="8"/>
+          <use class="pipework-interior" href="#tp-iso-return" stroke-width="5"/>
+          <use class="pipework-accent" href="#tp-iso-return" stroke-width="2"/>
+          <use class="pipework-tube" href="#tp-iso-supply" stroke-width="14"/>
+          <use class="pipework-interior" href="#tp-iso-supply" stroke-width="11"/>
+          <use class="pipework-accent" href="#tp-iso-supply" stroke-width="2"/>
+          <use href="#tp-iso-coupling" transform="translate(173 388) rotate(-57)"/>
+          <use href="#tp-iso-coupling" transform="translate(320 426)"/>
+          <use href="#tp-iso-coupling" transform="translate(425 369)"/>
+          <use href="#tp-iso-coupling" transform="translate(530 310)"/>
+          <use href="#tp-iso-coupling" transform="translate(628 256)"/>
+          <path class="pipework-accent" d="m346 410-3-21q-1-9-10-13l-12-6m128-18-3-21q-1-9-10-13l-12-6m130-18-3-21q-1-9-10-13l-12-6"/>
+          <path d="M281 392v32m104-89v31m104-88v31"/>
+        </g>
+      </svg>
+    </div></section>
     <section class="settings-house"><h2>House heating settings</h2><p>Choose your heating system and house details. Heat distribution determines which sensor inputs are needed.</p>${this.settingsGroups([['House and heating',['house_construction','house_heat_source','heat_pump_cop_entity','house_distribution','house_heated_floor','house_foundation']],['Water heating',['water_entity','start_offset_minutes','stop_offset_minutes']],['Heating response',['lag_hours','curve_warm_temp','curve_cold_temp']]])}${statusNotice('Electric heating benefits mainly from changing electricity tariffs. Other heat sources use observation only: no schedules, no thermostat control and no required price sensor.','info')}</section>
     <section class="settings-shared"><h2>Shared room and zone settings</h2><p>Shared settings apply to ordinary rooms and zones. Garages use their own room settings.</p>${this.settingsGroups(sharedSettingGroups)}</section>
     <section class="settings-zones"><h2>Zones</h2><p>${escapeHTML(this.t("Zones share one heating or cooling source across rooms. Separate room heaters stay independent; rooms using the zone’s pump are controlled by the zone."))}</p>${(this.settings.heating_zones||[]).map((z,index)=>`<article class="room-card"><details data-settings-disclosure="${escapeHTML(z.id)}"><summary><span data-user-text>${escapeHTML(z.name||this.t('New zone'))}</span></summary><div class="grid room-fields">${(i.zone_fields||[]).filter(f=>!['main_room_id','heating_enabled','climate_mode','heating_strategy','cooling_target'].includes(f[0])&&(!['thermostat','temperature_policy'].includes(f[0])||z.source_type!=='fireplace')).map(f=>this.field(f,z,`zone${index}`)).join('')}${this.field(['zone_rooms','Rooms','rooms'],z,`zone${index}`)}${z.source_type!=='fireplace'?(i.zone_fields||[]).filter(f=>f[0]==='main_room_id').map(f=>this.field(f,z,`zone${index}`)).join(''):''}${z.source_type!=='fireplace'?(i.zone_fields||[]).filter(f=>['heating_enabled','climate_mode','heating_strategy','cooling_target'].includes(f[0])&&(f[0]!=='heating_strategy'||z.climate_mode!=='cool')&&(f[0]!=='cooling_target'||['cool','both'].includes(z.climate_mode))).map(f=>this.field(f,z,`zone${index}`)).join(''):''}${this.settings.rooms.some(room=>room.heating_zone_id===z.id)?'':'<p class="zone-empty-note">No rooms linked. Zone control is inactive.</p>'}</div></details><div class="room-actions">${z.source_type!=='fireplace'?`<button type="button" class="icon-button" data-reset="zone:${escapeHTML(z.id)}" title="${escapeHTML(this.t('Reset learning'))}" aria-label="${escapeHTML(this.t('Reset learning')+': '+z.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 2 8M3 4v6h6"/></svg></button>`:''}<button type="button" class="icon-button delete-room" data-remove-zone="${index}" title="Remove zone" aria-label="Remove zone"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/></svg></button></div></article>`).join('')}<button type="button" id="add-zone">Add zone</button></section>
@@ -2592,7 +2766,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
 #settings p{margin:0 0 14px;line-height:1.45}
 #settings .settings-group{margin-top:16px}
 .solar-threshold{display:flex;align-items:center;gap:12px}.solar-threshold input[type=range]{flex:1;min-width:0;accent-color:var(--primary-color,#087c85)}.solar-threshold input[type=number]{width:100px;flex:none}
-.source-checks{margin-top:18px}.source-checks summary{margin-bottom:8px}.source-checks h4{margin:16px 0 6px}.source-checks p{margin:6px 0;overflow-wrap:anywhere}
+.source-checks h5{font-size:14px;margin:12px 0 6px}.source-checks p{margin:6px 0;overflow-wrap:anywhere}
 #settings .settings-group+.settings-group{padding-top:12px}
 #settings .settings-group h3{margin:0 0 12px}
 #settings .grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 16px}
@@ -2624,12 +2798,11 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
 @media(min-width:1400px){
  #settings{grid-template-columns:repeat(2,minmax(0,1fr))}#settings>.settings-sources{grid-column:1/-1}#settings>.settings-house{grid-column:1;grid-row:1}#settings>.settings-shared{grid-column:2;grid-row:1}#settings>.settings-rooms{grid-column:1;grid-row:2}#settings>.settings-zones{grid-column:2;grid-row:2}#settings .settings-group>.grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-#settings[data-settings-page="settings"] .settings-group>.grid{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(min-width:1800px){#settings .settings-group>.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
-@media(max-width:1000px){#settings .settings-group>.grid,#settings[data-settings-page="settings"] .settings-group>.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1000px){#settings .settings-group>.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){
  .settings-layout{padding:12px}
- #settings .grid,#settings .settings-group>.grid,#settings[data-settings-page="settings"] .settings-group>.grid{grid-template-columns:minmax(0,1fr)}
+ #settings .grid,#settings .settings-group>.grid{grid-template-columns:minmax(0,1fr)}
  #settings>section{padding:16px}
  #settings .room-fields{grid-template-columns:minmax(0,1fr)}
  #settings .grid>label,#settings .grid>.sensor-list-field{display:flex;flex-direction:column;grid-row:auto;gap:6px}
@@ -2872,6 +3045,9 @@ details{scroll-margin-block:16px}
  th,td{font-size:13px}
  .sticky{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 6px calc(10px + env(safe-area-inset-bottom));font-size:13px}
  input:not([type=checkbox]),select,#settings input:not([type=checkbox]),#settings select{font-size:16px;min-height:44px}
+ #settings .solar-threshold{width:100%;gap:8px}
+ #settings .solar-threshold input[type=range]{padding-inline:0}
+ #settings .solar-threshold input[type=number]{width:76px;padding-inline:8px}
  input[type=checkbox].setting-toggle,#settings input.setting-toggle{width:44px;height:26px;min-height:26px;max-height:26px;padding:2px;align-self:start}
  .setting-help .setting-info{width:32px;height:32px}
  .room-card summary{min-height:36px}
@@ -2974,6 +3150,64 @@ details{scroll-margin-block:16px}
 #settings .away-settings-fields{display:grid;gap:20px}
 #settings .away-settings-fields>.grid{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media(max-width:600px){#settings .away-settings-fields>.grid{grid-template-columns:minmax(0,1fr)}}
+#settings{--settings-columns-width:1480px}
+#settings .settings-source-columns,
+#settings[data-settings-page="settings"]>.sticky{width:100%;max-width:var(--settings-columns-width)}
+#settings>.settings-sources{
+  position:relative;container:settings-sources / inline-size;
+  width:100%;min-width:0;padding:0;border:0;border-radius:0;background:none;box-shadow:none;
+}
+.settings-pipework{display:none}
+@container settings-sources (min-width:1850px){
+ .settings-pipework{
+   position:absolute;inset:0 0 0 calc(var(--settings-columns-width) + 48px);
+   display:grid;place-items:center;pointer-events:none;user-select:none;
+   color:var(--primary-text-color,#213547);opacity:.32;
+ }
+ .settings-pipework svg{display:block;width:min(92%,1080px);max-height:100%}
+ .settings-pipework .pipework-surface{fill:var(--card-background-color,#fff)}
+ .settings-pipework .pipework-accent,.settings-pipework .pipework-code{
+   color:#098048;color:light-dark(#098048,#55ed9b)
+ }
+ .settings-pipework .pipework-accent{stroke:currentColor}
+ .settings-pipework .pipework-code{
+   fill:currentColor;font:600 10px ui-monospace,monospace;
+   writing-mode:vertical-rl;text-orientation:upright;letter-spacing:2px;
+ }
+ .settings-pipework .pipework-faint{opacity:.35}
+ .settings-pipework .pipework-tube{stroke:currentColor}
+ .settings-pipework .pipework-interior{stroke:var(--card-background-color,#fff)}
+}
+#settings[data-settings-page="settings"]>.sticky{padding:8px 0 calc(8px + env(safe-area-inset-bottom));box-shadow:none}
+#settings[data-settings-page="settings"]>.sticky>.primary{order:1;margin:0;margin-inline-start:auto}
+#settings>.settings-sources>h2{margin-bottom:14px}
+.settings-source-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,480px),1fr));gap:14px;align-items:start}
+.settings-source-column{display:grid;min-width:0;gap:14px}
+#settings .settings-source-column>.settings-group{
+  min-width:0;margin:0;padding:16px;border:1px solid var(--divider-color,#dce4e8);border-radius:12px;
+  background:linear-gradient(var(--settings-tint,#8080801a),var(--settings-tint,#8080801a)),var(--card-background-color,#fff);
+}
+.settings-sources [data-setting-group="heating_enabled"]{--settings-tint:#2196f311}
+.settings-sources [data-setting-group="price_entity"]{--settings-tint:#536be71a}
+.settings-sources [data-setting-group="minimum_run_minutes"],
+.settings-sources [data-setting-group="solar_power_entity"]{--settings-tint:#e4902513}
+.settings-sources [data-setting-group="away_automatic"]{--settings-tint:#c6588618}
+.settings-sources [data-setting-group="weather_entity"]{--settings-tint:#65a54324}
+#settings .settings-source-column h3{margin:0 0 10px}
+.maintenance-settings h4{font-size:14px;margin:0 0 8px}
+.maintenance-settings .backup-controls{border-top:1px solid var(--divider-color,#dce4e8);margin-top:12px;padding-top:12px}
+#settings .settings-source-column .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+#settings .settings-source-column [data-integration-group]>.grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+#settings .settings-source-column .price-settings-fields .grid.price-fields{margin-bottom:10px}
+#settings .settings-source-column .price-transfer-fields>.grid:last-child{margin-bottom:0}
+#settings .settings-source-column .price-transfer-fields{padding-top:10px}
+#settings .settings-source-column .away-settings-fields{gap:12px}
+@media(max-width:600px){
+ #settings .settings-source-column>.settings-group{padding:14px}
+ #settings .settings-source-column .grid,
+ #settings .settings-source-column [data-integration-group]>.grid,
+ #settings .settings-source-column .price-settings-fields .grid.price-fields{grid-template-columns:minmax(0,1fr)}
+}
 </style>
     <header class="page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}"><div class="page-title"><button type="button" class="menu-button" id="ha-menu" aria-label="Open Home Assistant menu" title="Open Home Assistant menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><img class="header-logo" src="/thermal_pilot/icon.png" width="36" height="36" alt="" aria-hidden="true"><h1>ThermalPilot</h1></div>${this.headerStatus()}<div class="header-tools"><div class="header-actions">${this.notificationButton()}${this.awayCalendarButton()}</div>${this.compactStatusView()}</div><nav class="tab-list" role="tablist" aria-label="ThermalPilot pages">${[['overview','Plan'],['history','History'],['rooms','Rooms and zones'],['settings','Settings']].map(([id,label])=>`<button id="tab-${id}" role="tab" aria-selected="${this.tab===id}" aria-controls="thermal-pilot-tab-panel" tabindex="${this.tab===id?0:-1}" data-tab="${id}" class="${this.tab===id?'active':''}">${label}</button>`).join('')}</nav>${this.message&&!this.saveConfirmation&&!(['settings','rooms'].includes(this.tab)&&this.messageLevel==='error')?`${statusNotice(this.message,this.messageLevel||'info','message')}`:''}</header><main id="thermal-pilot-tab-panel" role="tabpanel" aria-labelledby="tab-${this.tab}" class="tab-panel page-layout ${['settings','rooms'].includes(this.tab)?'settings-layout':this.tab==='history'?'history-layout observation-layout':'plan-layout observation-layout'}">${!this.info?'Loading…':['settings','rooms'].includes(this.tab)?this.settingsView(this.tab):this.tab==='history'?this.historyView():this.overview()}</main>${this.message&&this.saveConfirmation?`<div class="message save-toast notice-info" role="status" aria-live="polite">${statusIcon('info')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span></div>`:''}${this.message&&!this.saveConfirmation&&['settings','rooms'].includes(this.tab)&&this.messageLevel==='error'?`<div class="message save-toast notice-error save-error" role="alert" aria-live="assertive" tabindex="-1">${statusIcon('error')}<span class="notice-text">${escapeHTML(this.t(this.message))}</span><button type="button" id="dismiss-save-error" aria-label="Dismiss error notification" title="Dismiss error notification">×</button></div>`:''}`;
     this.shadowRoot.querySelector('#dismiss-save-error')?.addEventListener('click',()=>{this.message='';this.saveConfirmation=false;this.shadowRoot.querySelector('.save-error')?.remove();});

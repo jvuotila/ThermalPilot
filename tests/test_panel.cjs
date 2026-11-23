@@ -509,7 +509,7 @@ console.log('Room retention UI checks passed: common reference, alphabetical def
 const windMatches=vm.runInContext('entityMatches',context);
 assert.equal(windMatches({entity_id:'sensor.netatmo_tuuli_ms',attributes:{unit_of_measurement:'m/s'}},{kind:'wind'}),true);
 assert.equal(windMatches({entity_id:'sensor.temperature',attributes:{unit_of_measurement:'°C'}},{kind:'wind'}),false);
-const weatherFields=vm.runInContext('sourceSettingGroups',context).find(group=>group[0]==='Weather and forecast settings')[1];
+const weatherFields=vm.runInContext('sourceSettingColumns.flat()',context).find(group=>group[0]==='Weather and forecast settings')[1];
 assert.ok(weatherFields.includes('wind_entity'));
 assert.match(vm.runInContext('settingHelp.wind_entity',context),/planning and heating continue/);
 console.log('Optional wind settings checks passed: m\/s selector, weather group and fallback help.');
@@ -871,6 +871,21 @@ zonePanel.settings.heating_zones[0].climate_mode='heat';assert.doesNotMatch(zone
 console.log('Zone heating/cooling selection and conditional cooling target passed.');
 const settingsPage=previewPanel.settingsView('settings'),roomsPage=previewPanel.settingsView('rooms');
 assert.match(settingsPage,/<section class="settings-sources">/);assert.doesNotMatch(settingsPage,/<section class="settings-(?:house|shared|rooms|zones)">/);
+assert.equal((settingsPage.match(/class="settings-source-column"/g)||[]).length,2);
+for(const group of ['heating_enabled','price_entity','weather_entity','minimum_run_minutes','solar_power_entity','away_automatic','manual_notification_target','maintenance']){
+ assert.equal((settingsPage.match(new RegExp(`data-setting-group="${group}"`,'g'))||[]).length,1,group);
+}
+const settingGroupsByColumn=settingsPage.split('class="settings-source-column">').slice(1).map(column=>
+ Array.from(column.matchAll(/data-setting-group="([^"]+)"/g),match=>match[1]));
+assert.deepEqual(settingGroupsByColumn,[
+ ['heating_enabled','price_entity','minimum_run_minutes','solar_power_entity'],
+ ['away_automatic','weather_entity','manual_notification_target','maintenance'],
+]);
+const notificationsCard=settingsPage.match(/data-setting-group="manual_notification_target"[^>]*><h3>Notifications<\/h3><div class="grid">([\s\S]*?)<\/div>/)?.[1]||'';
+assert.match(notificationsCard,/data-field="source.manual_notification_target"/);
+assert.match(notificationsCard,/data-field="source.sensor_warning_hours"/);
+assert.match(notificationsCard,/id="help-source-sensor_warning_hours"[^>]*role="tooltip"/);
+assert.match(settingsPage,/data-setting-group="maintenance">\s*<h3>Maintenance<\/h3>\s*<div class="source-checks"><h4>Source checks<\/h4>[\s\S]*?<div class="backup-controls"><h4>Backup and restore<\/h4>/);
 assert.doesNotMatch(roomsPage,/<section class="settings-sources">/);
 for(const section of ['house','shared','rooms','zones'])assert.match(roomsPage,new RegExp('<section class="settings-'+section+'">'));
 for(const html of [settingsPage,roomsPage])assert.match(html,/type="submit">Save settings/);
@@ -1103,8 +1118,8 @@ for(const width of [390,1000])for(const history of [false,true]){
 }
 statusPanel.render();
 const settingsStyles=statusPanel.shadowRoot.innerHTML;
-assert.equal((settingsStyles.match(/#settings\[data-settings-page="settings"\] \.settings-group>\.grid\{grid-template-columns:repeat\(4,minmax\(0,1fr\)\)\}/g)||[]).length,1,'A late desktop rule must not override mobile settings');
-assert.match(settingsStyles,/@media\(max-width:600px\)\{[^}]*\}[^]*?#settings \.grid,#settings \.settings-group>\.grid,#settings\[data-settings-page="settings"\] \.settings-group>\.grid\{grid-template-columns:minmax\(0,1fr\)\}/);
+assert.match(settingsStyles,/\.settings-source-columns\{display:grid;grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,480px\),1fr\)\)/);
+assert.match(settingsStyles,/@media\(max-width:600px\)\{\s*#settings \.settings-source-column>\.settings-group\{[^}]*\}\s*#settings \.settings-source-column \.grid,[^}]*grid-template-columns:minmax\(0,1fr\)\}/);
 console.log('Plan/History charts place garages after zones at phone and desktop widths; mobile settings keep a single column.');
 
 statusPanel.render();
@@ -1736,9 +1751,14 @@ assert.ok(tariffRows.some(row=>row.includes('source.price_entity')&&row.includes
 console.log('Tariff settings keep source inputs and each time/rate pair in explicit separate rows.');
 
 transferPanel.info.source_fields.push(['pricing_mode','Scheduling mode','select:hourly,quarterly,flexible']);
-const modeLastHTML=transferPanel.settingsGroups([['Electricity price settings',transferPanel.info.source_fields.map(field=>field[0])]]);
-assert.ok(modeLastHTML.lastIndexOf('source.pricing_mode')>modeLastHTML.lastIndexOf('source.transfer_night_price'));
-console.log('Scheduling mode follows every electricity and transfer price field.');
+const schedulingHTML=transferPanel.settingsGroups([['Electricity price settings',transferPanel.info.source_fields.map(field=>field[0])]]);
+const schedulingRows=Array.from(schedulingHTML.matchAll(/class="grid price-fields">([\s\S]*?)<\/div>/g),match=>match[1]);
+assert.ok(schedulingRows.some(row=>{
+ const tariffIndex=row.indexOf('source.transfer_tariff');
+ return tariffIndex>=0&&row.indexOf('source.pricing_mode')>tariffIndex;
+}));
+console.log('Scheduling mode appears beside the transfer tariff.');
+
 
 const learningTableHTML=retentionPanel.heatRetentionView();
 const initialRoomRow=learningTableHTML.match(/<tr[^>]*><td><span data-user-text>Slow &lt;cooling&gt;<\/span>[\s\S]*?<\/tr>/)[0];

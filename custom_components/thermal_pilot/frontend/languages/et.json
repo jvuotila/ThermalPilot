@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Automaatjuhtimine jätkub seansi lõppedes.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Salvestatud 3 tunni prognooside keskmine absoluutne kõrvalekalle viimase 7 päeva jooksul:",
     "Backup": "Varunda",
+    "Maintenance": "Hooldus",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

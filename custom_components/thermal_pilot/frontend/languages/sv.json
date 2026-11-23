@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Automatisk styrning återupptas när perioden avslutas.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Genomsnittlig absolut avvikelse för sparade 3-timmarsprognoser under senaste 7 dagar:",
     "Backup": "Säkerhetskopiera",
+    "Maintenance": "Underhåll",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

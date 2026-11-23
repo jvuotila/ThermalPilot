@@ -135,6 +135,7 @@
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days: {error}; {count} comparisons. No-change benchmark: {benchmark}. Similar heating: {similar} ({similarCount} comparisons). Actual heating can differ from the plan. This is not a live-control readiness guarantee.": "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days: {error}; {count} comparisons. No-change benchmark: {benchmark}. Similar heating: {similar} ({similarCount} comparisons). Actual heating can differ from the plan. This is not a live-control readiness guarantee.",
     "Average of room sensors": "Average of room sensors",
     "Backup": "Backup",
+    "Maintenance": "Maintenance",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

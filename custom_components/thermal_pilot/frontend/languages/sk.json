@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Po skončení relácie sa obnoví automatické riadenie.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Priemerná absolútna odchýlka 3-hodinových predpovedí za posledných 7 dní:",
     "Backup": "Zálohovať",
+    "Maintenance": "Údržba",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

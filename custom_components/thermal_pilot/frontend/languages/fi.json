@@ -113,6 +113,7 @@
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days: {error}; {count} comparisons. No-change benchmark: {benchmark}. Similar heating: {similar} ({similarCount} comparisons). Actual heating can differ from the plan. This is not a live-control readiness guarantee.": "Tallennettujen 3 tunnin ennusteiden keskimääräinen ero mittauksiin viimeisten 7 päivän ajalta: {error}; {count} vertailua. Muuttumattoman lämpötilan vertailu: {benchmark}. Vastaavalla lämmityksellä: {similar} ({similarCount} vertailua). Todellinen lämmitys voi poiketa suunnitelmasta. Tämä ei ole lupa tai takuu todellisen ohjauksen käyttöönottoon.",
     "Average of room sensors": "Huoneanturien keskiarvo",
     "Backup": "Varmuuskopioi",
+    "Maintenance": "Ylläpito",
     "Backup and restore": "Varmuuskopiointi ja palautus",
     "Backup exceeds the 256 MiB limit.": "Varmuuskopio ylittää 256 MiB:n kokorajan.",
     "Backup export failed.": "Varmuuskopion vienti epäonnistui.",

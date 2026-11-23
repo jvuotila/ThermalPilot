@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Automatische regeling wordt hervat wanneer de sessie eindigt.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Gemiddelde absolute afwijking van 3-uursvoorspellingen over laatste 7 dagen:",
     "Backup": "Back-up maken",
+    "Maintenance": "Onderhoud",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

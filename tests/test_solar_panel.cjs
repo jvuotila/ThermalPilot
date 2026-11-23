@@ -10,7 +10,7 @@ const info=JSON.parse(preview.match(/const demo=([\s\S]*?);const states=/)[1]);
 const panel=new Panel();panel.info=info;panel.settings=structuredClone(info.settings);panel.tab='settings';
 panel._hass={states:{'sensor.demo_solar_production':{entity_id:'sensor.demo_solar_production',state:'5200',attributes:{friendly_name:'PV power',device_class:'power',unit_of_measurement:'W'}},'sensor.energy':{entity_id:'sensor.energy',state:'5',attributes:{device_class:'energy',unit_of_measurement:'kWh'}}}};
 let markup=panel.settingsView();
-assert.ok(markup.indexOf('<h3>Solar power heating settings</h3>')>markup.indexOf('<h3>Heating settings</h3>'));
+assert.ok(markup.indexOf('<h3>Solar power heating settings</h3>')>markup.indexOf('<h3>Electricity price settings</h3>'));
 for(const key of ['solar_power_entity','solar_start_kw','solar_stop_kw','solar_minimum_run_minutes'])assert.equal(markup.split(`data-field="source.${key}"`).length-1,1,key);
 assert.match(markup,/data-solar-range="source.solar_start_kw"/);assert.match(markup,/data-solar-range="source.solar_stop_kw"/);
 const sensorField=info.source_fields.find(field=>field[0]==='solar_power_entity');

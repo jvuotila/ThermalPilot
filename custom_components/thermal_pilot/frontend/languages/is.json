@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Sjálfvirk stýring tekur við þegar lotunni lýkur.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Meðaltal algilds fráviks 3 klst spáa síðustu 7 daga:",
     "Backup": "Afrita",
+    "Maintenance": "Viðhald",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

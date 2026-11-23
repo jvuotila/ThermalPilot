@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Automātiskā vadība atsākas pēc sesijas beigām.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Saglabāto 3 stundu prognožu vidējā absolūtā novirze pēdējās 7 dienās:",
     "Backup": "Dublēt",
+    "Maintenance": "Uzturēšana",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

@@ -119,6 +119,7 @@
     "Automatic control resumes when the session ends.": "Controlul automat se reia la încheierea sesiunii.",
     "Average absolute difference of saved 3-hour forecasts from measurements over the last 7 days:": "Abatere absolută medie a prognozelor de 3 ore în ultimele 7 zile:",
     "Backup": "Creează copie",
+    "Maintenance": "Întreținere",
     "Backup and restore": "Backup and restore",
     "Backup exceeds the 256 MiB limit.": "Backup exceeds the 256 MiB limit.",
     "Backup export failed.": "Backup export failed.",

@@ -37,7 +37,8 @@ vm.runInContext(readFrontendSource(path.join(__dirname,'../custom_components/the
  const report={prices:{ok:true,unit:'c/kWh',interval_minutes:[15],start:'2026-01-02T00:00:00Z',end:'2026-01-03T00:00:00Z'},weather:{ok:false,error:'No usable weather forecast was returned.'}};
  resolve(report);await request;
  markup=panel.sourceCheckView();
- assert.match(markup,/data-settings-disclosure="source-checks"/,'checking must preserve the open settings accordion');
+ assert.match(markup,/class="source-checks"><h4>Source checks<\/h4>/);
+ assert.doesNotMatch(markup,/<details|<summary/,'source checks stay visible');
  assert.match(markup,/c\/kWh/);assert.match(markup,/15 min/);assert.match(markup,/No usable weather/);
  assert.equal(panel.testingSources,false);assert.equal(calls.length,1,'no save or control action');
  const changed=panel.testSources();panel.settings.price_entity='static';resolve(report);await changed;
@@ -50,5 +51,5 @@ vm.runInContext(readFrontendSource(path.join(__dirname,'../custom_components/the
 const fs=require('node:fs');
 for(const filename of fs.readdirSync(path.join(__dirname,'../custom_components/thermal_pilot/frontend/languages'))){
  const catalog=JSON.parse(fs.readFileSync(path.join(__dirname,'../custom_components/thermal_pilot/frontend/languages',filename)));
- for(const key of ['Source checks','Test sources','Testing sources…','Nord Pool integration','Price area','VAT (%)','Retailer margin including VAT (c/kWh)','Tibber price sensor','Unsupported temperature unit.','Select an available Tibber price sensor using EUR/kWh.','The selected provider action is unavailable.','Choose a Nord Pool integration and price area.','Source request failed; check the provider integration.','No usable weather forecast was returned.'])assert.ok(catalog.messages[key],filename+': '+key);
+ for(const key of ['Maintenance','Source checks','Test sources','Testing sources…','Nord Pool integration','Price area','VAT (%)','Retailer margin including VAT (c/kWh)','Tibber price sensor','Unsupported temperature unit.','Select an available Tibber price sensor using EUR/kWh.','The selected provider action is unavailable.','Choose a Nord Pool integration and price area.','Source request failed; check the provider integration.','No usable weather forecast was returned.'])assert.ok(catalog.messages[key],filename+': '+key);
 }
