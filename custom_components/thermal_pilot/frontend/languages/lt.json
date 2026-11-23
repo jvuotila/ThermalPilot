@@ -2,6 +2,9 @@
   "language": "lt",
   "name": "Lietuvių",
   "messages": {
+    "Per page": "Puslapyje",
+    "Total absences": "Išvykimų iš viso",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Atšaukus laikotarpį, vėl taikomi įprasti temperatūros nustatymai. Išvykimo temperatūra galioja, jei vis dar aktyvus kitas kalendoriaus laikotarpis arba automatinis išvykimas.",
     "Previous page": "Ankstesnis puslapis",
     "Next page": "Kitas puslapis",
     "Edit series": "Redaguoti seriją",

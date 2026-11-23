@@ -2,6 +2,9 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "Per page": "Për faqe",
+    "Total absences": "Mungesa gjithsej",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Cilësimet normale të temperaturës rikthehen kur anulon periudhën. Temperaturat e mungesës mbeten aktive nëse një periudhë tjetër në kalendar ose mungesa automatike është ende aktive.",
     "Previous page": "Faqja e mëparshme",
     "Next page": "Faqja tjetër",
     "Edit series": "Redakto serinë",

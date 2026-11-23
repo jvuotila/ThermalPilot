@@ -2,6 +2,9 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "Per page": "Per page",
+    "Total absences": "Total absences",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.",
     "Previous page": "Previous page",
     "Next page": "Next page",
     "Edit series": "Edit series",
@@ -939,7 +942,6 @@
     "Continuous absence required before changing targets. A return resets this timer; restarts preserve it.": "Continuous absence required before changing targets. A return resets this timer; restarts preserve it.",
     "Keep normal heating and cooling, for example for aquariums. Shared heat-pump zones preserve all members’ normal targets if one is exempt.": "Keep normal heating and cooling, for example for aquariums. Shared heat-pump zones preserve all members’ normal targets if one is exempt.",
     "Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.": "Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.",
-    "Cancels the booking only. Automatic away temperatures may remain active after the absence delay.": "Cancels the booking only. Automatic away temperatures may remain active after the absence delay.",
     "Heat pump: Cooling": "Heat pump: Cooling",
     "Each zone needs a unique identifier, name and selected heat source.": "Each zone needs a unique identifier, name and selected heat source.",
     "A heat pump can have only one controller or zone.": "A heat pump can have only one controller or zone.",

@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.107 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.108 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -349,7 +349,8 @@ The header calendar icon opens a date-range calendar with start and end times.
 Picking dates fills in 08:00 for the start and 16:00 for the end. Both times
 can be changed. Absences spanning two to six calendar dates can repeat weekly.
 The list below the calendar shows each active or upcoming booking, with
-10 dates per page. Use **Edit series** to edit a recurring booking from any
+5 dates per page by default. You can choose 10 or 20 per page. Use
+**Edit series** to edit a recurring booking from any
 of its dates. Previously saved unlimited series show their next 52 dates.
 Overlapping bookings
 keep away temperatures active for as long as any booking is active. The calendar

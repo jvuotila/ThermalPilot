@@ -2,6 +2,9 @@
   "language": "fi",
   "name": "Finnish",
   "messages": {
+    "Per page": "Sivulla",
+    "Total absences": "Poissaoloja yhteensä",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Normaalit lämpötila-asetukset palaavat, kun peruutat jakson. Poissaololämpötilat pysyvät käytössä, jos toinen kalenterijakso tai automaattinen poissaolo on edelleen aktiivinen.",
     "Previous page": "Edellinen sivu",
     "Next page": "Seuraava sivu",
     "Edit series": "Muokkaa sarjaa",
@@ -573,7 +576,6 @@
     "Continuous absence required before changing targets. A return resets this timer; restarts preserve it.": "Tavoitteet muuttuvat vasta yhtäjaksoisen poissaolon jälkeen. Kotiinpaluu nollaa ajastimen; uudelleenkäynnistys säilyttää sen.",
     "Keep normal heating and cooling, for example for aquariums. Shared heat-pump zones preserve all members’ normal targets if one is exempt.": "Säilytä normaali lämmitys ja jäähdytys esimerkiksi akvaarion vuoksi. Yhteinen ilmalämpöpumppuvyöhyke säilyttää kaikkien jäsentensä normaalit tavoitteet, jos yksikin huone on rajattu pois.",
     "Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.": "Tunnistus pois: jakso päättyy ajallaan tai peruutettaessa. Tunnistus käytössä: myös kotiinpaluu peruuttaa aktiivisen jakson. Ei ennakoivaa lämmitystä. Autotallit ja pois rajatut huoneet säilyttävät normaalit tavoitteensa.",
-    "Cancels the booking only. Automatic away temperatures may remain active after the absence delay.": "Peruuttaa vain kalenterijakson. Automaattiset poissaololämpötilat voivat jäädä käyttöön poissaoloviiveen jälkeen.",
     "Heat pump: Cooling": "Ilmalämpöpumppu: Jäähdytys",
     "Each zone needs a unique identifier, name and selected heat source.": "Jokainen vyöhyke tarvitsee yksilöllisen tunnisteen, nimen ja valitun lämmönlähteen.",
     "A heat pump can have only one controller or zone.": "Ilmalämpöpumpulla voi olla vain yksi itsenäinen ohjain tai vyöhyke. Liitä samaa pumppua käyttävät huoneet sen vyöhykkeeseen.",

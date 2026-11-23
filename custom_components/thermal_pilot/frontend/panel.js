@@ -711,18 +711,18 @@ class ThermalPilotPanel extends HTMLElement {
     month.setDate(1);
     let picking='start',editing=null,pendingRemoval=null,saving=false;
     let bookingPage=0,bookingPageCount=1;
-    const pageSize=10;
+    const pageSizes=[5,10,20];
+    let pageSize=pageSizes[0];
     const bookings=()=>away.schedules??(away.schedule?[{...away.schedule,id:'legacy',repeat:'once',active:away.source==='calendar'&&away.active}]:[]);
     const title=this.t('Away calendar');
-    const icon='<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle cx="10" cy="6" r=".7"/></svg>';
     const megaphone='<svg viewBox="0 0 20 20" aria-hidden="true"><path stroke-linejoin="round" d="M3 8h4l8-4v12l-8-4H3zM5 12l1.5 4h2L7 12m10-5 1-1m-1 4h2m-2 3 1 1"/></svg>';
     const tooltip=(id,text,reminder=false)=>{
       const key=escapeHTML(id);
       const label=this.t(reminder?'Reminder lead time':'How this works');
-      return `<span class="help${reminder?' reminder-indicator':''}"><button type="button" data-help="${key}" aria-label="${escapeHTML(label)}" aria-expanded="false" aria-describedby="${key}">${reminder?megaphone:icon}</button><span id="${key}" class="tip" role="tooltip" hidden>${escapeHTML(this.t(text))}</span></span>`;
+      return `<span class="help${reminder?' reminder-indicator':''}"><button type="button"${reminder?'':' class="setting-info"'} data-help="${key}" aria-label="${escapeHTML(label)}" aria-expanded="false" aria-describedby="${key}">${reminder?megaphone:tooltipInfoIcon}</button><span id="${key}" class="tip" role="tooltip" hidden>${escapeHTML(this.t(text))}</span></span>`;
     };
     const help='Detection off: bookings end by time or cancellation. Detection on: returning home also cancels active bookings. No advance warm-up. Garages and exempt rooms keep normal targets.';
-    const cancelHelp='Cancels the booking only. Automatic away temperatures may remain active after the absence delay.';
+    const cancelHelp='Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.';
     const timeSelect=(key,unit,values)=>`<span class="calendar-select"><select name="${key}-${unit}" aria-label="${escapeHTML(this.t(unit==='hour'?'hours':'minutes'))}"><option value="">–</option>${values.map(value=>`<option value="${value}">${value}</option>`).join('')}</select></span>`;
     dialog.innerHTML=`<style>
       .thermal-pilot-away-dialog{color:var(--primary-text-color,#213547);background:var(--card-background-color,#fff);border:1px solid var(--divider-color,#d8e0e4);border-radius:20px;padding:24px;width:min(720px,calc(100vw - 24px));max-height:calc(100dvh - 32px);overflow:auto;box-sizing:border-box;box-shadow:0 20px 80px #142e4540;font:14px system-ui}.thermal-pilot-away-dialog::backdrop{background:#182b3c65}.thermal-pilot-away-dialog *{box-sizing:border-box}.thermal-pilot-away-dialog button,.thermal-pilot-away-dialog input{font:inherit;color:inherit}.thermal-pilot-away-dialog header,.thermal-pilot-away-dialog .month-nav{display:flex;align-items:center;justify-content:space-between;gap:12px}.thermal-pilot-away-dialog h2{font-size:22px;margin:0}.thermal-pilot-away-dialog .heading{display:flex;align-items:center;gap:10px}.thermal-pilot-away-dialog button{cursor:pointer}.thermal-pilot-away-dialog button:focus-visible,.thermal-pilot-away-dialog input:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}.thermal-pilot-away-dialog .close{border:0;background:transparent;font-size:26px;min-width:40px;min-height:40px}.thermal-pilot-away-dialog .status{color:var(--secondary-text-color,#526b75);margin:8px 0 18px}.thermal-pilot-away-dialog .targets{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}.thermal-pilot-away-dialog .targets span{padding:6px 10px;border-radius:8px;background:#829aa313;font-size:13px}.thermal-pilot-away-dialog .dates{display:grid;grid-template-columns:1fr 1fr;gap:12px}.thermal-pilot-away-dialog .date-card{padding:12px;border:1px solid var(--divider-color,#d8e0e4);border-radius:12px;background:var(--secondary-background-color,#f5f8fa)}.thermal-pilot-away-dialog .date-card.active{border-color:var(--primary-color,#00838f);box-shadow:0 0 0 1px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .pick{font-weight:600;border:0;background:transparent;padding:0 0 8px;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog .date-inputs{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:8px}.thermal-pilot-away-dialog input{min-width:0;width:100%;border:1px solid #b6c8d0;border-radius:6px;background:var(--card-background-color,#fff);padding:8px;min-height:40px}.thermal-pilot-away-dialog .month-nav{margin:16px 0 8px}.thermal-pilot-away-dialog .month-nav button{border:0;border-radius:8px;background:#829aa310;font-size:24px;width:40px;height:40px}.thermal-pilot-away-dialog .month-nav span{font-size:13px;color:var(--secondary-text-color,#526b75)}.thermal-pilot-away-dialog .calendar-picker{width:min(100%,420px);margin-inline:auto}.thermal-pilot-away-dialog .date-prompt{font-weight:600;color:var(--primary-text-color,#213547)}.thermal-pilot-away-dialog .month h3{font-size:15px;text-align:center;margin:8px 0 12px}.thermal-pilot-away-dialog .days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}.thermal-pilot-away-dialog .weekday{font-size:11px;color:var(--secondary-text-color,#526b75);text-align:center;padding:6px 0}.thermal-pilot-away-dialog .day{height:36px;min-width:0;border:0;border-radius:7px;background:transparent;padding:0}.thermal-pilot-away-dialog .day.other{opacity:.35}.thermal-pilot-away-dialog .day.range{background:#00838f12;border-radius:3px}.thermal-pilot-away-dialog .day.today{box-shadow:inset 0 0 0 1px #829aa370}.thermal-pilot-away-dialog .day.selected{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);font-weight:700;border-radius:8px}.thermal-pilot-away-dialog .day:hover{box-shadow:inset 0 0 0 2px var(--primary-color,#00838f)}.thermal-pilot-away-dialog .zone{color:var(--secondary-text-color,#526b75);font-size:12px;line-height:1.6;margin:0;margin-inline-end:auto}.thermal-pilot-away-dialog footer{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap;margin-top:16px}.thermal-pilot-away-dialog footer button{min-height:40px;border:0;border-radius:20px;padding:8px 14px;background:transparent;color:var(--primary-color,#00838f)}.thermal-pilot-away-dialog footer .save{background:var(--primary-color,#00838f);color:var(--text-primary-color,#fff);margin-left:auto}.thermal-pilot-away-dialog footer .stop{color:var(--error-color,#ba4d43);border:1px solid #d2837b55}.thermal-pilot-away-dialog .help{position:relative;display:inline-flex;align-items:center}.thermal-pilot-away-dialog .help>button{display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--primary-color,#00838f);width:32px;min-height:32px;padding:6px}.thermal-pilot-away-dialog .help svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5}.thermal-pilot-away-dialog .tip{position:fixed;z-index:10;padding:12px 14px;border-radius:10px;background:#18282f;color:#fff;font-size:13px;font-weight:400;line-height:1.6;overflow:auto;overflow-wrap:anywhere;box-shadow:0 6px 24px #0003}.thermal-pilot-away-dialog [hidden]{display:none!important}.thermal-pilot-away-dialog [role=alert]{color:var(--error-color,#b23b34);line-height:1.5}.thermal-pilot-away-dialog button:disabled{opacity:.5;cursor:default}@media(max-width:600px){.thermal-pilot-away-dialog{padding:18px}.thermal-pilot-away-dialog .dates{gap:8px}.thermal-pilot-away-dialog .date-inputs{grid-template-columns:1fr}.thermal-pilot-away-dialog .day{height:40px}}
@@ -743,12 +743,19 @@ class ThermalPilotPanel extends HTMLElement {
       .thermal-pilot-away-dialog .upcoming{margin-top:20px;border-top:1px solid var(--divider-color,#d8e0e4);padding-top:16px}
       .thermal-pilot-away-dialog .upcoming h3{font-size:16px;margin:0 0 8px}
       .thermal-pilot-away-dialog .bookings{padding:0;margin:0;list-style:none}
-      .thermal-pilot-away-dialog .booking-pages{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin:8px 0}
+      .thermal-pilot-away-dialog .booking-pages,.thermal-pilot-away-dialog .booking-page-settings,.thermal-pilot-away-dialog .booking-page-controls,.thermal-pilot-away-dialog .booking-page-size{display:flex;align-items:center;gap:8px}
+      .thermal-pilot-away-dialog .booking-pages{justify-content:space-between;flex-wrap:wrap;margin:8px 0}
+      .thermal-pilot-away-dialog .booking-total{color:var(--secondary-text-color,#526b75)}
+      .thermal-pilot-away-dialog .booking-page-settings{margin-inline-start:auto;flex-wrap:wrap;justify-content:flex-end}
       .thermal-pilot-away-dialog .booking-pages button{min-width:36px}
       .thermal-pilot-away-dialog .bookings li{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 16px;padding:10px 0;border-bottom:1px solid var(--divider-color,#d8e0e4)}
       .thermal-pilot-away-dialog .booking-meta{display:block;color:var(--secondary-text-color,#526b75);font-size:12px;margin-top:4px}
       .thermal-pilot-away-dialog .booking-actions,.thermal-pilot-away-dialog .remove-actions{display:flex;gap:8px;flex-wrap:wrap}
-      .thermal-pilot-away-dialog .upcoming button{min-height:36px;padding:6px 10px;color:var(--primary-color,#00838f);background:transparent;border:1px solid var(--divider-color,#d8e0e4);border-radius:8px}
+      .thermal-pilot-away-dialog .upcoming button:not([data-help]){min-height:36px;padding:6px 10px;color:var(--primary-color,#00838f);background:transparent;border:1px solid var(--divider-color,#d8e0e4);border-radius:8px}
+      .thermal-pilot-away-dialog .help>.setting-info{width:22px;min-height:22px;margin-inline-start:3px;padding:1px;border-radius:50%;color:var(--primary-color,#087c85);cursor:help}
+      .thermal-pilot-away-dialog .setting-info svg{width:20px;height:20px;stroke-width:1.7;stroke-linecap:round}
+      .thermal-pilot-away-dialog .setting-info .status-info-dot{fill:currentColor;stroke:none}
+      @media(max-width:600px){.thermal-pilot-away-dialog .help>.setting-info{width:32px;min-height:32px}}
       .thermal-pilot-away-dialog .reminder-indicator{vertical-align:middle;margin-inline-start:4px}
       .thermal-pilot-away-dialog .reminder-indicator>button{padding:5px;border:0;min-height:28px;width:28px}
       .thermal-pilot-away-dialog .upcoming [data-remove-booking],.thermal-pilot-away-dialog .upcoming [data-removal="cancel"]{color:var(--error-color,#ba4d43)}
@@ -765,7 +772,14 @@ class ThermalPilotPanel extends HTMLElement {
       <div class="calendar-options"><label class="calendar-checkbox"><input name="reminder" type="checkbox"> ${escapeHTML(this.t('Remind me before the absence'))}</label><div class="calendar-options reminder-lead" hidden><input name="reminder-amount" type="number" value="24" min="1" max="720" step="1" aria-label="${escapeHTML(this.t('Reminder lead time'))}"><span class="calendar-select"><select name="reminder-unit" aria-label="${escapeHTML(this.t('Reminder time unit'))}"><option value="hours">${escapeHTML(this.t('hours'))}</option><option value="days">${escapeHTML(this.t('days'))}</option></select></span></div></div>
       <p role="alert" hidden></p>
       <footer><p class="zone">${escapeHTML(this.t('Home Assistant time zone'))}: <span data-user-text>${escapeHTML(timeZone)}</span></p><button type="button" class="cancel-edit" hidden>${escapeHTML(this.t('Cancel'))}</button><button type="submit" class="save"></button></footer>
-      <section class="upcoming"><h3>${escapeHTML(this.t('Upcoming absences'))} ${tooltip('cancel-help',cancelHelp)}</h3><p class="no-bookings">${escapeHTML(this.t('No calendar absence'))}</p><div class="booking-pages" role="group" aria-label="${escapeHTML(this.t('Upcoming absences'))}" hidden><button type="button" data-booking-page="-1" aria-label="${escapeHTML(this.t('Previous page'))}">‹</button><span class="booking-page-number" aria-live="polite"></span><button type="button" data-booking-page="1" aria-label="${escapeHTML(this.t('Next page'))}">›</button></div><ul class="bookings"></ul></section>
+      <section class="upcoming"><h3>${escapeHTML(this.t('Upcoming absences'))} ${tooltip('cancel-help',cancelHelp)}</h3><p class="no-bookings">${escapeHTML(this.t('No calendar absence'))}</p>
+        <div class="booking-pages" hidden><span class="booking-total" aria-live="polite"></span>
+          <div class="booking-page-settings">
+            <label class="booking-page-size">${escapeHTML(this.t('Per page'))} <span class="calendar-select"><select name="booking-page-size">${pageSizes.map(size=>`<option value="${size}">${size}</option>`).join('')}</select></span></label>
+            <div class="booking-page-controls" role="group" aria-label="${escapeHTML(this.t('Upcoming absences'))}" hidden><button type="button" data-booking-page="-1" aria-label="${escapeHTML(this.t('Previous page'))}">‹</button><span class="booking-page-number" aria-live="polite"></span><button type="button" data-booking-page="1" aria-label="${escapeHTML(this.t('Next page'))}">›</button></div>
+          </div>
+        </div><ul class="bookings"></ul>
+      </section>
     </form>`;
     const field=name=>dialog.querySelector(`[name="${name}"]`);
     const fillDefaultTime=key=>{
@@ -815,6 +829,7 @@ class ThermalPilotPanel extends HTMLElement {
       dialog.querySelector('.save').textContent=this.t(editing?'Update period':'Schedule absence');
     };
     const updatePageButtons=()=>{
+      field('booking-page-size').disabled=saving;
       dialog.querySelector('[data-booking-page="-1"]').disabled=saving||bookingPage===0;
       dialog.querySelector('[data-booking-page="1"]').disabled=saving||bookingPage===bookingPageCount-1;
     };
@@ -823,7 +838,10 @@ class ThermalPilotPanel extends HTMLElement {
       const occurrences=away.occurrences??entries;
       bookingPageCount=Math.max(1,Math.ceil(occurrences.length/pageSize));
       bookingPage=Math.max(0,Math.min(bookingPage,bookingPageCount-1));
-      dialog.querySelector('.booking-pages').hidden=bookingPageCount===1;
+      dialog.querySelector('.booking-pages').hidden=occurrences.length===0;
+      dialog.querySelector('.booking-page-controls').hidden=bookingPageCount===1;
+      const count=(away.occurrence_count??occurrences.length).toLocaleString(locale);
+      dialog.querySelector('.booking-total').textContent=`${this.t('Total absences')} · ${count}${away.has_ongoing_series?'+':''}`;
       dialog.querySelector('.booking-page-number').textContent=`${bookingPage+1} / ${bookingPageCount}`;
       updatePageButtons();
       const status=away.active?this.t(away.source==='calendar'?'Calendar absence active':'Automatic absence active'):entries.length?this.t('Scheduled absence'):this.t('No calendar absence');
@@ -905,6 +923,13 @@ class ThermalPilotPanel extends HTMLElement {
       openHelp.setAttribute('aria-expanded','false');
       openHelp=null;
     };
+    field('booking-page-size').addEventListener('change',event=>{
+      pageSize=Number(event.target.value);
+      bookingPage=0;
+      pendingRemoval=null;
+      closeHelp();
+      drawBookings();
+    });
     const showHelp=button=>{
       closeHelp();
       const tip=dialog.querySelector('#'+CSS.escape(button.dataset.help));
@@ -1025,6 +1050,7 @@ class ThermalPilotPanel extends HTMLElement {
       }
       saving=true;
       dialog.querySelectorAll('button').forEach(button=>button.disabled=true);
+      updatePageButtons();
       try{
         const result=await this.call('away',request);
         this.info.data=result.data;

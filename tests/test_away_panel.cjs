@@ -12,8 +12,9 @@ class Dialog extends Node{
  set innerHTML(value){this.html=value;
   for(const match of value.matchAll(/name="([^"]+)"[^>]*value="([^"]*)"/g))this.nodes[`[name="${match[1]}"]`]=new Node(match[2]);
   for(const selector of ['.months','.date-prompt','[role=alert]','form','.close','.save','.cancel-edit','.bookings','.no-bookings','.status','.repeat','.repeat-limit','.repeat-count-label','.repeat-summary','.reminder-lead','#cancel-help'])this.nodes[selector]=new Node();
-  for(const selector of ['.booking-pages','.booking-page-number','[data-booking-page="-1"]','[data-booking-page="1"]'])this.nodes[selector]=new Node();
+  for(const selector of ['.booking-pages','.booking-page-controls','.booking-page-number','.booking-total','[data-booking-page="-1"]','[data-booking-page="1"]'])this.nodes[selector]=new Node();
   for(const name of ['repeat','repeat-count','reminder','reminder-amount','reminder-unit'])this.nodes[`[name="${name}"]`]=new Node();
+  this.nodes['[name="booking-page-size"]']=new Node('5');
   for(const key of ['start','end']){
    this.nodes[`[name="${key}-hour"]`]=new Node();
    const minute=this.nodes[`[name="${key}-minute"]`]=new Node();
@@ -82,7 +83,9 @@ assert.match(currentDialog.html,/Lämmitys 18 °C/);assert.match(currentDialog.h
 assert.doesNotMatch(currentDialog.html,/Lämmitys 19 °C|Jäähdytys 29 °C/);
 assert.equal(currentDialog.open,true);
 assert.match(currentDialog.html,/Poissaolokalenteri/);
-assert.match(currentDialog.html,/Tunnistus pois/);assert.match(currentDialog.html,/Automaattiset poissaololämpötilat voivat jäädä/);
+assert.match(currentDialog.html,/Tunnistus pois/);
+assert.match(currentDialog.html,/Normaalit lämpötila-asetukset palaavat, kun peruutat jakson\. Poissaololämpötilat pysyvät käytössä, jos toinen kalenterijakso tai automaattinen poissaolo on edelleen aktiivinen\./);
+assert.match(currentDialog.html,/<button type="button" class="setting-info" data-help="cancel-help"[^>]*><svg class="status-info"/);
 assert.match(currentDialog.html,/Europe\/Helsinki/);assert.match(currentDialog.html,/max-width:600px/);
 assert.match(currentDialog.nodes['.bookings'].innerHTML,/Peruuta ajanjakso/);
 const requests=[];
@@ -133,6 +136,9 @@ panel.call=async(type,payload)=>{
  assert.equal(panel.settings,draft,'calendar actions preserve unsaved Settings drafts');assert.equal(panel.settings.away_temperature,17);
  assert.equal(currentDialog.open,true);assert.equal(renders,1);
  assert.match(panel.awayCalendarButton(),/class="header-count" aria-hidden="true">3<\/span>/);
+ assert.equal(currentDialog.nodes['.booking-total'].textContent,'Poissaoloja yhteensä · 3');
+ assert.equal(currentDialog.nodes['.booking-pages'].hidden,false);
+ assert.equal(currentDialog.nodes['.booking-page-controls'].hidden,true);
  panel.info.data.away.has_ongoing_series=true;
  assert.match(panel.awayCalendarButton(),/class="header-count" aria-hidden="true">3\+<\/span>/);
  panel.info.data.away.has_ongoing_series=false;
@@ -240,6 +246,7 @@ panel.call=async(type,payload)=>{
  assert.equal(requests[5].action,'cancel');assert.equal(requests[5].booking_id,'once');
  assert.doesNotMatch(panel.awayCalendarButton(),/class="header-count"/);
  assert.equal(currentDialog.nodes['.no-bookings'].hidden,false);
+ assert.equal(currentDialog.nodes['.booking-pages'].hidden,true);
  occurrences=Array.from({length:11},(_,index)=>{
   const start=initialStart+index*7*86400;
   return {id:'paged',start,end:start+93600,repeat:'weekly',repeat_count:11,active:false};
@@ -247,6 +254,21 @@ panel.call=async(type,payload)=>{
  panel.info.data.away={schedules:[occurrences[0]],occurrences,occurrence_count:11,time_zone:'Europe/Helsinki'};
  panel.openAwayCalendar();
  assert.equal(currentDialog.nodes['.booking-pages'].hidden,false);
+ assert.equal(currentDialog.nodes['.booking-page-controls'].hidden,false);
+ assert.equal(currentDialog.nodes['.booking-total'].textContent,'Poissaoloja yhteensä · 11');
+ assert.equal(currentDialog.nodes['.booking-page-number'].textContent,'1 / 3');
+ assert.equal((currentDialog.nodes['.bookings'].innerHTML.match(/<li>/g)||[]).length,5);
+ const pageSizeMenu=currentDialog.html.match(/<select name="booking-page-size">(.*?)<\/select>/)[1];
+ assert.deepEqual([...pageSizeMenu.matchAll(/value="(\d+)"/g)].map(option=>option[1]),['5','10','20']);
+ dispatch('[data-booking-page]',{bookingPage:'1'});
+ assert.equal(currentDialog.nodes['.booking-page-number'].textContent,'2 / 3');
+ const pageSize=values('booking-page-size');
+ pageSize.value='20';
+ pageSize.listeners.change({target:pageSize});
+ assert.equal(currentDialog.nodes['.booking-page-controls'].hidden,true);
+ assert.equal((currentDialog.nodes['.bookings'].innerHTML.match(/<li>/g)||[]).length,11);
+ pageSize.value='10';
+ pageSize.listeners.change({target:pageSize});
  assert.equal(currentDialog.nodes['.booking-page-number'].textContent,'1 / 2');
  assert.equal((currentDialog.nodes['.bookings'].innerHTML.match(/<li>/g)||[]).length,10);
  dispatch('[data-booking-page]',{bookingPage:'1'});
@@ -261,7 +283,8 @@ panel.call=async(type,payload)=>{
  dispatch('[data-removal]',{removal:'skip'});
  await settle();
  assert.deepEqual(requests.at(-1),{type:'away',action:'skip',booking_id:'paged',occurrence:pageTwoStart});
- assert.equal(currentDialog.nodes['.booking-pages'].hidden,true);
+ assert.equal(currentDialog.nodes['.booking-page-controls'].hidden,true);
+ assert.equal(currentDialog.nodes['.booking-total'].textContent,'Poissaoloja yhteensä · 10');
  assert.equal((currentDialog.nodes['.bookings'].innerHTML.match(/<li>/g)||[]).length,10);
  console.log('Away calendar defaults, badge, editing, independent cancellation, recurrence choices and settings drafts passed.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

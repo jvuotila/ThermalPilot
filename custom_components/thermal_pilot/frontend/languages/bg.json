@@ -2,6 +2,9 @@
   "language": "bg",
   "name": "Български",
   "messages": {
+    "Per page": "На страница",
+    "Total absences": "Общо отсъствия",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "При отмяна на периода се възстановяват обичайните температурни настройки. Температурите за отсъствие остават активни, ако има друг активен период в календара или автоматично отсъствие.",
     "Previous page": "Предишна страница",
     "Next page": "Следваща страница",
     "Edit series": "Редактиране на серията",

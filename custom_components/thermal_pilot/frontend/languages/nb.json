@@ -2,6 +2,9 @@
   "language": "nb",
   "name": "Norsk (bokmål)",
   "messages": {
+    "Per page": "Per side",
+    "Total absences": "Fravær totalt",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "De normale temperaturinnstillingene gjenopptas når du avbryter perioden. Fraværstemperaturene gjelder fortsatt hvis en annen kalenderperiode eller automatisk fravær er aktivt.",
     "Previous page": "Forrige side",
     "Next page": "Neste side",
     "Edit series": "Rediger serie",

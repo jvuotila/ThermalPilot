@@ -2,6 +2,9 @@
   "language": "lv",
   "name": "Latviešu",
   "messages": {
+    "Per page": "Lapā",
+    "Total absences": "Prombūtnes kopā",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Atceļot periodu, tiek atjaunoti parastie temperatūras iestatījumi. Prombūtnes temperatūra paliek spēkā, ja vēl ir aktīvs cits kalendāra periods vai automātiskā prombūtne.",
     "Previous page": "Iepriekšējā lapa",
     "Next page": "Nākamā lapa",
     "Edit series": "Rediģēt sēriju",

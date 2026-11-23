@@ -2,6 +2,9 @@
   "language": "hu",
   "name": "Magyar",
   "messages": {
+    "Per page": "Oldalanként",
+    "Total absences": "Távollétek összesen",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Az időszak törlésekor visszaállnak a normál hőmérséklet-beállítások. A távolléti hőmérsékletek továbbra is érvényesek, ha másik naptári időszak vagy automatikus távollét még aktív.",
     "Previous page": "Előző oldal",
     "Next page": "Következő oldal",
     "Edit series": "Sorozat szerkesztése",

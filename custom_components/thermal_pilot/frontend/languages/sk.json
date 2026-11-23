@@ -2,6 +2,9 @@
   "language": "sk",
   "name": "Slovenčina",
   "messages": {
+    "Per page": "Na stránke",
+    "Total absences": "Celkový počet neprítomností",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Po zrušení obdobia sa obnovia bežné nastavenia teploty. Teploty počas neprítomnosti ostanú aktívne, ak ešte trvá iné obdobie v kalendári alebo automatická neprítomnosť.",
     "Previous page": "Predchádzajúca strana",
     "Next page": "Nasledujúca strana",
     "Edit series": "Upraviť sériu",

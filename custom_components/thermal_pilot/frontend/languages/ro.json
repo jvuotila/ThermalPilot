@@ -2,6 +2,9 @@
   "language": "ro",
   "name": "Română",
   "messages": {
+    "Per page": "Pe pagină",
+    "Total absences": "Total absențe",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Setările normale de temperatură se reiau când anulezi perioada. Temperaturile de absență rămân active dacă o altă perioadă din calendar sau absența automată este încă activă.",
     "Previous page": "Pagina anterioară",
     "Next page": "Pagina următoare",
     "Edit series": "Editează seria",

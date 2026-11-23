@@ -2,6 +2,9 @@
   "language": "is",
   "name": "Íslenska",
   "messages": {
+    "Per page": "Á síðu",
+    "Total absences": "Fjarvistir alls",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Venjulegar hitastillingar taka aftur gildi þegar tímabilinu er aflýst. Fjarveruhitastig gildir áfram ef annað tímabil í dagatalinu eða sjálfvirk fjarvera er enn virk.",
     "Previous page": "Fyrri síða",
     "Next page": "Næsta síða",
     "Edit series": "Breyta röð",

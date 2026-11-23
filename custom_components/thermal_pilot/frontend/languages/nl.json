@@ -2,6 +2,9 @@
   "language": "nl",
   "name": "Nederlands",
   "messages": {
+    "Per page": "Per pagina",
+    "Total absences": "Totaal afwezigheden",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Als je de periode annuleert, worden de normale temperatuurinstellingen hervat. De afwezigheidstemperaturen blijven actief zolang een andere kalenderperiode of automatische afwezigheid actief is.",
     "Previous page": "Vorige pagina",
     "Next page": "Volgende pagina",
     "Edit series": "Reeks bewerken",

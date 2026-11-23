@@ -2,6 +2,9 @@
   "language": "el",
   "name": "Ελληνικά",
   "messages": {
+    "Per page": "Ανά σελίδα",
+    "Total absences": "Σύνολο απουσιών",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Οι κανονικές ρυθμίσεις θερμοκρασίας επανέρχονται όταν ακυρώσετε την περίοδο. Οι θερμοκρασίες απουσίας παραμένουν ενεργές αν ισχύει ακόμα άλλη περίοδος του ημερολογίου ή η αυτόματη απουσία.",
     "Previous page": "Προηγούμενη σελίδα",
     "Next page": "Επόμενη σελίδα",
     "Edit series": "Επεξεργασία σειράς",

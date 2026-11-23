@@ -2,6 +2,9 @@
   "language": "et",
   "name": "Eesti",
   "messages": {
+    "Per page": "Lehel",
+    "Total absences": "Äraolekuid kokku",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Perioodi tühistamisel taastuvad tavapärased temperatuuriseaded. Äraoleku temperatuurid jäävad kehtima, kui mõni muu kalendriperiood või automaatne äraolek on endiselt aktiivne.",
     "Previous page": "Eelmine leht",
     "Next page": "Järgmine leht",
     "Edit series": "Muuda seeriat",

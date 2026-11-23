@@ -2,6 +2,9 @@
   "language": "it",
   "name": "Italiano",
   "messages": {
+    "Per page": "Per pagina",
+    "Total absences": "Totale assenze",
+    "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Annullando il periodo si ripristinano le normali impostazioni di temperatura. Le temperature di assenza restano attive se è ancora attivo un altro periodo del calendario o un’assenza automatica.",
     "Previous page": "Pagina precedente",
     "Next page": "Pagina successiva",
     "Edit series": "Modifica serie",
