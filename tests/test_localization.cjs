@@ -44,6 +44,31 @@ function runtime(fetch){
   }
  }
  const zoneWords={en:'Zones',fi:'Vyöhykkeet',sv:'Zoner',nb:'Soner',da:'Zoner',de:'Zonen',pt:'Zonas',es:'Zonas',fr:'Zones',et:'Tsoonid',lv:'Zonas',lt:'Zonos',pl:'Strefy',it:'Zone',nl:'Zones',is:'Svæði',ro:'Zone',cs:'Zóny',sk:'Zóny',bg:'Зони',sr:'Зоне',hr:'Zone',el:'Ζώνες',sq:'Zonat',hu:'Zónák'};
+ const device='History: Garage';
+ const zoneWarning=`Thermostat control: ${device}: zone temperature unavailable; using fan-only standby.`;
+ const fallbackWarning=`Thermostat control: Winter fallback targets are being used because required data or a current heating plan is unavailable: ${device}, Kitchen.`;
+ const opaqueProviderError='RuntimeError: No weather forecast: Café & Heating.';
+ const weatherWarning='No weather forecast: current outdoor temperature is held constant.';
+ assert.equal(i18n.translateNotification(zoneWarning,'en'),zoneWarning);
+ assert.equal(i18n.translateNotification(zoneWarning,'fi'),
+  'Termostaatin ohjaus: History: Garage: Vyöhykkeen lämpötila ei ole saatavilla. Valmiustila: Vain puhallus.');
+ for(const code of Object.keys(catalogs).filter(code=>code!=='en')){
+  const zoneNotice=i18n.translateNotification(zoneWarning,code);
+  assert.ok(zoneNotice.includes(device),code+' preserves the device name');
+  assert.doesNotMatch(zoneNotice,/Thermostat control|zone temperature unavailable|fan-only standby/);
+  const fallbackNotice=i18n.translateNotification(fallbackWarning,code);
+  assert.ok(fallbackNotice.includes(device+', Kitchen'),code+' preserves the room list');
+  assert.doesNotMatch(fallbackNotice,/Winter fallback|targets are being used/);
+  const weather=i18n.translateNotification(
+   `${weatherWarning} weather.home: hourly: ${opaqueProviderError}; daily: no usable timestamped temperature rows returned; Forecast request timed out.`,code);
+  assert.ok(weather.includes('weather.home: hourly: '+opaqueProviderError),code+' keeps the provider detail intact');
+  assert.doesNotMatch(weather,/no usable timestamped temperature rows returned|Forecast request timed out\./);
+  assert.equal(i18n.translateNotification('Price forecast: '+opaqueProviderError,code).split(': ').slice(1).join(': '),opaqueProviderError);
+  assert.equal(i18n.translateNotification(`Thermostat control: ${device}: ${opaqueProviderError}`,code).split(': ').slice(1).join(': '),device+': '+opaqueProviderError);
+  const bounds=i18n.translateNotification(`Thermostat control: ${device}: temperature setpoint outside device limits (5–32 °C); using off standby.`,code);
+  assert.ok(bounds.includes('5–32 °C'));
+  assert.doesNotMatch(bounds,/outside device limits|using off standby/);
+ }
  const zoneRuntime=runtime(async url=>{const code=new URL(url).pathname.split('/').at(-1).replace('.json','');return {ok:true,json:async()=>catalogs[code]};});
  for(const [code,word] of Object.entries(zoneWords)){
   await zoneRuntime.load(code);assert.equal(zoneRuntime.translateText('Zones',code),word);assert.equal(zoneRuntime.cardText('Zones',code),word);

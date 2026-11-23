@@ -189,6 +189,11 @@ vm.runInNewContext(readFrontendSource(path.join(__dirname,'../custom_components/
  assert.equal(manuallyOpened.open,false,'Clicking the backdrop closes the drawer');
  update(error);
  assert.equal(dialogs.length,4,'Backdrop dismissal also acknowledges active errors');
+ panel.settings.language='fi';
+ panel.openNotifications();
+ update('Thermostat control: History: Garage: zone temperature unavailable; using fan-only standby.');
+ assert.match(list(dialogs.at(-1))[0].innerHTML,
+  /Termostaatin ohjaus: History: Garage: Vyöhykkeen lämpötila ei ole saatavilla\. Valmiustila: Vain puhallus\./);
  assert.equal(panel.settings.price_entity,'draft');
  panel.stopNotificationSubscription();
  assert.equal(unsubscribed,true);

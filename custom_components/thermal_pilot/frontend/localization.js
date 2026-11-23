@@ -94,7 +94,88 @@ function cardText(text,language){
  const code=normalize(language),catalog=catalogs.get(code);
  return catalog?.cardMessages[text]??catalog?.messages[text]??catalog?.legacy[text]??text;
 }
-return {languageNames,languageText,finnishText,heatingFinnishText,install,load,ready,watch,message,translateText,cardText};
+const notificationModes={heat:'Heating',cool:'Cooling',off:'Off',fan_only:'Fan-only mode','fan-only':'Fan-only mode'};
+const weatherForecastKinds={hourly:'Hourly',twice_daily:'Twice daily',daily:'Daily'};
+const controlNoticeReasons=new Set([
+ 'thermostat unavailable; target will be retried.',
+ 'required temperature or configured control input unavailable.',
+ 'zone temperature unavailable.',
+ 'heat pump unavailable.',
+ 'live control requires a thermostat using °C.',
+ 'heat pump must use Celsius.',
+ 'target is outside thermostat limits.',
+ 'no supported thermostat target fits the temperature limits.',
+ 'setting thermostat temperature failed; will retry.',
+ 'no supported standby mode for heat pump changeover.',
+ 'selected fan mode is unsupported.',
+ 'selected swing mode is unsupported.',
+ 'season setpoint could not be applied; source or thermostat unavailable.',
+ 'season setpoint is outside thermostat limits.',
+ 'applying the season setpoint failed; will retry.',
+]);
+function translateNotification(text,language){
+ if(normalize(language)==='en'||!catalogs.has(language))return text;
+ const t=(key,values)=>message(key,values,language);
+ const controlPrefix='Thermostat control:';
+ const pricePrefix='Price forecast:';
+ const weatherPrefix='No weather forecast: current outdoor temperature is held constant.';
+ if(text.startsWith(pricePrefix+' '))return t(pricePrefix)+' '+t(text.slice(pricePrefix.length+1));
+ if(text.startsWith(weatherPrefix+' ')){
+  const detail=text.slice(weatherPrefix.length+1);
+  const forecastDetail=detail.match(/^(weather\.[\w]+: )([\s\S]*)$/);
+  if(!forecastDetail){
+   const key=detail==='No usable forecast was returned.'?'No usable weather forecast was returned.':detail;
+   return t(weatherPrefix)+' '+t(key);
+  }
+  // Forecast exceptions include provider-owned text. Translate only the
+  // source-reader fragments that ThermalPilot itself added.
+  const reason=forecastDetail[2].replace(/(^|; )(hourly|twice_daily|daily): no usable timestamped temperature rows returned(?=; |$)/g,
+   (_,separator,kind)=>separator+t(weatherForecastKinds[kind])+': '+t('No usable timestamped temperature readings were returned.'));
+  const timeout='Forecast request timed out.';
+  const result=reason.endsWith('; '+timeout)?reason.slice(0,-timeout.length)+t(timeout):t(reason);
+  return t(weatherPrefix)+' '+forecastDetail[1]+result;
+ }
+ if(text.startsWith(controlPrefix+' '))return t(controlPrefix)+' '+translateControlNotice(text.slice(controlPrefix.length+1),t);
+ const incompletePrices=text.match(/^(today|tomorrow): expected 24 hourly or 96 quarter-hour prices for a complete day\.$/);
+ if(incompletePrices)return t('{series}: expected 24 hourly or 96 quarter-hour prices for a complete day.',{series:incompletePrices[1]});
+ // Season setpoint notices can also be emitted without a control prefix.
+ if(/: (?:season setpoint|applying the season setpoint) /.test(text))return translateControlNotice(text,t);
+ return t(text);
+}
+function translateControlNotice(text,t){
+ const fallback=text.match(/^(Summer|Winter) fallback targets are being used because required data or a current heating plan is unavailable: ([\s\S]+)\.$/);
+ if(fallback){
+  return t('{season} targets are being used because required data or a current heating plan is unavailable: {rooms}.',
+   {season:t(fallback[1]+' fallback'),rooms:fallback[2]});
+ }
+ // Keep the device name opaque, including names with colons or UI words.
+ const separator=text.lastIndexOf(': ');
+ if(separator!==-1){
+  const name=text.slice(0,separator);
+  const detail=text.slice(separator+2);
+  const standby=detail.match(/^(.+); using (off|fan-only) standby\.$/);
+  const reason=standby?standby[1]+'.':detail;
+  let translated=controlNoticeReasons.has(reason)?t(reason):reason;
+  const unsupported=reason.match(/^heat pump does not support (\w+)\.$/);
+  const limits=reason.match(/^temperature setpoint outside device limits \(([^)]+)\)\.$/);
+  const clamped=reason.match(/^requested (-?[\d.]+) °C is outside pump limits\. Using (-?[\d.]+) °C\.$/);
+  const failed=reason.match(/^(\w+) failed; (waiting to retry|will retry)\.$/);
+  const unconfirmed=reason.match(/^heat pump has not confirmed (\w+); retrying this stage\.$/);
+  if(unsupported){
+   const mode=unsupported[1];
+   translated=t('Heat pump does not support mode {mode}.',{mode:Object.hasOwn(notificationModes,mode)?t(notificationModes[mode]):mode});
+  }
+  if(limits)translated=t('Temperature setpoint is outside device limits ({range}).',{range:limits[1]});
+  if(clamped)translated=t('Requested {target} °C is outside pump limits. Using {limited} °C.',{target:clamped[1],limited:clamped[2]});
+  if(failed)translated=t('Action {action} failed. It will be retried.',{action:failed[1]});
+  if(unconfirmed)translated=t('Heat pump has not confirmed {stage}. ThermalPilot will retry.',{stage:unconfirmed[1]});
+  if(standby&&translated!==reason)translated+=' '+t('Standby mode: {mode}.',{mode:t(notificationModes[standby[2]])});
+  else if(standby)return t(text);
+  if(translated!==detail)return name+': '+translated;
+ }
+ return t(text);
+}
+return {languageNames,languageText,finnishText,heatingFinnishText,install,load,ready,watch,message,translateText,translateNotification,cardText};
 })();
 globalThis.__thermalPilotLocalization=localization;
 export {localization};

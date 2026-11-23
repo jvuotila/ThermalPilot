@@ -669,7 +669,8 @@ class ThermalPilotPanel extends HTMLElement {
       row.exitAnimation=null;
       row.removeAttribute('aria-hidden');
       row.dataset.severity=level;
-      row.innerHTML=`${statusIcon(level)}<span>${escapeHTML(text)}</span>`;
+      const noticeText=tpI18n.translateNotification(text,language);
+      row.innerHTML=`${statusIcon(level)}<span data-user-text>${escapeHTML(noticeText)}</span>`;
       this.translateRoot(row);
       while(next&&!active.has(next.notificationText))next=next.nextElementSibling;
       if(row!==next)list.insertBefore(row,next);
