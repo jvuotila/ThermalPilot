@@ -329,6 +329,7 @@ const notificationDrawerStyles=`
  @keyframes tp-drawer-in{from{transform:translateX(100%)}to{transform:translateX(0)}}
  .tp-notification-drawer header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 24px;border-bottom:1px solid var(--divider-color,#c6d2d8)}
  .tp-notification-drawer h2{font-size:21px;margin:0}
+ .tp-notification-drawer h2[tabindex="-1"]:focus{outline:none}
  .tp-notification-drawer button{flex:none;width:44px;height:44px;border:1px solid transparent;border-radius:9px;background:transparent;color:inherit;font:26px system-ui;cursor:pointer}
  .tp-notification-drawer button:hover{background:var(--secondary-background-color,#ecf1f3)}
  .tp-notification-drawer button:focus-visible{outline:2px solid var(--primary-color,#00838f);outline-offset:2px}
@@ -593,7 +594,7 @@ class ThermalPilotPanel extends HTMLElement {
       if(value)dialog.style.setProperty(property,value);
     }
     dialog.setAttribute('aria-labelledby','tp-notification-title');
-    dialog.innerHTML=`<style>${notificationDrawerStyles}</style><header><h2 id="tp-notification-title"></h2><button type="button" autofocus>×</button></header><div class="notification-content" aria-live="polite"><ul></ul><p hidden></p></div>`;
+    dialog.innerHTML=`<style>${notificationDrawerStyles}</style><header><h2 id="tp-notification-title"${automatic?' tabindex="-1" autofocus':''}></h2><button type="button"${automatic?'':' autofocus'}>×</button></header><div class="notification-content" aria-live="polite"><ul></ul><p hidden></p></div>`;
     dialog.querySelector('button').addEventListener('click',()=>dialog.close());
     // Native dialogs receive backdrop events themselves. Check the bounds so
     // clicking empty space inside the drawer or dragging out of it keeps it open.

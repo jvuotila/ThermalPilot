@@ -125,6 +125,7 @@ vm.runInNewContext(readFrontendSource(path.join(__dirname,'../custom_components/
  assert.equal(count.textContent,3);
  assert.equal(dialogs.length,1);
  const drawer=dialogs[0];
+ assert.match(drawer.innerHTML,/<h2 id="tp-notification-title" tabindex="-1" autofocus><\/h2><button type="button">/);
  assert.equal(attributes.get('aria-expanded'),'true');
  const list=dialog=>dialog.querySelector('.notification-content ul').children;
  assert.deepEqual(list(drawer).map(row=>row.dataset.severity),['error','warning','info']);
@@ -170,6 +171,7 @@ vm.runInNewContext(readFrontendSource(path.join(__dirname,'../custom_components/
  dialogs[2].clickClose();
  panel.openNotifications();
  const manuallyOpened=dialogs[3];
+ assert.match(manuallyOpened.innerHTML,/<h2 id="tp-notification-title"><\/h2><button type="button" autofocus>/);
  update(error,newError);
  reduceMotion=true;
  update();
