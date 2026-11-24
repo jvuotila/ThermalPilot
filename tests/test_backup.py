@@ -98,13 +98,23 @@ class RestoreTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):self.temp.cleanup()
     async def test_restore_keeps_room_ids_models_and_forces_simulation(self):
         from thermal_pilot.backup import export_backup,restore_backup
-        rid=self.c.settings['rooms'][0]['id'];self.c.models[rid]={'loss':.003,'gain':.08,'samples':123,'response':.7}
+        from thermal_pilot.config import learning_fingerprint
+        from thermal_pilot.coordinator import dt_util
+
+        room = self.c.settings['rooms'][0]
+        rid = room['id']
+        timestamp = dt_util.utcnow().timestamp()
+        self.c.season = {'collecting': True, 'time': timestamp}
+        self.c.config_fingerprint[rid] = learning_fingerprint(room, self.c.settings)
+        self.c.models[rid] = {'loss': .003, 'gain': .08, 'samples': 123,
+                              'response': .7, 'response_time': timestamp}
         self.c.settings.update(simulation_enabled=False,live_control_confirmed=True,apply_season_setpoints=True)
         content=await export_backup(self.c)
         self.c.models={};self.c.settings['rooms'][0]['name']='Changed'
         result=await restore_backup(self.c,content)
         self.assertTrue(result['restored']);self.assertEqual(self.c.settings['rooms'][0]['name'],'Study')
         self.assertEqual(self.c.models[rid]['samples'],123);self.assertEqual(self.c.models[rid]['response'],0)
+        self.assertNotIn('response_time', self.c.models[rid])
         self.assertTrue(self.c.settings['simulation_enabled']);self.assertFalse(self.c.settings['live_control_confirmed']);self.assertFalse(self.c.settings['apply_season_setpoints'])
         self.assertEqual(self.c.managed_rooms,{})
         self.assertEqual(self.c.entry.options,self.c.settings)

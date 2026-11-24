@@ -161,6 +161,11 @@ async def restore_backup(coordinator, content):
             # Old device ownership and applied targets are not current control commands.
             state['managed_rooms'] = {}
             state['applied_season_targets'] = {}
+            # Keep learned parameters, but a backup is not evidence that
+            # stored heat is still present when the user restores it.
+            for model in state['models'].values():
+                model['response'] = 0.0
+                model.pop('response_time', None)
             coordinator.stop()
             try:
                 from homeassistant.util import dt as dt_util

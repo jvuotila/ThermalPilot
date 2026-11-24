@@ -429,6 +429,46 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
             else:
                 self.hass.services.async_call.assert_not_awaited()
 
+    async def test_brief_restart_keeps_floor_heat_available_to_the_tariff_plan(self):
+        from thermal_pilot.config import learning_fingerprint
+        from thermal_pilot.model import Slot, initial_model
+
+        current = now + timedelta(hours=8)
+        room = self.c.settings['rooms'][0]
+        room_id = room['id']
+        self.hass.states['sensor.room'].state = '20.1'
+        slots = []
+        for index in range(32):
+            start = current + timedelta(minutes=15 * index)
+            price = 28 if index < 8 else 8
+            slots.append(Slot(start, start + timedelta(minutes=15), price))
+        entry = types.SimpleNamespace(entry_id='test', data=self.c.settings, options={})
+        scenarios = ((5, False, False), (5, True, False), (60, True, True))
+        for minutes_since_observation, has_response_time, should_boost in scenarios:
+            with self.subTest(minutes_since_observation=minutes_since_observation,
+                              has_response_time=has_response_time):
+                observed_at = current - timedelta(minutes=minutes_since_observation)
+                restarted = PilotCoordinator(self.hass, entry)
+                model = {**initial_model(room), 'response': .8}
+                if has_response_time:
+                    model['response_time'] = observed_at.timestamp()
+                refresh_time = current if has_response_time else observed_at
+                restarted.store.saved = {
+                    'season': {'collecting': True, 'time': refresh_time.timestamp()},
+                    'fingerprints': {room_id: learning_fingerprint(room, restarted.settings)},
+                    'models': {room_id: model},
+                }
+                with (patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=current),
+                      patch('thermal_pilot.coordinator.price_slots', return_value=slots)):
+                    await restarted.load()
+                    self.assertFalse(restarted.previous)
+                    result = await restarted._async_update_data()
+                plan = result['rooms'][room_id]['plan']
+                self.assertEqual(plan['scheduled_heat'], should_boost)
+                if not should_boost:
+                    self.assertFalse(any(row['predicted_demand'] for row in plan['slots'][:8]))
+                    self.assertFalse(plan['comfort_risk'])
+
     async def test_restart_after_session_closing_preserves_pause_then_expires(self):
         restarted, room_id, start, end, current = await self.checkpointed_restart()
         closing = end - timedelta(minutes=restarted.settings['stop_offset_minutes'])

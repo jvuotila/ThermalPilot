@@ -25,7 +25,7 @@ from .fireplaces import active_fireplaces
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
-from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
+from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, response_step, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -234,13 +234,16 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.solar_heating = saved.get('solar_heating', {})
         if self.solar_heating:
             self.solar_heating['candidate'] = None
+        self.season = saved.get('season', {})
+        self.config_fingerprint = saved.get('fingerprints', {})
+        rooms = resolved_rooms(self.settings)
+        now = dt_util.utcnow()
+        self.restore_floor_response(rooms, now)
         for model in self.models.values():
-            model['response'] = 0.0  # Thermal response cannot be trusted across downtime.
             bank = model.get('air_lag_learning', {})
             bank.pop('last_time',None)
             for profile in bank.get('profiles',{}).values():
                 profile['response'] = 0.0
-        self.season = saved.get('season', {})
         self.air_control.zone_seasons = saved.get('zone_seasons', {})
         self.air_control.thermal_modes = saved.get('pump_thermal_modes', {})
         self.air_control.reversals = saved.get('pump_reversals', {})
@@ -249,20 +252,47 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.managed_rooms = {room['thermostat']: room for room in saved.get('managed_rooms', {}).values()}
         self.sensor_health = saved.get('sensor_health', {'rooms': {}, 'last_notification_day': None})
         await self.hass.async_add_executor_job(self.history_db.initialize)
-        self.config_fingerprint = saved.get('fingerprints', {})
         # Session checkpoints are local control continuity, not learned parameters.
         self.session_plans = {}
         self.suggested_runs = {}
-        for room in resolved_rooms(self.settings) + zone_rooms(self.settings):
+        for room in rooms + zone_rooms(self.settings):
             checkpoint = saved.get('heating_sessions', {}).get(room['id'])
             if not checkpoint or checkpoint.get('fingerprint') != self.session_fingerprint(room):
                 continue
-            cutoff = dt_util.utcnow() - timedelta(minutes=15)
+            cutoff = now - timedelta(minutes=15)
             windows = checkpoint.get('thermostat_windows', [])
             sessions = checkpoint.get('sessions', [])
             if any(stamp(item['end']) > cutoff for item in windows + sessions):
                 self.session_plans[room['id']] = checkpoint
                 self.suggested_runs[room['id']] = deepcopy(checkpoint.get('run', {}))
+
+    def restore_floor_response(self, rooms, now):
+        """Carry recent stored slab heat through a brief Home Assistant restart."""
+        floor_rooms = {}
+        if (self.settings['house_distribution'] == 'water_floor'
+                and self.settings['heating_enabled'] and self.season.get('collecting')):
+            floor_rooms = {room['id']: room for room in rooms
+                           if room_water_distribution(room, self.settings)}
+        now_timestamp = now.timestamp()
+        for room_id, model in self.models.items():
+            response = number(model.get('response'), 0)
+            # Older checkpoints only recorded the refresh time for the house.
+            response_time = number(model.pop('response_time', self.season.get('time')))
+            model['response'] = 0.0
+            room = floor_rooms.get(room_id)
+            if room is None or response_time is None or not 0 < response <= 1:
+                continue
+            if self.config_fingerprint.get(room_id) != learning_fingerprint(room, self.settings):
+                continue
+            elapsed_hours = (now_timestamp - response_time) / 3600
+            if not 0 <= elapsed_hours <= 0.5:
+                continue
+            if elapsed_hours:
+                # Allow already stored heat to decay. Do not assume the valves
+                # kept supplying heat while Home Assistant was offline.
+                response, _ = response_step(response, 0, elapsed_hours, self.settings['lag_hours'])
+            model['response'] = response
+            model['response_time'] = now_timestamp
 
     def chart_temperatures(self) -> dict[str, Any]:
         """Read current values even in passive mode; zone policy matches live control."""
@@ -899,6 +929,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             model['solar_context'] = solar_context
             if not self.season['collecting']:
                 model['response'] = 0.0
+                model.pop('response_time', None)
             activity = self.activity(room)
             thermostat_state = self.hass.states.get(room['thermostat'])
             use_setpoints = pump_uses_setpoints(room, self.settings)
@@ -997,6 +1028,8 @@ class PilotCoordinator(DataUpdateCoordinator):
                             model.update(learned_model)
                         else:
                             prediction = learn(model, room, previous, current)
+                        if prediction is not None:
+                            model['response_time'] = current['time']
                         elapsed = current['time'] - previous['time']
                         availability_changed = any(
                             (previous.get(key) is None) != (current.get(key) is None)
