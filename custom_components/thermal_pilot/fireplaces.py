@@ -2,6 +2,38 @@
 
 from uuid import NAMESPACE_URL, uuid5
 
+from .model import number
+
+# Migration also runs during Home Assistant startup, so the default names are
+# available without reading the frontend translation files on the event loop.
+FIREPLACE_MIGRATION_NAMES = {
+    'bg': 'Камина',
+    'cs': 'Krb',
+    'da': 'Pejs',
+    'de': 'Kamin',
+    'el': 'Τζάκι',
+    'en': 'Fireplace',
+    'es': 'Chimenea',
+    'et': 'Kamin',
+    'fi': 'Tulisija',
+    'fr': 'Cheminée',
+    'hr': 'Kamin',
+    'hu': 'Kandalló',
+    'is': 'Arinn',
+    'it': 'Camino',
+    'lt': 'Židinys',
+    'lv': 'Kamīns',
+    'nb': 'Ildsted',
+    'nl': 'Haard',
+    'pl': 'Kominek',
+    'pt': 'Lareira',
+    'ro': 'Șemineu',
+    'sk': 'Krb',
+    'sq': 'Oxhak',
+    'sr': 'Камин',
+    'sv': 'Eldstad',
+}
+
 
 def migrate_fireplaces(settings):
     """Move old sensors into named sources, preserving local overrides and history IDs."""
@@ -31,12 +63,20 @@ def migrate_fireplaces(settings):
 
     entity = settings.get('fireplace_entity')
     if entity:
+        # The old house-wide sensor had no room list. A nonzero room
+        # compensation is the explicit indication that the fireplace warms it.
+        room_ids = [
+            room['id'] for room in rooms
+            if not room.get('is_garage')
+            and room.get('heating_zone_id') not in local_zone_ids
+            and number(room.get('fireplace_reduction'), 0) != 0
+        ]
         fireplaces.append({
             'id': str(uuid5(NAMESPACE_URL, f'thermal-pilot/fireplace/{entity}')),
-            'name': 'Fireplace', 'fireplace_entity': entity,
+            'name': FIREPLACE_MIGRATION_NAMES.get(settings['language'], 'Fireplace'),
+            'fireplace_entity': entity,
             'fireplace_active_state': settings.get('fireplace_active_state', 'on'),
-            'room_ids': [room['id'] for room in rooms if not room.get('is_garage')
-                         and room.get('heating_zone_id') not in local_zone_ids],
+            'room_ids': room_ids,
         })
 
     fireplace_zone_ids = {zone['id'] for zone in zones if zone.get('source_type') == 'fireplace'}

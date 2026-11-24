@@ -16,6 +16,7 @@ function runtime(fetch){
  assert.deepEqual(requests,['https://ha.example/thermal_pilot/languages/fi.json?v=test-version']);
  assert.equal(i18n.translateText('History','fi'),'Historia');
  assert.equal(i18n.translateText('Climate setup', 'fi'), 'Lämmitys ja jäähdytys');
+ assert.equal(i18n.translateText('Fireplaces', 'fi'), 'Tulisijat');
  assert.equal(i18n.cardText('Room','fi'),'Huone');
  assert.equal(i18n.cardText('Close to reference','fi'),'Lähellä vertailuarvoa');
  assert.equal(i18n.cardText('Use integration language','fi'),'Käytä integraation kieltä');

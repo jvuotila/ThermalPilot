@@ -218,18 +218,55 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
     def test_legacy_fireplaces_preserve_room_scope_without_enabling_circulation(self):
         local_room_id = '00000000-0000-4000-8000-000000000004'
         local_zone_id = '00000000-0000-4000-8000-000000000005'
-        self.room.update(is_garage=False)
+        self.room.update(is_garage=False, fireplace_reduction=20)
         local_room = {**self.room, 'id': local_room_id, 'heating_zone_id': local_zone_id}
-        settings = {**self.settings, 'rooms': [self.room, local_room],
+        uncompensated_room = {**self.room, 'id': 'uncompensated', 'fireplace_reduction': 0}
+        garage = {**self.room, 'id': 'garage', 'is_garage': True}
+        settings = {**self.settings, 'rooms': [self.room, local_room, uncompensated_room, garage],
+                    'language': 'fi',
                     'fireplace_entity': 'binary_sensor.house_fireplace',
                     'heating_zones': [{**ZONE_DEFAULTS, 'id': local_zone_id, 'name': 'Study',
                                        'fireplace_entity': 'binary_sensor.study_fireplace'}]}
         migrated = stored_settings(settings, {})
         local, house = migrated['fireplaces']
+        self.assertEqual(local['name'], 'Study')
+        self.assertEqual(house['name'], 'Tulisija')
         self.assertEqual(local['room_ids'], [local_room_id])
         self.assertEqual(house['room_ids'], [self.room['id']])
         self.assertFalse(migrated['heating_zones'][0]['fireplace_circulation'])
         self.assertEqual(stored_settings(migrated, {}), migrated)
+
+    def test_legacy_house_sensor_keeps_empty_scope_until_rooms_are_selected(self):
+        self.room.update(is_garage=False, fireplace_reduction=0)
+        settings = {**self.settings, 'fireplace_entity': 'binary_sensor.house_fireplace',
+                    'fireplace_active_state': 'off'}
+        migrated = stored_settings(settings, {})
+        fireplace = migrated['fireplaces'][0]
+        self.assertEqual(fireplace['room_ids'], [])
+        self.assertEqual(fireplace['fireplace_entity'], 'binary_sensor.house_fireplace')
+        self.assertEqual(fireplace['fireplace_active_state'], 'off')
+
+        fireplace['name'] = 'Living room stove'
+        fireplace['room_ids'] = [self.room['id']]
+        reloaded = stored_settings(settings, {**migrated, 'language': 'fi'})
+        self.assertEqual(reloaded['fireplaces'], [fireplace])
+
+    def test_legacy_house_fireplace_name_uses_every_supported_language(self):
+        settings = {**self.settings, 'fireplace_entity': 'binary_sensor.house_fireplace'}
+        catalogs = ROOT / 'frontend' / 'languages'
+        for path in sorted(catalogs.glob('*.json')):
+            language = path.stem
+            with self.subTest(language=language):
+                migrated = stored_settings(settings, {'language': language})
+                name = migrated['fireplaces'][0]['name']
+                self.assertTrue(name)
+                if language == 'en':
+                    self.assertEqual(name, 'Fireplace')
+                else:
+                    self.assertNotEqual(name, 'Fireplace')
+
+        migrated = stored_settings(settings, {'language': 'unsupported'})
+        self.assertEqual(migrated['fireplaces'][0]['name'], 'Fireplace')
 
     async def test_shared_lower_guard_works_even_with_main_room_temperature_policy(self):
         self.room.update(is_garage=False,heat_control='air_to_air');self.hass.states['sensor.garage'].state='21'
