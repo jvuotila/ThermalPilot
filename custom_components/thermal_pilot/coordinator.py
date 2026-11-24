@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from copy import deepcopy
 import logging
 import asyncio
+from statistics import median
 from zoneinfo import ZoneInfo
 from homeassistant.core import callback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -26,6 +27,7 @@ from .config import stored_settings, water_distribution, electric_heating, air_r
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, response_step, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled, floor_response_from_history
+from .model import water_heating_factor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,6 +74,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         self._source_unsubscribe = None
         self.wind_samples = []
         self.wind_source = None
+        self.planning_water_samples: dict[int, float] = {}
+        self.planning_water_source: str | None = None
 
     def stop(self):
         self.cancel_command_timer()
@@ -218,6 +222,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.arm_command_timer(data, now)
 
     async def load(self, *, restore_floor_heat: bool = True):
+        self.planning_water_samples.clear()
+        self.planning_water_source = None
         saved = await self.store.async_load() or {}
         self.garage_door_warnings = saved.get('garage_door_warnings', {})
         self.models = saved.get('models', {})
@@ -352,6 +358,45 @@ class PilotCoordinator(DataUpdateCoordinator):
             return temperature_celsius(state.state, state.attributes.get('unit_of_measurement', '°C'))
         except ValueError:
             return None
+
+    async def planning_water_temperature(
+        self, water: float | None, water_rooms: list[dict[str, Any]], now: datetime,
+    ) -> float | None:
+        """Use an hour of supply readings so short dips do not drive the whole plan."""
+        source = self.settings['water_entity']
+        if source != self.planning_water_source:
+            self.planning_water_samples.clear()
+            self.planning_water_source = None
+        if water is None:
+            return None
+
+        # Use twelve five-minute intervals. Rapid source events or multiple
+        # rooms reporting the same supply reading must not give it extra weight.
+        bucket = int(now.timestamp()) // 300 * 300
+        cutoff = bucket - 55 * 60
+        if self.planning_water_source is None:
+            fingerprints = {
+                room['id']: learning_fingerprint(room, self.settings) for room in water_rooms
+            }
+            stored = await self.hass.async_add_executor_job(
+                self.history_db.recent_room_observations, list(fingerprints), cutoff, now.timestamp(),
+            )
+            for room_id, rows in stored.items():
+                fingerprint = fingerprints[room_id]
+                for row in rows:
+                    if (row.get('forecast_context') or [])[:len(fingerprint)] != fingerprint:
+                        continue
+                    observed_water = number(row.get('water'))
+                    if observed_water is not None:
+                        observed_bucket = int(row['time']) // 300 * 300
+                        self.planning_water_samples[observed_bucket] = observed_water
+            self.planning_water_source = source
+
+        self.planning_water_samples[bucket] = water
+        self.planning_water_samples = {
+            key: value for key, value in self.planning_water_samples.items() if cutoff <= key <= bucket
+        }
+        return median(self.planning_water_samples.values())
 
     def wind_reading(self, now):
         """Optional, bounded, smoothed input; frozen readings expire after two hours."""
@@ -852,7 +897,9 @@ class PilotCoordinator(DataUpdateCoordinator):
             solar_forecast.append(solar_signal(midpoint,latitude,longitude,values))
         outdoors = [forecast_temperature(forecasts, self.forecast_type, slot.start,
                                          ZoneInfo(self.hass.config.time_zone), outdoor) for slot in slots]
-        uses_water = any(room_water_distribution(candidate_room, self.settings) for candidate_room in resolved_rooms(self.settings))
+        primary_rooms = resolved_rooms(self.settings)
+        water_rooms = [room for room in primary_rooms if room_water_distribution(room, self.settings)]
+        uses_water = bool(water_rooms)
         water_state = self.hass.states.get(self.settings['water_entity']) if uses_water and self.settings['water_entity'] else None
         water = None
         if water_state:
@@ -865,10 +912,10 @@ class PilotCoordinator(DataUpdateCoordinator):
                 water = self.value(self.settings['water_entity'])
         if uses_water and water is None:
             warnings.append('Heating water temperature is not available; planning and learning use observed thermostat demand without water-temperature adjustment.')
+        planning_water = await self.planning_water_temperature(water, water_rooms, now)
         fireplace_rooms = {room_id for fireplace in active_fireplaces(self.hass, self.settings)
                            for room_id in fireplace['room_ids']}
         readings, room_data = ([], {})
-        primary_rooms = resolved_rooms(self.settings)
         shared_groups = room_groups([room for room in primary_rooms if not air_room(room, self.settings)])
         by_id = {room['id']: room for room in primary_rooms}
         shared_temperatures = {room['id']: self.value(room['temperature_entity']) for room in primary_rooms}
@@ -896,10 +943,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                 if manual and manual['ends'] > now.timestamp():
                     manual_groups.update(group)
         for configured_room in primary_rooms+[candidate_room for candidate_room in zone_rooms(self.settings) if candidate_room['heat_control']!='zone_member']:
-            room = {
-                **room_settings(configured_room, self.settings),
-                'water_reference': WATER_REFERENCE
-            }
+            room = {**room_settings(configured_room, self.settings), 'water_reference': WATER_REFERENCE}
             room_water = room_water_distribution(room, self.settings)
             room_fireplace = room.get('source_room_id', room['id']) in fireplace_rooms
             room_id = room['id']
@@ -990,10 +1034,8 @@ class PilotCoordinator(DataUpdateCoordinator):
                 result['error'] = 'Target temperature is outside the allowed temperature range.'
                 self.previous.pop(room_id, None)
             else:
-                water_factor = max(
-                    0.25,
-                    min(2, (water - temperature) / max(1, room['water_reference'] - temperature))
-                ) if room_water and water is not None else 1.0
+                observed_water = water if room_water else None
+                observed_water_factor = water_heating_factor(observed_water, temperature)
                 # Separate modeled sun input from exclusion rules: a secondary
                 # heater, cooling or an open garage door must not teach primary heat loss.
                 room_solar = None
@@ -1011,8 +1053,8 @@ class PilotCoordinator(DataUpdateCoordinator):
                                    for entity in room.get('garage_door_entities', []))
                 current = {
                     'time': now.timestamp(), 'temperature': temperature, 'outdoor': outdoor,
-                    'activity': activity, 'water': water if room_water else None,
-                    'water_factor': water_factor, 'wind': wind_status['speed'],
+                    'activity': activity, 'water': observed_water,
+                    'water_factor': observed_water_factor, 'wind': wind_status['speed'],
                     'solar': room_solar, 'excluded': excluded,
                 }
                 if room.get('secondary_zone'):
@@ -1159,14 +1201,17 @@ class PilotCoordinator(DataUpdateCoordinator):
                             room_slots = pump_slots
                         planning_temperature = temperature
                         if planning_temperature is not None:
+                            planning_water_factor = water_heating_factor(
+                                planning_water if room_water else None, planning_temperature
+                            )
                             result['plan'] = await self.hass.async_add_executor_job(plan, settings, deepcopy(model),
-                                planning_temperature, outdoors, room_slots, now, baseline, water_factor, room_fireplace)
+                                planning_temperature, outdoors, room_slots, now, baseline, planning_water_factor, room_fireplace)
                             if (room.get('shared_air_signature') and room_id not in blocked_groups
                                     and room_id not in manual_groups):
                                 planning_contexts[room_id] = {
                                     'room': settings, 'model': deepcopy(model), 'temperature': temperature,
                                     'baseline': baseline, 'outdoor': outdoors, 'slots': room_slots,
-                                    'water_factor': water_factor, 'plan': result['plan'],
+                                    'water_factor': planning_water_factor, 'plan': result['plan'],
                                 }
                 if room.get('is_garage') and room_electric(room, self.settings) and room['garage_strategy'] == 'temperature' and (not slots):
                     cycle_slots = [Slot(now + timedelta(minutes=15 * i), now + timedelta(minutes=15 * (i + 1)), 0) for i in range(96)]

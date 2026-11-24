@@ -1081,6 +1081,50 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(all(row['water_factor']==1 for row in self.c.previous.values()))
         self.assertEqual(self.c.history_db.size()['rows'],2)
         self.hass.services.async_call.assert_not_awaited()
+
+    async def test_plan_uses_recent_median_when_supply_dips_after_restart(self):
+        from thermal_pilot.model import plan
+
+        for minute, supply in ((0, 31), (5, 32), (10, 31), (15, 30), (20, 31)):
+            self.hass.states['sensor.water'].state = str(supply)
+            with patch('thermal_pilot.coordinator.dt_util.utcnow',
+                       return_value=now + timedelta(minutes=minute)):
+                await self.c._async_update_data()
+
+        entry = types.SimpleNamespace(entry_id='test', data=self.c.settings, options={})
+        restarted = PilotCoordinator(self.hass, entry)
+        restarted.store.saved = deepcopy(self.c.store.saved)
+        self.hass.states['sensor.water'].state = '23'
+        current = now + timedelta(minutes=25)
+        with (patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=current),
+              patch('thermal_pilot.coordinator.plan', wraps=plan) as planner):
+            await restarted.load()
+            result = await restarted._async_update_data()
+        self.assertEqual(result['water'], 23)
+        self.assertAlmostEqual(planner.call_args.args[7], (31 - 20) / (32 - 20))
+        room_id = self.c.settings['rooms'][0]['id']
+        latest = restarted.history_db.read(current.timestamp())[-1]
+        self.assertEqual(latest['room_id'], room_id)
+        self.assertEqual(latest['water'], 23)
+        self.assertEqual(latest['water_factor'], .25)
+
+        # The median follows a sustained change as older buckets expire.
+        self.hass.states['sensor.water'].state = '28'
+        with patch('thermal_pilot.coordinator.plan', wraps=plan) as planner:
+            for minute in range(30, 86, 5):
+                with patch('thermal_pilot.coordinator.dt_util.utcnow',
+                           return_value=now + timedelta(minutes=minute)):
+                    await restarted._async_update_data()
+        self.assertAlmostEqual(planner.call_args.args[7], (28 - 20) / (32 - 20))
+
+        # A replacement sensor should never use the previous source's history.
+        restarted.settings['water_entity'] = 'sensor.replacement_water'
+        self.hass.states['sensor.replacement_water'] = State('35')
+        with (patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=now + timedelta(minutes=90)),
+              patch('thermal_pilot.coordinator.plan', wraps=plan) as planner):
+            await restarted._async_update_data()
+        self.assertAlmostEqual(planner.call_args.args[7], (35 - 20) / (32 - 20))
+
     async def test_passive_transition_compacts(self):
         self.c.settings['season_archive_enabled']=False  # Removed legacy preference is ignored.
         await self.c._async_update_data()

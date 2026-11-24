@@ -10,7 +10,7 @@ import math
 from .const import (
     DEFAULTS, AIR_INITIAL_LAG_HOURS, GARAGE_INITIAL_COOLING_HOURS,
     HOUSE_COOLING_REFERENCES, MIN_LEARNING_INTERVAL_SECONDS,
-    AIR_MAX_TEMPERATURE_RATE_PER_HOUR,
+    AIR_MAX_TEMPERATURE_RATE_PER_HOUR, WATER_REFERENCE,
 )
 from .shared_air import heat_transfer, learn_shared_air
 
@@ -306,6 +306,16 @@ def response_step(response, heating, hours, lag):
     end = heating + (response - heating) * decay
     average = heating + (response - heating) * lag * (1 - decay) / hours
     return (end, average)
+
+
+def water_heating_factor(water: float | None, room_temperature: float) -> float:
+    """Scale hydronic output by the supply-to-room temperature difference."""
+    if water is None:
+        return 1.0
+    temperature_difference = water - room_temperature
+    reference_difference = max(1, WATER_REFERENCE - room_temperature)
+    return max(.25, min(2, temperature_difference / reference_difference))
+
 
 def floor_response_from_history(
     rows: list[dict[str, Any]], fingerprint: list, now: float, lag_hours: float,
