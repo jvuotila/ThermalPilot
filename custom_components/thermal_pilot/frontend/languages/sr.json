@@ -2,6 +2,7 @@
   "language": "sr",
   "name": "Српски",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Odbaciti nesačuvane izmene na obe kartice sa podešavanjima?",
     "Per page": "По страници",
     "Total absences": "Укупно одсустава",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Када откажете период, враћају се уобичајена подешавања температуре. Температуре за одсуство остају активне ако и даље траје други период у календару или аутоматско одсуство.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Сензор собне температуре",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Недостаје собна, спољна или циљна температура.",
     "Rooms": "Собе",
-    "Rooms and zones": "Собе и зоне",
+    "Climate setup": "Грејање и хлађење",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "План симулиран; сезоне могу мењати стварне вредности.",
     "SIMULATION · thermostats continue using their current settings": "Симулација активна. ThermalPilot не управља грејањем.",
     "Save settings": "Сачувај подешавања",

@@ -2,6 +2,7 @@
   "language": "nl",
   "name": "Nederlands",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Niet-opgeslagen wijzigingen op beide instellingentabbladen verwerpen?",
     "Per page": "Per pagina",
     "Total absences": "Totaal afwezigheden",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Als je de periode annuleert, worden de normale temperatuurinstellingen hervat. De afwezigheidstemperaturen blijven actief zolang een andere kalenderperiode of automatische afwezigheid actief is.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Kamertemperatuursensor",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Kamer-, buiten- of doeltemperatuur ontbreekt.",
     "Rooms": "Kamers",
-    "Rooms and zones": "Kamers en zones",
+    "Climate setup": "Verwarming en koeling",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Plan blijft simulatie; seizoenen kunnen echte doelen wijzigen.",
     "SIMULATION · thermostats continue using their current settings": "Simulatie actief. ThermalPilot regelt de verwarming niet.",
     "Save settings": "Instellingen opslaan",

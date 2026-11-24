@@ -2,6 +2,7 @@
   "language": "da",
   "name": "Dansk",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Kassér ikke-gemte ændringer på begge indstillingsfaner?",
     "Per page": "Pr. side",
     "Total absences": "Fravær i alt",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "De normale temperaturindstillinger genoptages, når du annullerer perioden. Fraværstemperaturerne gælder fortsat, hvis en anden kalenderperiode eller automatisk fravær stadig er aktivt.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Rumtemperatursensor",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Rumtemperatur, udetemperatur eller mål mangler.",
     "Rooms": "Rum",
-    "Rooms and zones": "Rum og zoner",
+    "Climate setup": "Varme og køling",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Planen simuleres; sæsonskift kan ændre reelle mål.",
     "SIMULATION · thermostats continue using their current settings": "Simulering er aktiv. ThermalPilot styrer ikke varmen.",
     "Save settings": "Gem indstillinger",

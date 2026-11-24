@@ -2,6 +2,7 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Të hidhen poshtë ndryshimet e paruajtura në të dyja skedat e cilësimeve?",
     "Per page": "Për faqe",
     "Total absences": "Mungesa gjithsej",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Cilësimet normale të temperaturës rikthehen kur anulon periudhën. Temperaturat e mungesës mbeten aktive nëse një periudhë tjetër në kalendar ose mungesa automatike është ende aktive.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Sensori i temperaturës së dhomës",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Mungon temperatura e brendshme, e jashtme ose e synuar.",
     "Rooms": "Dhomat",
-    "Rooms and zones": "Dhomat dhe zonat",
+    "Climate setup": "Ngrohje dhe ftohje",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Plani simulohet; sezonet mund të ndryshojnë synimet reale.",
     "SIMULATION · thermostats continue using their current settings": "Simulimi aktiv. ThermalPilot nuk kontrollon ngrohjen.",
     "Save settings": "Ruaj cilësimet",

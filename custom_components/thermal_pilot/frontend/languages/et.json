@@ -2,6 +2,7 @@
   "language": "et",
   "name": "Eesti",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Kas loobuda mõlema seadete vahekaardi salvestamata muudatustest?",
     "Per page": "Lehel",
     "Total absences": "Äraolekuid kokku",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Perioodi tühistamisel taastuvad tavapärased temperatuuriseaded. Äraoleku temperatuurid jäävad kehtima, kui mõni muu kalendriperiood või automaatne äraolek on endiselt aktiivne.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Toatemperatuuri andur",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Toa-, välis- või sihttemperatuur puudub.",
     "Rooms": "Toad",
-    "Rooms and zones": "Ruumid ja tsoonid",
+    "Climate setup": "Küte ja jahutus",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Plaan on simuleeritud; hooajavahetus võib muuta tegelikke sihte.",
     "SIMULATION · thermostats continue using their current settings": "Simulatsioon on aktiivne. ThermalPilot ei juhi kütet.",
     "Save settings": "Salvesta seaded",

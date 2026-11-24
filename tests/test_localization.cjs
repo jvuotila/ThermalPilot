@@ -15,6 +15,7 @@ function runtime(fetch){
  await Promise.all([i18n.load('fi'),i18n.load('fi')]);
  assert.deepEqual(requests,['https://ha.example/thermal_pilot/languages/fi.json?v=test-version']);
  assert.equal(i18n.translateText('History','fi'),'Historia');
+ assert.equal(i18n.translateText('Climate setup', 'fi'), 'Lämmitys ja jäähdytys');
  assert.equal(i18n.cardText('Room','fi'),'Huone');
  assert.equal(i18n.cardText('Close to reference','fi'),'Lähellä vertailuarvoa');
  assert.equal(i18n.cardText('Use integration language','fi'),'Käytä integraation kieltä');
@@ -38,6 +39,10 @@ function runtime(fetch){
  }
  for(const code of Object.keys(catalogs)){
   await i18n.load(code);
+  const climateSetupLabel = catalogs[code].messages['Climate setup'];
+  assert.ok(climateSetupLabel, `${code} has a Climate setup tab label`);
+  assert.equal(i18n.translateText('Climate setup', code), climateSetupLabel);
+  if (code !== 'en') assert.notEqual(climateSetupLabel, 'Climate setup');
   for(const key of ['Saved forecast','Close to reference','Assuming no temperature change performed equally well or better, so the rating is not green.','The benchmark is unavailable, so the rating is not green.']){
    assert.equal(i18n.translateText(key,code),catalogs[code].messages[key],code+' forecast rating explanation');
    if(code!=='en')assert.notEqual(i18n.translateText(key,code),key);

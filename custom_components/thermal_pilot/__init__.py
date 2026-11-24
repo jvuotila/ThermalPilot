@@ -9,8 +9,8 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import callback
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers import entity_registry as er
-from .const import DOMAIN, VERSION, PLATFORMS, DEFAULTS, ROOM_DEFAULTS, ZONE_DEFAULTS
-from .config import validate, stored_settings, confirm_control_settings, SOURCE_FIELDS, ROOM_FIELDS, ZONE_FIELDS
+from .const import DOMAIN, VERSION, PLATFORMS, DEFAULTS, ROOM_DEFAULTS, ZONE_DEFAULTS, FIREPLACE_DEFAULTS
+from .config import validate, stored_settings, confirm_control_settings, SOURCE_FIELDS, ROOM_FIELDS, ZONE_FIELDS, FIREPLACE_FIELDS
 from .coordinator import PilotCoordinator
 from .backup_http import BackupView
 from .sources import price_provider_options, check_sources
@@ -158,7 +158,7 @@ def ws_get(hass, connection, msg):
             'retention_history_entities':retention_history_entities(hass,c)
         }, 'manual_controls':c.manual_controls(), 'notification_targets':companion_notification_targets(hass),
             'room_entities':room_entities,
-            'price_provider_options':price_provider_options(hass), 'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS})
+            'price_provider_options':price_provider_options(hass), 'source_fields':SOURCE_FIELDS, 'room_fields':ROOM_FIELDS, 'room_defaults':ROOM_DEFAULTS, 'zone_defaults':ZONE_DEFAULTS, 'zone_fields':ZONE_FIELDS, 'fireplace_defaults':FIREPLACE_DEFAULTS, 'fireplace_fields':FIREPLACE_FIELDS})
 
 
 @websocket_api.websocket_command({

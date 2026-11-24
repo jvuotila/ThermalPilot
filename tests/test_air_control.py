@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 ROOT=Path(__file__).resolve().parents[1]/'custom_components/thermal_pilot'
 pkg=types.ModuleType('thermal_pilot');pkg.__path__=[str(ROOT)];sys.modules.setdefault('thermal_pilot',pkg)
 from thermal_pilot.const import DEFAULTS,ROOM_DEFAULTS,ZONE_DEFAULTS
-from thermal_pilot.config import validate,room_settings,resolved_rooms,zone_rooms
+from thermal_pilot.config import validate,room_settings,resolved_rooms,zone_rooms,stored_settings
 from thermal_pilot.air_control import AirHeatPumpControl,zone_temperature
 
 def state(value,attrs=None):return types.SimpleNamespace(state=value,attributes=attrs or {})
@@ -171,10 +171,66 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
         self.hass.states['binary_sensor.damper']=state('on')
         self.hass.states['sensor.price']=state('10',{'today':[10]*96})
         settings={**self.settings,'rooms':[room],'heating_zones':[zone],'price_entity':'sensor.price'}
-        resolved=resolved_rooms(validate(settings,self.hass))[0]
-        self.assertEqual(resolved['thermostat'],self.room['thermostat']);self.assertEqual(resolved['heat_control'],'house');self.assertEqual(resolved['zone_fireplace_entity'],'binary_sensor.damper')
+        migrated = validate(settings, self.hass)
+        resolved = resolved_rooms(migrated)[0]
+        self.assertEqual(resolved['thermostat'], self.room['thermostat'])
+        self.assertEqual(resolved['heat_control'], 'house')
+        self.assertEqual(migrated['heating_zones'], [])
+        self.assertEqual(migrated['fireplaces'][0]['id'], zone['id'])
+        self.assertEqual(migrated['fireplaces'][0]['fireplace_entity'], 'binary_sensor.damper')
+        self.assertEqual(migrated['fireplaces'][0]['room_ids'], [room['id']])
         zone['fireplace_active_state']='Open'
         with self.assertRaises(ValueError):validate(settings,self.hass)
+    def test_fireplace_override_uses_zone_options_and_releases_for_protection(self):
+        self.room.update(
+            is_garage=False, heat_control='air_to_air', baseline=21,
+            active_fireplaces=['Living room', 'Study'], fireplace_fan='medium', fireplace_swing='both',
+        )
+        self.settings['air_use_fan_only'] = False
+        self.hass.states['sensor.garage'].state = '21'
+        planned = {'setpoint': 22}
+        intent = self.intent(planned=planned)
+        self.assertEqual(intent['mode'], 'fan_only')
+        self.assertEqual((intent['fan'], intent['swing']), ('medium', 'both'))
+        self.assertEqual(intent['fireplaces'], ['Living room', 'Study'])
+
+        self.hass.states['sensor.garage'].state = '18'
+        self.assertEqual(self.intent(planned=planned)['mode'], 'heat')
+        self.hass.states['sensor.garage'].state = 'unavailable'
+        self.assertEqual(self.intent(planned=planned)['mode'], 'heat')
+        self.hass.states['sensor.garage'].state = '21'
+        self.room['manual_session'] = {'ends': 60, 'mode': 'heat', 'target': 23}
+        self.assertEqual(self.intent(planned=planned)['reason'], 'Manual heating')
+        del self.room['manual_session']
+        self.room['active_fireplaces'] = []
+        self.assertEqual((self.intent(planned=planned)['mode'], self.intent(planned=planned)['target']),
+                         ('heat', 22))
+
+    def test_cooling_demand_takes_priority_over_fireplace_circulation(self):
+        self.room.update(is_garage=False, heat_control='air_to_air', heating_zone_id='downstairs',
+                         zone_climate_mode='both', active_fireplaces=['Living room'])
+        self.pump.attributes['hvac_modes'].append('cool')
+        self.hass.states['sensor.garage'].state = '26'
+        self.assertEqual(self.intent(summer=True)['mode'], 'cool')
+        self.hass.states['sensor.garage'].state = '23'
+        self.assertEqual(self.intent(summer=True)['reason'], 'Fireplace air circulation')
+
+    def test_legacy_fireplaces_preserve_room_scope_without_enabling_circulation(self):
+        local_room_id = '00000000-0000-4000-8000-000000000004'
+        local_zone_id = '00000000-0000-4000-8000-000000000005'
+        self.room.update(is_garage=False)
+        local_room = {**self.room, 'id': local_room_id, 'heating_zone_id': local_zone_id}
+        settings = {**self.settings, 'rooms': [self.room, local_room],
+                    'fireplace_entity': 'binary_sensor.house_fireplace',
+                    'heating_zones': [{**ZONE_DEFAULTS, 'id': local_zone_id, 'name': 'Study',
+                                       'fireplace_entity': 'binary_sensor.study_fireplace'}]}
+        migrated = stored_settings(settings, {})
+        local, house = migrated['fireplaces']
+        self.assertEqual(local['room_ids'], [local_room_id])
+        self.assertEqual(house['room_ids'], [self.room['id']])
+        self.assertFalse(migrated['heating_zones'][0]['fireplace_circulation'])
+        self.assertEqual(stored_settings(migrated, {}), migrated)
+
     async def test_shared_lower_guard_works_even_with_main_room_temperature_policy(self):
         self.room.update(is_garage=False,heat_control='air_to_air');self.hass.states['sensor.garage'].state='21'
         member={**ROOM_DEFAULTS,'id':'member','temperature_entity':'sensor.member','thermostat':self.room['thermostat'],'heat_control':'zone_member'}

@@ -2,6 +2,7 @@
   "language": "ro",
   "name": "Română",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Renunți la modificările nesalvate din ambele file de setări?",
     "Per page": "Pe pagină",
     "Total absences": "Total absențe",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Setările normale de temperatură se reiau când anulezi perioada. Temperaturile de absență rămân active dacă o altă perioadă din calendar sau absența automată este încă activă.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Senzor temperatură cameră",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Temperatura interioară, exterioară sau țintă lipsește.",
     "Rooms": "Camere",
-    "Rooms and zones": "Camere și zone",
+    "Climate setup": "Încălzire și răcire",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Plan simulat; schimbările sezoniere pot modifica ținte reale.",
     "SIMULATION · thermostats continue using their current settings": "Simulare activă. ThermalPilot nu controlează încălzirea.",
     "Save settings": "Salvează setările",

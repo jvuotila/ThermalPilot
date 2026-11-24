@@ -47,7 +47,7 @@ new example entity will normally be `climate.living_room_thermostat`.
 
 ## Connect the room to ThermalPilot
 
-In **Rooms and zones**, add a room and select:
+In **Climate setup**, add a room and select:
 
 | ThermalPilot field | Example selection |
 |---|---|

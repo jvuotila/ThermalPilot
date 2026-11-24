@@ -1,6 +1,6 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.109'
+VERSION = '0.9.110'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
@@ -37,7 +37,7 @@ DEFAULTS = {
     'air_minimum': None, 'air_maximum': None, 'air_boost': None, 'air_setback': None,
     'air_use_fan_only': True, 'air_fan_cool':'', 'air_swing_cool':'', 'air_heat_target': 24.0,
     'air_fan_heat': '', 'air_fan_idle': '', 'air_swing': '', 'air_swing_idle': '',
-    'heating_zones': [], 'rooms': [],
+    'heating_zones': [], 'rooms': [], 'fireplaces': [],
 }
 ROOM_DEFAULTS = {
     'name': '', 'thermostat': '', 'temperature_entity': '',
@@ -63,8 +63,16 @@ ZONE_DEFAULTS = {
     'thermostat': '',
     'main_room_id': '',
     'temperature_policy': 'main',
+    'fireplace_ids': [],
+    'fireplace_circulation': False,
+    'fireplace_fan': '',
+    'fireplace_swing': '',
     'fireplace_entity': '',
     'fireplace_active_state': 'on'
+}
+
+FIREPLACE_DEFAULTS = {
+    'name': '', 'fireplace_entity': '', 'fireplace_active_state': 'on', 'room_ids': [],
 }
 
 # Starting reference cooling time only; replaced by learned garage loss.

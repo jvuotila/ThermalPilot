@@ -4,7 +4,7 @@ Keep version-1 readers and fixtures when adding a new schema. Register each
 one-version migration; never infer compatibility from the integration version.
 """
 from copy import deepcopy
-from .config import SOURCE_FIELDS, ROOM_FIELDS, ZONE_FIELDS, stored_settings, validate
+from .config import SOURCE_FIELDS, ROOM_FIELDS, ZONE_FIELDS, FIREPLACE_FIELDS, stored_settings, validate
 from .model import initial_model
 from .config import resolved_rooms, zone_rooms, learning_fingerprint
 
@@ -63,10 +63,13 @@ def normalize_settings(raw):
     if not isinstance(raw, dict) or not isinstance(raw.get('rooms'), list):
         raise ValueError('Invalid backup settings.')
     zones = raw.get('heating_zones', [])
+    fireplaces = raw.get('fireplaces', [])
+    if not isinstance(fireplaces, list):
+        raise ValueError('Invalid fireplace settings.')
     if not isinstance(zones, list):
         raise ValueError('Invalid zone settings.')
     value = safe_missing_fields(raw, SOURCE_FIELDS)
-    for key,items,fields in (('rooms',raw['rooms'],ROOM_FIELDS),('heating_zones',zones,ZONE_FIELDS)):
+    for key,items,fields in (('rooms',raw['rooms'],ROOM_FIELDS),('heating_zones',zones,ZONE_FIELDS), ('fireplaces',fireplaces,FIREPLACE_FIELDS)):
         if any((not isinstance(item, dict) or not item.get('id') for item in items)):
             # Normal settings creation may generate IDs. A restore must never do that.
             raise ValueError('Backup rooms and zones must retain their original identifiers.')

@@ -65,6 +65,46 @@ class ManualSessionTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.coordinator.control.results['floor'],
                          self.coordinator.data['rooms']['floor']['plan']['setpoint'])
 
+    async def test_zone_circulates_until_the_last_linked_fireplace_stops(self):
+        coordinator = self.coordinator
+        self.floor['heating_zone_id'] = 'downstairs'
+        coordinator.settings.update(
+            rooms=[self.floor, self.garage],
+            air_use_fan_only=False,
+            heating_zones=[{**ZONE_DEFAULTS, 'id': 'downstairs', 'name': 'Downstairs',
+                           'thermostat': 'climate.zone', 'main_room_id': 'floor', 'heating_enabled': True,
+                           'fireplace_ids': ['living', 'study'], 'fireplace_circulation': True,
+                           'fireplace_fan': 'low', 'fireplace_swing': 'both'}],
+            fireplaces=[
+                {'id': name, 'name': name.title(), 'fireplace_entity': 'binary_sensor.' + name,
+                 'fireplace_active_state': 'on', 'room_ids': ['floor']}
+                for name in ('living', 'study')
+            ],
+        )
+        self.hass.states.update({
+            'sensor.room': State('21'),
+            'climate.zone': State('heat', {'hvac_modes': ['heat', 'fan_only'], 'fan_modes': ['low'],
+                                          'swing_modes': ['both'], 'min_temp': 16, 'max_temp': 30}),
+            'binary_sensor.living': State('on'),
+            'binary_sensor.study': State('on'),
+        })
+        coordinator.data['zones']['downstairs'] = {}
+        await coordinator.apply_live_targets(coordinator.data, now)
+        intent = coordinator.data['zones']['downstairs']['pump_suggestion']
+        self.assertEqual((intent['mode'], intent['fan'], intent['swing']), ('fan_only', 'low', 'both'))
+        self.assertEqual(intent['fireplaces'], ['Living', 'Study'])
+
+        self.hass.states['binary_sensor.living'].state = 'unavailable'
+        await coordinator.apply_live_targets(coordinator.data, now + timedelta(seconds=10))
+        intent = coordinator.data['zones']['downstairs']['pump_suggestion']
+        self.assertEqual(intent['fireplaces'], ['Study'])
+
+        self.hass.states['binary_sensor.study'].state = 'off'
+        await coordinator.apply_live_targets(coordinator.data, now + timedelta(seconds=20))
+        intent = coordinator.data['zones']['downstairs']['pump_suggestion']
+        self.assertEqual(intent['mode'], 'heat')
+        self.assertNotIn('fireplaces', intent)
+
     async def test_garage_can_warm_above_maintenance_range_in_warm_weather(self):
         self.hass.states['sensor.garage'].state = '13'
         self.hass.states['sensor.out'].state = '10'

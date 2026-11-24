@@ -2,6 +2,7 @@
   "language": "lv",
   "name": "Latviešu",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Vai atmest nesaglabātās izmaiņas abās iestatījumu cilnēs?",
     "Per page": "Lapā",
     "Total absences": "Prombūtnes kopā",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Atceļot periodu, tiek atjaunoti parastie temperatūras iestatījumi. Prombūtnes temperatūra paliek spēkā, ja vēl ir aktīvs cits kalendāra periods vai automātiskā prombūtne.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Telpas temperatūras sensors",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Telpas, āra vai mērķtemperatūra nav pieejama.",
     "Rooms": "Telpas",
-    "Rooms and zones": "Telpas un zonas",
+    "Climate setup": "Apkure un dzesēšana",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Plāns simulēts; sezonu maiņa var mainīt faktiskos mērķus.",
     "SIMULATION · thermostats continue using their current settings": "Simulācija ir aktīva. ThermalPilot nevada apkuri.",
     "Save settings": "Saglabāt iestatījumus",

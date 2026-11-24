@@ -2,6 +2,7 @@
   "language": "is",
   "name": "Íslenska",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Henda óvistuðum breytingum á báðum stillingaflipunum?",
     "Per page": "Á síðu",
     "Total absences": "Fjarvistir alls",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Venjulegar hitastillingar taka aftur gildi þegar tímabilinu er aflýst. Fjarveruhitastig gildir áfram ef annað tímabil í dagatalinu eða sjálfvirk fjarvera er enn virk.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Herbergishitaskynjari",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Herbergis-, úti- eða markhita vantar.",
     "Rooms": "Herbergi",
-    "Rooms and zones": "Herbergi og svæði",
+    "Climate setup": "Upphitun og kæling",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Áætlun hermd; árstíðir geta breytt raunmörkum.",
     "SIMULATION · thermostats continue using their current settings": "Hermun virk. ThermalPilot stýrir ekki hitun.",
     "Save settings": "Vista stillingar",

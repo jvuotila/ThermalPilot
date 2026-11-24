@@ -2,6 +2,7 @@
   "language": "bg",
   "name": "Български",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Да се отхвърлят ли незаписаните промени и в двата раздела с настройки?",
     "Per page": "На страница",
     "Total absences": "Общо отсъствия",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "При отмяна на периода се възстановяват обичайните температурни настройки. Температурите за отсъствие остават активни, ако има друг активен период в календара или автоматично отсъствие.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Датчик за стайна температура",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Липсва стайна, външна или целева температура.",
     "Rooms": "Стаи",
-    "Rooms and zones": "Стаи и зони",
+    "Climate setup": "Отопление и охлаждане",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Планът е симулиран; сезоните могат да променят реални цели.",
     "SIMULATION · thermostats continue using their current settings": "Симулацията е активна. ThermalPilot не управлява отоплението.",
     "Save settings": "Запазване на настройките",

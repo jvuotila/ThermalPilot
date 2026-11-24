@@ -290,7 +290,7 @@ const previewInfo=JSON.parse(preview.match(/const demo=([\s\S]*?);const states=/
 const previewPanel=new Component();previewPanel._hass={states:{}};previewPanel.settings=previewInfo.settings;previewPanel.info=previewInfo;
 const previewSettings=previewPanel.settingsView();
 for(const field of previewInfo.source_fields){
- assert.equal(previewSettings.split(`data-field="source.${field[0]}"`).length-1,['air_heat_target','away_zone','away_delay_hours','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price'].includes(field[0])?0:1,`${field[0]} must follow the preview settings`);
+ assert.equal(previewSettings.split(`data-field="source.${field[0]}"`).length-1,['fireplace_entity','fireplace_active_state','air_heat_target','away_zone','away_delay_hours','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price'].includes(field[0])?0:1,`${field[0]} must follow the preview settings`);
 }
 assert.match(previewSettings,/<h3>Electricity price settings<\/h3>/);
 assert.match(previewSettings,/<h3>Integration settings<\/h3>/);
@@ -595,13 +595,16 @@ const electricityMode=vm.runInContext('electricHeating',context);
 assert.equal(electricityMode({house_heat_source:'gas_boiler'}),false);
 assert.equal(electricityMode({house_heat_source:'air_to_water'}),true);
 const originalPreviewRooms=previewPanel.settings.rooms,originalPreviewZones=previewPanel.settings.heating_zones;
+const originalPreviewFireplaces=previewPanel.settings.fireplaces;
 previewPanel.settings.heating_zones=[];
+previewPanel.settings.fireplaces=[];
 previewPanel.settings.rooms=originalPreviewRooms.filter(room=>!room.is_garage&&room.heat_control!=='air_to_air');
 previewPanel.settings.house_heat_source='gas_boiler';
 assert.match(previewPanel.settingsView(),/data-electric-group hidden/);
 assert.doesNotMatch(previewPanel.overview(),/class="price-card"/);
 assert.match(previewPanel.controlBadges(),/Comfort planning/);
 previewPanel.settings.rooms=originalPreviewRooms;previewPanel.settings.heating_zones=originalPreviewZones;
+previewPanel.settings.fireplaces=originalPreviewFireplaces;
 assert.equal(electricityMode(previewPanel.settings),true,'An electric garage remains supported beside a non-electric house');
 previewPanel.settings.house_heat_source='air_to_water';
 console.log('Non-electric UI checks passed: optional hidden prices, comfort-mode label and no scheduling chart.');
@@ -679,8 +682,9 @@ assert.equal(currentFireplace(damper),'Open');
 assert.equal(currentFireplace({...damper,state:'off'}),'Closed');
 assert.equal(currentFireplace({...damper,state:'unknown'}),'Unknown');assert.equal(currentFireplace(null),'Unavailable');
 assert.match(damperPanel.field(['fireplace_active_state','Fireplace active when','text'],{fireplace_entity:'binary_sensor.damper',fireplace_active_state:'off'},'source'),/Current state: Open/);
-const hint={textContent:''};damperPanel.settings={language:'fi',fireplace_entity:'binary_sensor.damper'};
-damperPanel.shadowRoot.querySelector=selector=>selector==='[data-current-fireplace]'?hint:selector==='[data-field="source.fireplace_entity"]'?{value:'binary_sensor.damper'}:null;
+const hint={textContent:'',dataset:{currentFireplace:'source'}};damperPanel.settings={language:'fi',fireplace_entity:'binary_sensor.damper'};
+damperPanel.shadowRoot.querySelectorAll=selector=>selector==='[data-current-fireplace]'?[hint]:[];
+damperPanel.shadowRoot.querySelector=selector=>selector==='[data-field="source.fireplace_entity"]'?{value:'binary_sensor.damper'}:null;
 damperPanel.updateFireplaceReading();assert.equal(hint.textContent,'Nykyinen tila: Auki');
 damperPanel._hass.states['binary_sensor.damper'].state='off';damperPanel.updateFireplaceReading();assert.equal(hint.textContent,'Nykyinen tila: Kiinni');
 assert.equal(damperPanel.settings.fireplace_active_state,undefined);
@@ -870,24 +874,37 @@ assert.match(coolingZoneHTML,/value="cool">Cooling only/);assert.match(coolingZo
 zonePanel.settings.heating_zones[0].climate_mode='heat';assert.doesNotMatch(zonePanel.settingsView(),/data-field="zone0.cooling_target"/);
 console.log('Zone heating/cooling selection and conditional cooling target passed.');
 const settingsPage=previewPanel.settingsView('settings'),roomsPage=previewPanel.settingsView('rooms');
-assert.match(settingsPage,/<section class="settings-sources">/);assert.doesNotMatch(settingsPage,/<section class="settings-(?:house|shared|rooms|zones)">/);
+assert.match(settingsPage,/<section class="settings-sources">/);assert.doesNotMatch(settingsPage,/<section class="settings-(?:house|shared|rooms|zones|fireplaces)">/);
 assert.equal((settingsPage.match(/class="settings-source-column"/g)||[]).length,2);
-for(const group of ['heating_enabled','price_entity','weather_entity','minimum_run_minutes','solar_power_entity','away_automatic','manual_notification_target','maintenance']){
+for(const group of ['heating_enabled','price_entity','weather_entity','solar_power_entity','away_automatic','manual_notification_target','maintenance']){
  assert.equal((settingsPage.match(new RegExp(`data-setting-group="${group}"`,'g'))||[]).length,1,group);
 }
 const settingGroupsByColumn=settingsPage.split('class="settings-source-column">').slice(1).map(column=>
  Array.from(column.matchAll(/data-setting-group="([^"]+)"/g),match=>match[1]));
 assert.deepEqual(settingGroupsByColumn,[
- ['heating_enabled','price_entity','minimum_run_minutes','solar_power_entity'],
+ ['heating_enabled','price_entity','solar_power_entity'],
  ['away_automatic','weather_entity','manual_notification_target','maintenance'],
 ]);
 const notificationsCard=settingsPage.match(/data-setting-group="manual_notification_target"[^>]*><h3>Notifications<\/h3><div class="grid">([\s\S]*?)<\/div>/)?.[1]||'';
 assert.match(notificationsCard,/data-field="source.manual_notification_target"/);
 assert.match(notificationsCard,/data-field="source.sensor_warning_hours"/);
+assert.match(settingsPage,/data-field="source.minimum_run_minutes"/);
+assert.doesNotMatch(settingsPage,/<h3>Heating settings<\/h3>/);
+assert.match(roomsPage,/data-field="fireplace0.fireplace_entity"/);
+assert.match(roomsPage,/data-entity-list="fireplace1.room_ids"/);
+assert.match(roomsPage,/data-field="zone0.fireplace_circulation"/);
+assert.match(roomsPage,/data-field="zone0.fireplace_fan"/);
+assert.match(roomsPage,/data-field="zone0.fireplace_swing"/);
+assert.doesNotMatch(roomsPage,/data-field="zone1.fireplace_circulation"/);
+const demoFireplaceZone=previewPanel.settings.heating_zones[0];
+assert.equal(previewPanel.zoneFireplaceSettings({...demoFireplaceZone,thermostat:''},0),'');
+assert.doesNotMatch(previewPanel.zoneFireplaceSettings({...demoFireplaceZone,heating_enabled:false},0),/fireplace_circulation/);
+assert.doesNotMatch(previewPanel.zoneFireplaceSettings({...demoFireplaceZone,fireplace_circulation:false},0),/fireplace_fan|fireplace_swing/);
+
 assert.match(notificationsCard,/id="help-source-sensor_warning_hours"[^>]*role="tooltip"/);
 assert.match(settingsPage,/data-setting-group="maintenance">\s*<h3>Maintenance<\/h3>\s*<div class="source-checks"><h4>Source checks<\/h4>[\s\S]*?<div class="backup-controls"><h4>Backup and restore<\/h4>/);
 assert.doesNotMatch(roomsPage,/<section class="settings-sources">/);
-for(const section of ['house','shared','rooms','zones'])assert.match(roomsPage,new RegExp('<section class="settings-'+section+'">'));
+for(const section of ['house','shared','rooms','zones','fireplaces'])assert.match(roomsPage,new RegExp('<section class="settings-'+section+'">'));
 for(const html of [settingsPage,roomsPage])assert.match(html,/type="submit">Save settings/);
 const splitPanel=new Component();splitPanel._hass={states:{}};splitPanel.info={settings:{rooms:[],heating_zones:[]},source_fields:[],room_fields:[]};
 splitPanel.settings={rooms:[{id:'unsaved',name:'New room',baseline:20}],heating_zones:[]};splitPanel.tab='rooms';let splitLoads=0;
@@ -897,9 +914,36 @@ splitPanel.switchTab('rooms');assert.equal(splitLoads,0);
 const splitHTML=splitPanel.shadowRoot.innerHTML;
 assert.ok(splitHTML.indexOf('id="tab-history"')<splitHTML.indexOf('id="tab-rooms"'));
 assert.ok(splitHTML.indexOf('id="tab-rooms"')<splitHTML.indexOf('id="tab-settings"'));
+assert.match(splitHTML, /id="tab-rooms"[^>]*>Climate setup<\/button>/);
 context.confirm=()=>false;splitPanel.switchTab('history');assert.equal(splitPanel.tab,'rooms');
 context.confirm=()=>true;
-console.log('Rooms and zones tab passed: ordered navigation, split sections, save controls, draft preservation and unsaved exit protection.');
+const cancelPrompt='Discard unsaved changes on both settings tabs?';
+splitPanel.info.settings.language='en';
+splitPanel.settings.language='fi';
+splitPanel.zoneRoomDrafts={'example-zone':['unsaved']};
+splitPanel.sourceCheck={prices:{ok:false,error:'No price data'}};
+for(const page of ['settings','rooms']){
+ assert.match(splitPanel.settingsView(page),/id="settings-cancel" type="button" >Cancel/);
+}
+let discardConfirmation;
+context.confirm=prompt=>{discardConfirmation=prompt;return false;};
+splitPanel.settings.language='en';
+splitPanel.discardSettingsChanges();
+assert.equal(discardConfirmation,cancelPrompt);
+assert.equal(splitPanel.settings.rooms[0].id,'unsaved');
+splitPanel.settings.language='fi';
+context.confirm=()=>true;
+splitPanel.discardSettingsChanges();
+assert.deepEqual(splitPanel.settings,splitPanel.info.settings);
+assert.notEqual(splitPanel.settings,splitPanel.info.settings);
+assert.equal(Object.keys(splitPanel.zoneRoomDrafts).length,0);
+assert.equal(splitPanel.sourceCheck,null);
+assert.equal(splitPanel.tab,'rooms');
+assert.equal(splitLoads,0);
+for(const page of ['settings','rooms']){
+ assert.match(splitPanel.settingsView(page),/id="settings-cancel" type="button" hidden>Cancel/);
+}
+console.log('Climate setup tab passed: ordered navigation, split sections, save controls, draft preservation and unsaved exit protection.');
 (async()=>{
  let WarningPanel,allow=false;const prompts=[],calls=[];
  const warningContext={...context,confirm:text=>{prompts.push(text);return allow;},setTimeout:()=>1,clearTimeout:()=>{},customElements:{get:()=>undefined,define:(_,value)=>WarningPanel=value}};

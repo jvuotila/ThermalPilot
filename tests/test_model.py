@@ -573,7 +573,7 @@ class FireplaceStateSettingsTests(unittest.TestCase):
         hass=types.SimpleNamespace(states=types.SimpleNamespace(get=lambda entity:state))
         payload={**DEFAULTS,'price_entity':'sensor.price','outdoor_entity':'sensor.out','fireplace_entity':'binary_sensor.damper'}
         for value in ['on','off']:
-            self.assertEqual(validate({**payload,'fireplace_active_state':value},hass)['fireplace_active_state'],value)
+            self.assertEqual(validate({**payload,'fireplace_active_state':value},hass)['fireplaces'][0]['fireplace_active_state'],value)
         with self.assertRaises(ValueError):validate({**payload,'fireplace_active_state':'Open'},hass)
 
 

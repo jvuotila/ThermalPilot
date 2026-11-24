@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.109 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.110 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -92,7 +92,7 @@ and restart Home Assistant.
    sensor or **Static price**. For a sensor, match its price unit; for a fixed
    tariff, enter the total price in c/kWh. Include the consumption-based charges
    you want scheduling to consider. See [electricity tariffs](#electricity-tariffs).
-2. In **Rooms and zones**, choose the house heating system and add each room’s
+2. In **Climate setup**, choose the house heating system and add each room’s
    thermostat and temperature sensor. Follow the [sensor placement guidance](#temperature-sensor-placement)
    before starting learning, then set targets and comfort limits.
 3. Keep **Enable simulation** on and **Apply season setpoints** off for a trial
@@ -131,7 +131,7 @@ misleading reading, particularly the slower cooling after a local heat spike.
 
 If a sensor has been learning in an unsuitable location, move it first and let it
 settle. Consider resetting learning for that room using its circular-arrow button
-under **Rooms and zones**. This clears the learned parameters while retaining
+under **Climate setup**. This clears the learned parameters while retaining
 observation history; the room then needs fresh heating and idle observations.
 
 ## Heating circuits sharing an open space
@@ -140,7 +140,7 @@ A ThermalPilot room can represent a heating circuit rather than a separate
 physical room. For example, a kitchen and two living-room floor loops may heat
 one open space while retaining separate thermostats and sensors.
 
-Under **Rooms and zones**, open a room and use **Shared air space → Add room**
+Under **Climate setup**, open a room and use **Shared air space → Add room**
 to select the other circuits in that open space. Add as many as needed. Links
 work both ways: selecting B in A also links A in B. Each selection describes a
 direct connection. A–B and B–C do not automatically add A–C. Removing a selection
@@ -191,7 +191,7 @@ Independent rooms and separate zones still cannot compete for the same pump.
 ## Heat pump with electric floor assistance
 
 For a room heated by both an air-to-air heat pump and an electric floor, keep
-both controllers configured. Under **Rooms and zones**, choose **Electric
+both controllers configured. Under **Climate setup**, choose **Electric
 resistance** as the house heat source and **Electric floor heating** as the
 heat distribution. Keep each room’s floor thermostat as its **Thermostat**.
 Add the pump under **Zones**, link the rooms it serves, and enable zone control.
@@ -225,7 +225,7 @@ actual heating indicators continue to describe observed device activity.
 ## Electricity tariffs
 
 The price source starts as **Not configured**. You can save settings in that
-state and finish choosing the house heat source under **Rooms and zones**.
+state and finish choosing the house heat source under **Climate setup**.
 Oil, gas, wood, pellet and district heating do not require an electricity price
 for observation and learning. Separate electric rooms or zones using tariff
 scheduling still need one.
@@ -586,7 +586,7 @@ administrators can also enable them in the **ThermalPilot heating plan** dashboa
 
 ### Air-to-water heat pump COP
 
-Under **Rooms and zones → House heating settings → House and heating**, choose
+Under **Climate setup → House heating settings → House and heating**, choose
 **Air-to-water heat pump** as the heat source. The optional **Heat pump COP
 sensor** appears immediately after **Heat source**. Choose a live
 space-heating COP sensor that reports zero or is unavailable

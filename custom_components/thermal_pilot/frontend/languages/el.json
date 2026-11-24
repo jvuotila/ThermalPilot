@@ -2,6 +2,7 @@
   "language": "el",
   "name": "Ελληνικά",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Να απορριφθούν οι μη αποθηκευμένες αλλαγές και στις δύο καρτέλες ρυθμίσεων;",
     "Per page": "Ανά σελίδα",
     "Total absences": "Σύνολο απουσιών",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Οι κανονικές ρυθμίσεις θερμοκρασίας επανέρχονται όταν ακυρώσετε την περίοδο. Οι θερμοκρασίες απουσίας παραμένουν ενεργές αν ισχύει ακόμα άλλη περίοδος του ημερολογίου ή η αυτόματη απουσία.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Αισθητήρας θερμοκρασίας δωματίου",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Λείπει εσωτερική, εξωτερική ή επιθυμητή θερμοκρασία.",
     "Rooms": "Δωμάτια",
-    "Rooms and zones": "Δωμάτια και ζώνες",
+    "Climate setup": "Θέρμανση και ψύξη",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Σχέδιο προσομοιωμένο· εποχές αλλάζουν πραγματικούς στόχους.",
     "SIMULATION · thermostats continue using their current settings": "Προσομοίωση ενεργή. ThermalPilot δεν ελέγχει τη θέρμανση.",
     "Save settings": "Αποθήκευση ρυθμίσεων",

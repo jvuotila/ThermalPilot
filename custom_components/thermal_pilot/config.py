@@ -2,9 +2,10 @@
 from copy import deepcopy
 from hashlib import sha256
 import json
-from uuid import uuid4
-from .const import DEFAULTS, ROOM_DEFAULTS, ZONE_DEFAULTS, AIR_INITIAL_LAG_HOURS, WATER_REFERENCE
+from uuid import UUID, uuid4
+from .const import DEFAULTS, ROOM_DEFAULTS, ZONE_DEFAULTS, FIREPLACE_DEFAULTS, AIR_INITIAL_LAG_HOURS, WATER_REFERENCE
 from .model import number, tariff_minutes
+from .fireplaces import migrate_fireplaces
 from .sources import PRICE_SOURCE_CHOICES
 from .shared_air import room_connections, room_groups
 
@@ -166,6 +167,13 @@ ZONE_FIELDS = [
 ]
 
 
+FIREPLACE_FIELDS = [
+    ('name', 'Fireplace name', 'text'),
+    ('fireplace_entity', 'Fireplace activity sensor', 'sensor,binary_sensor', {'kind': 'activity'}),
+    ('fireplace_active_state', 'Fireplace active when', 'text'),
+]
+
+
 def entity_matches(state, rule, settings=None):
     """Filter choices by semantic metadata, including unit-only template sensors."""
     attrs = state.attributes
@@ -317,10 +325,6 @@ def resolved_rooms(settings):
             room['garage_heat_source'] = room_heat_source(room, settings)
         zone = zones.get(room.get('heating_zone_id'))
         if zone:
-            room.update(
-                zone_fireplace_entity=zone.get('fireplace_entity',''),
-                zone_fireplace_active_state=zone.get('fireplace_active_state','on')
-            )
             if zone.get('source_type', 'air_to_air') == 'air_to_air':
                 if room['thermostat'] == zone.get('thermostat') and not room.get('is_garage'):
                     # This sensor belongs to the zone's pump, not another heater.
@@ -372,7 +376,11 @@ def zone_rooms(settings):
                         heat_control='air_to_air' if original is main else 'zone_member',secondary_zone=True,
                         zone_policy=zone.get('temperature_policy','main'),zone_control_enabled=zone.get('heating_enabled',True),
                         zone_climate_mode=zone.get('climate_mode','heat'),zone_cooling_target=zone.get('cooling_target',24),
-                        zone_heating_strategy=zone.get('heating_strategy','tariff'))
+                        zone_heating_strategy=zone.get('heating_strategy','tariff'),
+                        fireplace_ids=zone.get('fireplace_ids', []),
+                        fireplace_circulation=zone.get('fireplace_circulation', False),
+                        fireplace_fan=zone.get('fireplace_fan', ''),
+                        fireplace_swing=zone.get('fireplace_swing', ''))
             result.append(room)
     return result
 
@@ -510,7 +518,7 @@ def stored_settings(data, options):
                 key,
                 True if key=='heating_enabled' else 'tariff' if key=='heating_strategy' else deepcopy(value)
             )
-    return settings
+    return migrate_fireplaces(settings)
 
 
 def validate(payload, hass=None, *, require_outdoor=True):
@@ -632,16 +640,20 @@ def validate(payload, hass=None, *, require_outdoor=True):
             'id': raw.get('id') or str(uuid4())
         }
         try:
-            from uuid import UUID
             UUID(zone['id'])
         except (ValueError,TypeError,AttributeError):
             raise ValueError('Invalid zone identifier.') from None
         check(zone,ZONE_FIELDS)
+        check(zone, [
+            ('fireplace_circulation', 'Circulate air while a fireplace is active', 'bool'),
+            ('fireplace_fan', 'Fireplace fan speed', 'text'),
+            ('fireplace_swing', 'Fireplace swing mode', 'text'),
+        ])
         if not zone['name'] or (zone['source_type'] == 'air_to_air' and (not zone['thermostat'])) or (zone['source_type'] == 'fireplace' and (not zone['fireplace_entity'])) or (zone['id'] in zone_ids):
             raise ValueError('Each zone needs a unique identifier, name and selected heat source.')
         if hass is not None and zone['fireplace_entity']:
             state = hass.states.get(zone['fireplace_entity'])
-            options = state.attributes.get('options')
+            options = state.attributes.get('options') if state else None
             allowed = ['on', 'off'] if zone['fireplace_entity'].startswith('binary_sensor.') else options if isinstance(options, list) else None
             if allowed and zone['fireplace_active_state'] not in allowed:
                 raise ValueError('Zone fireplace: choose a supported active state.')
@@ -665,7 +677,6 @@ def validate(payload, hass=None, *, require_outdoor=True):
         })
         room['id'] = raw.get('id') or str(uuid4())
         try:
-            from uuid import UUID
             UUID(room['id'])
         except (ValueError, TypeError, AttributeError):
             raise ValueError('Invalid room identifier.') from None
@@ -757,12 +768,16 @@ def validate(payload, hass=None, *, require_outdoor=True):
             attrs = state.attributes
             use_setpoints = not result['air_use_fan_only']
             required = ({'heat'} if zone['climate_mode'] == 'heat' else {'cool'} if zone['climate_mode'] == 'cool' else {'heat', 'cool'})
-            if not use_setpoints or zone['climate_mode'] != 'heat':
+            if not use_setpoints or zone['climate_mode'] != 'heat' or (zone['fireplace_ids'] and zone['fireplace_circulation']):
                 required.add('fan_only')
             if not required.issubset(attrs.get('hvac_modes', [])):
                 raise ValueError('The zone heat pump must support the selected heating/cooling modes and fan-only.')
             if not use_setpoints and zone['climate_mode'] in ('heat', 'both') and state.state == 'heat' and (not attrs.get('min_temp', 5) <= result['air_heat_target'] <= attrs.get('max_temp', 35)):
                 raise ValueError(f"{zone['name']}: heat pump heating setpoint {result['air_heat_target']:g} °C is outside device limits ({attrs.get('min_temp', 5):g}–{attrs.get('max_temp', 35):g} °C).")
+            if zone['fireplace_ids'] and zone['fireplace_circulation']:
+                for key, attribute in (('fireplace_fan', 'fan_modes'), ('fireplace_swing', 'swing_modes')):
+                    if zone[key] and zone[key] not in attrs.get(attribute, []):
+                        raise ValueError('The zone heat pump does not support the selected fireplace fan or swing mode.')
             for key,attribute in [
                 ('air_fan_heat','fan_modes'),
                 ('air_fan_idle','fan_modes'),
@@ -804,6 +819,46 @@ def validate(payload, hass=None, *, require_outdoor=True):
             low, high = (state.attributes.get('min_temp', 5), state.attributes.get('max_temp', 35))
             if not low <= result['summer_setpoint'] <= high:
                 raise ValueError(f"{room['name']}: summer setpoint is outside thermostat limits.")
+    if not isinstance(result['fireplaces'], list):
+        raise ValueError('Invalid fireplace settings.')
+    result = migrate_fireplaces(result)
+    if len(result['fireplaces']) > 60:
+        raise ValueError('A maximum of 60 fireplaces is supported.')
+    fireplaces, fireplace_ids = [], set()
+    available_rooms = {room['id'] for room in rooms if not room['is_garage']}
+    for raw in result['fireplaces']:
+        if not isinstance(raw, dict):
+            raise ValueError('Invalid fireplace settings.')
+        fireplace = {**FIREPLACE_DEFAULTS, **{key: raw[key] for key in FIREPLACE_DEFAULTS if key in raw},
+                     'id': raw.get('id') or str(uuid4())}
+        try:
+            UUID(fireplace['id'])
+        except (ValueError, TypeError, AttributeError):
+            raise ValueError('Invalid fireplace identifier.') from None
+        check(fireplace, FIREPLACE_FIELDS)
+        entity = fireplace['fireplace_entity']
+        active_state = fireplace['fireplace_active_state']
+        if (fireplace['id'] in fireplace_ids or any(zone['id'] == fireplace['id'] for zone in result['heating_zones'])
+                or not fireplace['name'] or not entity
+                or active_state in ('', 'unknown', 'unavailable')):
+            raise ValueError('Each fireplace needs a unique identifier, a name, a sensor and a valid active state.')
+        state = hass.states.get(entity) if hass is not None else None
+        options = state.attributes.get('options') if state else None
+        allowed = ['on', 'off'] if entity.startswith('binary_sensor.') else options
+        if isinstance(allowed, list) and active_state not in allowed:
+            raise ValueError('Fireplace active when: choose a valid state of the selected sensor.')
+        room_ids = fireplace['room_ids']
+        if (not isinstance(room_ids, list) or any(not isinstance(room_id, str) for room_id in room_ids)
+                or len(room_ids) != len(set(room_ids)) or not set(room_ids) <= available_rooms):
+            raise ValueError('Fireplace rooms: select each existing room only once.')
+        fireplace_ids.add(fireplace['id'])
+        fireplaces.append(fireplace)
+    result['fireplaces'] = fireplaces
+    for zone in result['heating_zones']:
+        selected = zone['fireplace_ids']
+        if (not isinstance(selected, list) or any(not isinstance(item, str) for item in selected)
+                or len(selected) != len(set(selected)) or not set(selected) <= fireplace_ids):
+            raise ValueError('Zone fireplaces: select each existing fireplace only once.')
     return result
 
 

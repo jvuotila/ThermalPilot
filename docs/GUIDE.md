@@ -45,7 +45,7 @@ that vary with consumption. ThermalPilot does not add these costs. Timestamped
 
 ## House and comfort settings
 
-Select the heat source, distribution and construction under **Rooms and zones**.
+Select the heat source, distribution and construction under **Climate setup**.
 Water floor/radiator systems support valve timing and optional water-temperature
 adjustment. Electric and warm-air distribution use observed demand without water
 adjustment or valve offsets. Mixed systems currently retain water requirements;

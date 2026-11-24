@@ -2,6 +2,7 @@
   "language": "cs",
   "name": "Čeština",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Zahodit neuložené změny na obou kartách nastavení?",
     "Per page": "Na stránce",
     "Total absences": "Celkem nepřítomností",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Po zrušení období se obnoví běžná nastavení teplot. Teploty pro nepřítomnost zůstanou aktivní, pokud stále platí jiné období v kalendáři nebo automatická nepřítomnost.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Senzor teploty místnosti",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Chybí vnitřní, venkovní či cílová teplota.",
     "Rooms": "Místnosti",
-    "Rooms and zones": "Místnosti a zóny",
+    "Climate setup": "Vytápění a chlazení",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Plán simulovaný; sezóny mohou změnit skutečné cíle.",
     "SIMULATION · thermostats continue using their current settings": "Simulace aktivní. ThermalPilot neřídí topení.",
     "Save settings": "Uložit nastavení",

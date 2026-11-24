@@ -2,6 +2,7 @@
   "language": "pl",
   "name": "Polski",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Odrzucić niezapisane zmiany na obu kartach ustawień?",
     "Per page": "Na stronie",
     "Total absences": "Łączna liczba nieobecności",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Po anulowaniu okresu wracają zwykłe ustawienia temperatury. Temperatury na czas nieobecności pozostają aktywne, jeśli nadal trwa inny okres z kalendarza lub automatyczna nieobecność.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Czujnik temperatury pomieszczenia",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Brak temperatury pokojowej, zewnętrznej lub docelowej.",
     "Rooms": "Pomieszczenia",
-    "Rooms and zones": "Pomieszczenia i strefy",
+    "Climate setup": "Ogrzewanie i chłodzenie",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Plan jest symulowany; zmiana sezonu może zmieniać rzeczywiste nastawy.",
     "SIMULATION · thermostats continue using their current settings": "Symulacja aktywna. ThermalPilot nie steruje ogrzewaniem.",
     "Save settings": "Zapisz ustawienia",

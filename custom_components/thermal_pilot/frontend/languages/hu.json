@@ -2,6 +2,7 @@
   "language": "hu",
   "name": "Magyar",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Elveti a nem mentett módosításokat mindkét beállítási lapon?",
     "Per page": "Oldalanként",
     "Total absences": "Távollétek összesen",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Az időszak törlésekor visszaállnak a normál hőmérséklet-beállítások. A távolléti hőmérsékletek továbbra is érvényesek, ha másik naptári időszak vagy automatikus távollét még aktív.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Szobahőmérséklet-érzékelő",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Belső, külső vagy célhőmérséklet hiányzik.",
     "Rooms": "Szobák",
-    "Rooms and zones": "Helyiségek és zónák",
+    "Climate setup": "Fűtés és hűtés",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Terv szimulált; évszakok valós célokat módosíthatnak.",
     "SIMULATION · thermostats continue using their current settings": "Szimuláció aktív. ThermalPilot nem vezérli a fűtést.",
     "Save settings": "Beállítások mentése",

@@ -2,6 +2,7 @@
   "language": "lt",
   "name": "Lietuvių",
   "messages": {
+    "Discard unsaved changes on both settings tabs?": "Atmesti neišsaugotus pakeitimus abiejuose nustatymų skirtukuose?",
     "Per page": "Puslapyje",
     "Total absences": "Išvykimų iš viso",
     "Normal temperature settings resume when you cancel the period. Away temperatures stay active if another calendar period or automatic absence is still active.": "Atšaukus laikotarpį, vėl taikomi įprasti temperatūros nustatymai. Išvykimo temperatūra galioja, jei vis dar aktyvus kitas kalendoriaus laikotarpis arba automatinis išvykimas.",
@@ -432,7 +433,7 @@
     "Room temperature sensor": "Kambario temperatūros jutiklis",
     "Room temperature, outdoor temperature or target temperature is unavailable.": "Kambario, lauko ar tikslinė temperatūra neprieinama.",
     "Rooms": "Kambariai",
-    "Rooms and zones": "Kambariai ir zonos",
+    "Climate setup": "Šildymas ir vėsinimas",
     "SEASON SETPOINT CONTROL ENABLED · heating schedules remain simulated": "Planas modeliuojamas; sezonų kaita gali keisti tikras nuostatas.",
     "SIMULATION · thermostats continue using their current settings": "Modeliavimas aktyvus. ThermalPilot nevaldo šildymo.",
     "Save settings": "Išsaugoti nustatymus",

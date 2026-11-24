@@ -13,14 +13,8 @@ def binary(hass, entity):
     return state.state == 'on' if state and state.state in ('on', 'off') else None
 
 
-def zone_temperature(
-    hass: Any, room: dict[str, Any], settings: dict[str, Any],
-) -> tuple[float | None, bool]:
-    """Read every linked room before applying the selected zone-temperature policy.
-
-    The main sensor may guide a zone, but an unavailable member still invalidates
-    control and any member at its upper limit can stop heating.
-    """
+def zone_temperature_readings(hass, room, settings):
+    """Read all linked members so one cold or missing sensor can protect the zone."""
     members = [room]
     for candidate in resolved_rooms(settings) + zone_rooms(settings):
         if (candidate.get('heat_control') == 'zone_member'
@@ -34,8 +28,18 @@ def zone_temperature(
         except ValueError:
             value = None
         if value is None:
-            return (None, False)
+            return []
         values.append(value)
+    return values
+
+
+def zone_temperature(
+    hass: Any, room: dict[str, Any], settings: dict[str, Any],
+) -> tuple[float | None, bool]:
+    """Apply the zone policy only when every linked room can be read."""
+    values = zone_temperature_readings(hass, room, settings)
+    if not values:
+        return (None, False)
     if room.get('is_garage'):
         upper_limit = room['garage_maximum']
         policy = 'main'
@@ -86,6 +90,20 @@ class AirHeatPumpControl:
         manual = room.get('manual_session')
         if manual and manual['ends'] <= now:
             manual = None
+        circulation = None
+        if room.get('active_fireplaces') and enabled and not release and not manual:
+            state = self.hass.states.get(room['thermostat'])
+            temperatures = zone_temperature_readings(self.hass, room, settings)
+            minimum = pump_temperature_settings(settings)['minimum'] if use_setpoints else settings['minimum']
+            if (temperatures and min(temperatures) > minimum and state is not None
+                    and state.state not in ('unknown', 'unavailable', 'cool')
+                    and state.attributes.get('hvac_action') != 'cooling'
+                    and 'fan_only' in state.attributes.get('hvac_modes', [])):
+                circulation = {
+                    'mode': 'fan_only', 'target': None, 'fan': room.get('fireplace_fan', ''),
+                    'swing': room.get('fireplace_swing', ''), 'errors': [],
+                    'reason': 'Fireplace air circulation', 'fireplaces': room['active_fireplaces'],
+                }
         if room.get('heating_zone_id') and (not room.get('is_garage')) and not manual:
             season = self.zone_season(room['heating_zone_id'], summer, now)
             use = room.get('zone_climate_mode', 'heat')
@@ -93,7 +111,12 @@ class AirHeatPumpControl:
             # summer. Explicit cooling and its changeover retain their safeguards.
             if use == 'cool' or (season and (not use_setpoints or (use == 'both' and enabled and not release))):
                 cooling_enabled = enabled and (not release) and season and (use in ('cool', 'both'))
-                return self.cooling_intent(room, settings, now, cooling_enabled)
+                cooling = self.cooling_intent(room, settings, now, cooling_enabled)
+                if circulation and cooling['mode'] == 'fan_only' and not cooling['errors']:
+                    return circulation
+                return cooling
+        if circulation:
+            return circulation
 
         room_id = room['id']
         garage = room.get('is_garage', False)
