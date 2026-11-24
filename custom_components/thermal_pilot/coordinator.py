@@ -25,7 +25,7 @@ from .fireplaces import active_fireplaces
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
-from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, response_step, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled
+from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, response_step, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled, floor_response_from_history
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -217,7 +217,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.async_set_updated_data(data)
         self.arm_command_timer(data, now)
 
-    async def load(self):
+    async def load(self, *, restore_floor_heat: bool = True):
         saved = await self.store.async_load() or {}
         self.garage_door_warnings = saved.get('garage_door_warnings', {})
         self.models = saved.get('models', {})
@@ -238,7 +238,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.config_fingerprint = saved.get('fingerprints', {})
         rooms = resolved_rooms(self.settings)
         now = dt_util.utcnow()
-        self.restore_floor_response(rooms, now)
+        await self.hass.async_add_executor_job(self.history_db.initialize)
+        await self.restore_floor_response(rooms, now, restore_floor_heat)
         for model in self.models.values():
             bank = model.get('air_lag_learning', {})
             bank.pop('last_time',None)
@@ -251,7 +252,6 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.fallback_state = saved.get('fallback_state', {})
         self.managed_rooms = {room['thermostat']: room for room in saved.get('managed_rooms', {}).values()}
         self.sensor_health = saved.get('sensor_health', {'rooms': {}, 'last_notification_day': None})
-        await self.hass.async_add_executor_job(self.history_db.initialize)
         # Session checkpoints are local control continuity, not learned parameters.
         self.session_plans = {}
         self.suggested_runs = {}
@@ -266,23 +266,42 @@ class PilotCoordinator(DataUpdateCoordinator):
                 self.session_plans[room['id']] = checkpoint
                 self.suggested_runs[room['id']] = deepcopy(checkpoint.get('run', {}))
 
-    def restore_floor_response(self, rooms, now):
-        """Carry recent stored slab heat through a brief Home Assistant restart."""
+    async def restore_floor_response(self, rooms, now, restore_floor_heat: bool):
+        """Recover stored slab heat from relay history or a recent checkpoint."""
         floor_rooms = {}
-        if (self.settings['house_distribution'] == 'water_floor'
-                and self.settings['heating_enabled'] and self.season.get('collecting')):
-            floor_rooms = {room['id']: room for room in rooms
-                           if room_water_distribution(room, self.settings)}
+        if (restore_floor_heat and self.settings['house_distribution'] == 'water_floor'
+                and self.settings['heating_enabled']):
+            for room in rooms:
+                if not room_water_distribution(room, self.settings) or room['id'] not in self.models:
+                    continue
+                fingerprint = learning_fingerprint(room, self.settings)
+                if self.config_fingerprint.get(room['id']) == fingerprint:
+                    floor_rooms[room['id']] = fingerprint
         now_timestamp = now.timestamp()
+        lag_hours = self.settings['lag_hours']
+        history = {}
+        if floor_rooms:
+            # Leave enough room for the brief outage and the first sample boundary.
+            start = now_timestamp - (3 * lag_hours + .75) * 3600
+            history = await self.hass.async_add_executor_job(
+                self.history_db.recent_room_observations, list(floor_rooms), start, now_timestamp,
+            )
         for room_id, model in self.models.items():
             response = number(model.get('response'), 0)
             # Older checkpoints only recorded the refresh time for the house.
             response_time = number(model.pop('response_time', self.season.get('time')))
             model['response'] = 0.0
-            room = floor_rooms.get(room_id)
-            if room is None or response_time is None or not 0 < response <= 1:
+            if room_id not in floor_rooms:
                 continue
-            if self.config_fingerprint.get(room_id) != learning_fingerprint(room, self.settings):
+            recovered = floor_response_from_history(
+                history[room_id], floor_rooms[room_id], now_timestamp, lag_hours,
+            )
+            if recovered is not None:
+                model['response'] = recovered
+                model['response_time'] = now_timestamp
+                continue
+            if (not self.season.get('collecting') or response_time is None
+                    or not 0 < response <= 1):
                 continue
             elapsed_hours = (now_timestamp - response_time) / 3600
             if not 0 <= elapsed_hours <= 0.5:
@@ -290,7 +309,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             if elapsed_hours:
                 # Allow already stored heat to decay. Do not assume the valves
                 # kept supplying heat while Home Assistant was offline.
-                response, _ = response_step(response, 0, elapsed_hours, self.settings['lag_hours'])
+                response, _ = response_step(response, 0, elapsed_hours, lag_hours)
             model['response'] = response
             model['response_time'] = now_timestamp
 
@@ -927,7 +946,17 @@ class PilotCoordinator(DataUpdateCoordinator):
             if old_solar_context != solar_context:
                 self.previous.pop(room_id,None)
             model['solar_context'] = solar_context
-            if not self.season['collecting']:
+            floor_response_time = None
+            if (room_water and self.settings['house_distribution'] == 'water_floor'
+                    and old_fingerprint == fingerprint):
+                floor_response_time = model.get('response_time')
+            if floor_response_time is not None:
+                response_age = (now.timestamp() - floor_response_time) / 3600
+                if not 0 <= response_age <= .5:
+                    model['response'] = 0.0
+                    model.pop('response_time', None)
+                    floor_response_time = None
+            if not self.season['collecting'] and floor_response_time is None:
                 model['response'] = 0.0
                 model.pop('response_time', None)
             activity = self.activity(room)
@@ -1019,6 +1048,14 @@ class PilotCoordinator(DataUpdateCoordinator):
                 prediction = None
                 if self.season['collecting']:
                     previous = self.previous.get(room_id)
+                    if previous is None and floor_response_time is not None and response_age > 0:
+                        # Sensors often reconnect after the integration starts.
+                        # Keep recent floor warmth, but assume no heat input while
+                        # we could not form an observed learning interval.
+                        model['response'], _ = response_step(
+                            model['response'], 0, response_age, room['lag_hours']
+                        )
+                        model['response_time'] = current['time']
                     if previous is not None:
                         if room.get('shared_air_signature'):
                             # Fit off the event loop on a private copy; a delayed
@@ -1093,6 +1130,11 @@ class PilotCoordinator(DataUpdateCoordinator):
                         'stop_offset_minutes': self.settings['stop_offset_minutes'] if room_water else 0,
                         'boost': room['boost'], 'setback': room['setback'],
                         'minimum_run_minutes': minimum_run_minutes,
+                        'compare_delayed_boost': (
+                            pricing_mode == 'flexible' and room_water
+                            and self.settings['house_distribution'] == 'water_floor'
+                            and not room.get('is_garage')
+                        ),
                         'minimum_pause_minutes': 15, 'boost_resume_after': resume_after,
                         'previous_pause_hours': previous_pause_hours,
                         'committed_session': self.committed_session(room_id, now),

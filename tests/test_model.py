@@ -706,6 +706,87 @@ class TransferTariffTests(unittest.TestCase):
 
 
 class PreheatingSearchTests(unittest.TestCase):
+    def test_floor_response_requires_recent_uninterrupted_matching_observations(self):
+        from thermal_pilot.model import floor_response_from_history
+
+        now = NOW.timestamp()
+        fingerprint = ['climate.room', 'sensor.room']
+        rows = [
+            {'time': now - 300 * (12 - index), 'activity': 1,
+             'forecast_context': fingerprint + ['weather.home']}
+            for index in range(13)
+        ]
+        lag = .25
+        self.assertGreater(floor_response_from_history(rows, fingerprint, now, lag), .95)
+        self.assertIsNone(floor_response_from_history(rows, fingerprint, now + 1860, lag))
+        self.assertIsNone(floor_response_from_history(rows[:6] + rows[9:], fingerprint, now, lag))
+
+        rows[6]['forecast_context'] = ['climate.previous', 'sensor.room']
+        self.assertIsNone(floor_response_from_history(rows, fingerprint, now, lag))
+
+    def test_warm_floor_can_wait_for_a_cheaper_full_run(self):
+        # A brief tariff dip is followed by another peak and then a cheaper
+        # hour. Retain a schedule that can coast to the latter on a warm floor.
+        room = {
+            **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
+            'lag_hours': 3, 'start_offset_minutes': 5, 'stop_offset_minutes': 5,
+        }
+        model = {
+            **initial_model(room), 'loss': .02, 'gain': .53,
+            'base_gain': .18, 'response': .07,
+        }
+        now = NOW + timedelta(minutes=2)
+        rates = [23, 23, 20, 22, 24, 27, 20, 21, 23, 23]
+        rates += [24, 25, 22, 24] * 6 + [21, 20, 19, 19, 18, 18, 18, 18]
+        slots = PlannerTests().slots(rates, minutes=15)
+        outdoor = [-1] * len(slots)
+        regular = plan(room, model, 19.9, outdoor, slots, now, 19, .92)
+        room['compare_delayed_boost'] = True
+        delayed = plan(room, model, 19.9, outdoor, slots, now, 19, .92)
+
+        self.assertTrue(regular['heat'])
+        self.assertFalse(delayed['heat'])
+        self.assertEqual(delayed['setpoint'], 19)
+        self.assertGreaterEqual(delayed['forecast_minimum'], 19)
+        self.assertGreaterEqual(
+            datetime.fromisoformat(delayed['sessions'][0]['start']), NOW + timedelta(minutes=90)
+        )
+
+        def tariff_cost(result):
+            return sum(
+                slot.planning_rate * (slot.end - max(now, slot.start)).total_seconds() / 3600
+                for slot, row in zip(slots, result['slots']) if row['predicted_demand']
+            )
+
+        self.assertLess(tariff_cost(delayed), tariff_cost(regular))
+
+        # An active minimum-length run survives the same choice of prices.
+        committed_start = now - timedelta(minutes=20)
+        room.update(
+            committed_session={
+                'start': committed_start.isoformat(),
+                'end': (committed_start + timedelta(hours=3)).isoformat(),
+            },
+            previous_suggested_heat=True,
+            previous_run_hours=20 / 60,
+        )
+        committed = plan(room, model, 19.9, outdoor, slots, now, 19, .92)
+        self.assertTrue(committed['heat'])
+        self.assertEqual(committed['sessions'][0]['start'], committed_start.isoformat())
+        self.assertTrue(all(row['heat'] for row in committed['slots'][:3]))
+
+    def test_floor_cannot_wait_for_a_cheaper_run_when_room_is_cold(self):
+        room = {
+            **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
+            'lag_hours': 3, 'compare_delayed_boost': True,
+        }
+        model = {
+            **initial_model(room), 'loss': .02, 'gain': .6, 'response': .02,
+        }
+        slots = PlannerTests().slots([25] * 12 + [8] * 20, minutes=15)
+        result = plan(room, model, 19.05, [-5] * len(slots), slots, NOW, 19)
+        self.assertTrue(result['heat'])
+
     def test_night_storage_alternatives_survive_until_the_expensive_daytime(self):
         # Controlled profiles based on three observed floor-heated room models.
         # These do not replay the original forecast: backups do not retain it.

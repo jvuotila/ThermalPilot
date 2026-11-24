@@ -307,6 +307,35 @@ def response_step(response, heating, hours, lag):
     average = heating + (response - heating) * lag * (1 - decay) / hours
     return (end, average)
 
+def floor_response_from_history(
+    rows: list[dict[str, Any]], fingerprint: list, now: float, lag_hours: float,
+) -> float | None:
+    """Estimate stored floor heat from a continuous sequence of relay observations."""
+    if not rows:
+        return None
+    latest = rows[-1]
+    missing_hours = (now - latest['time']) / 3600
+    if (not 0 <= missing_hours <= .5
+            or (latest.get('forecast_context') or [])[:len(fingerprint)] != fingerprint):
+        return None
+    recent = []
+    following = latest
+    for row in reversed(rows[:-1]):
+        interval = (following['time'] - row['time']) / 3600
+        if (not 0 < interval <= .25 or row.get('activity') not in (0, 1)
+                or (row.get('forecast_context') or [])[:len(fingerprint)] != fingerprint):
+            break
+        recent.append((interval, row['activity']))
+        if (latest['time'] - row['time']) / 3600 >= 3 * lag_hours:
+            # After three time constants the unknown initial response can
+            # contribute at most 5%. Use zero for a conservative starting point.
+            response = 0.0
+            for hours, activity in reversed(recent):
+                response, _ = response_step(response, activity, hours, lag_hours)
+            # Do not extend the last observed relay state across the outage.
+            return response * math.exp(-missing_hours / lag_hours)
+        following = row
+    return None
 
 
 def response_lag(room, model):
@@ -890,11 +919,86 @@ def thermostat_state(timing, now):
     return {'heat': mode == 'boost', 'mode': mode, 'setpoint': round(target, 2)}
 
 
+def _next_cheaper_heating_run(
+    slots: list[Slot], now: datetime, minimum_run_minutes: float, valve_lead_minutes: float,
+) -> datetime | None:
+    """Find the first later start with a cheaper full minimum run."""
+    duration = timedelta(minutes=minimum_run_minutes)
+
+    def run_cost(start_index: int, start: datetime) -> float | None:
+        end = start + duration
+        cost = 0.0
+        for index in range(start_index, len(slots)):
+            slot = slots[index]
+            if slot.start > start:
+                break
+            covered_end = min(end, slot.end)
+            hours = (covered_end - start).total_seconds() / 3600
+            cost += hours * slot.planning_rate
+            if covered_end == end:
+                return cost
+            start = covered_end
+        return None
+
+    immediate_cost = run_cost(0, max(now, slots[0].start))
+    if immediate_cost is None:
+        return None
+    earliest_start = now + timedelta(minutes=valve_lead_minutes)
+    for index, slot in enumerate(slots[1:], start=1):
+        if slot.start <= earliest_start:
+            continue
+        later_cost = run_cost(index, slot.start)
+        if later_cost is not None and later_cost < immediate_cost - 1e-6:
+            return slot.start
+    return None
+
+
 def plan(
     room: dict[str, Any], model: dict[str, Any], temperature: float,
     outdoor: list[float], slots: list[Slot], now: datetime, baseline: float,
     water_factor: float = 1.0, fireplace: bool = False,
 ) -> dict[str, Any] | None:
+    """Compare the regular forecast with coasting to a cheaper floor-heating run."""
+    regular = _search_room_plan(room, model, temperature, outdoor, slots, now,
+                                baseline, water_factor, fireplace)
+    if regular is None:
+        return None
+    result, score = regular
+    if (not result['heat'] or not room.get('compare_delayed_boost')
+            or temperature <= baseline):
+        return result
+
+    minimum_run_minutes = room.get('minimum_run_minutes', 60)
+    committed = room.get('committed_session')
+    if committed:
+        minimum_end = stamp(committed['start']) + timedelta(minutes=minimum_run_minutes)
+        protected_until = min(stamp(committed['end']), minimum_end)
+        if now < protected_until:
+            return result
+    cheaper_start = _next_cheaper_heating_run(
+        slots, now, minimum_run_minutes, room.get('start_offset_minutes', 0)
+    )
+    if cheaper_start is None:
+        return result
+
+    # The bounded search can discard coasting paths long before they reach the
+    # cheaper window. Run a separate search so those paths get a fair comparison.
+    delayed = _search_room_plan(
+        room, model, temperature, outdoor, slots, now, baseline, water_factor, fireplace,
+        coast_until=cheaper_start,
+    )
+    if delayed is not None:
+        delayed_result, delayed_score = delayed
+        if delayed_score < score:
+            return delayed_result
+    return result
+
+
+def _search_room_plan(
+    room: dict[str, Any], model: dict[str, Any], temperature: float,
+    outdoor: list[float], slots: list[Slot], now: datetime, baseline: float,
+    water_factor: float, fireplace: bool, *, coast_until: datetime | None = None,
+) -> tuple[dict[str, Any], tuple[float, float, float]] | None:
     """Search a bounded set of schedules, preferring safety, comfort, then cost.
 
     Costs use the tariff or a normalized COP-adjusted heating rate. The first
@@ -963,6 +1067,7 @@ def plan(
         hours = (slot.end - max(now, slot.start)).total_seconds() / 3600
         if hours <= 0:
             continue
+        coasting = coast_until is not None and slot.start < coast_until
         candidates = []
         wind = number(room.get('wind_speed'))
         if wind is not None:
@@ -983,6 +1088,8 @@ def plan(
              last_mode, run_duration, reduction_credit, path) in beam:
             for mode in (0, 1, 2):
                 boosted = mode == 2
+                if coasting and boosted:
+                    continue
                 if mode == 1 and (
                     not reduction_credit or last_mode == 2
                     or response <= .05 or planning_rate <= high_price
@@ -1046,7 +1153,7 @@ def plan(
                     + model.get('base_gain', 0) + slot_solar
                     + heat_transfer(model, current_temperature, neighbors)
                 )
-                if mode == 1 and predicted < baseline:
+                if (mode == 1 or coasting) and predicted < baseline:
                     continue
 
                 below_limit = max(0, room['minimum'] - predicted)
@@ -1094,6 +1201,9 @@ def plan(
                     next_violation, next_shortfall, next_cost, predicted, next_response,
                     mode, next_run_duration, row['reduction_available'], path + [row],
                 ))
+
+        if not candidates and coasting:
+            return None
 
         # Retain different thermal states, not just many near-identical cheap paths.
         unique = {}
@@ -1175,7 +1285,8 @@ def plan(
     rows = best[-1]
     if not rows:
         return None
-    risk = best[0] > 0.01 or terminal(best)[0] > 0.01
+    score = terminal(best)
+    risk = best[0] > 0.01 or score[0] > 0.01
     timing = thermostat_timing(rows, room, baseline, now)
     forecast_minimum = min((row['temperature'] for row in rows))
     forecast_maximum = max((row['temperature'] for row in rows))
@@ -1223,7 +1334,7 @@ def plan(
             2
         ),
         'curve_hours': round(curve_hours(room, min(outdoor)), 1),
-    }
+    }, score
 
 
 def collection_state(previous, outdoor, timestamp, config):

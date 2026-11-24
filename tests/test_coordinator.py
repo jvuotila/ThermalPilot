@@ -469,6 +469,55 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
                     self.assertFalse(any(row['predicted_demand'] for row in plan['slots'][:8]))
                     self.assertFalse(plan['comfort_risk'])
 
+    async def test_restart_recovers_floor_heat_from_observed_relays(self):
+        from math import exp
+        from thermal_pilot.config import learning_fingerprint
+        from thermal_pilot.model import Slot, initial_model
+
+        current = now + timedelta(hours=12)
+        room = self.c.settings['rooms'][0]
+        room_id = room['id']
+        fingerprint = learning_fingerprint(room, self.c.settings)
+        # The last four hours warmed the floor before the restart. Leave a
+        # low checkpoint to represent the estimate from an interrupted run.
+        rows = [
+            {
+                'room_id': room_id, 'time': (current - timedelta(minutes=545 - 15 * index)).timestamp(),
+                'temperature': 20.2, 'outdoor': -10, 'activity': float(index >= 20),
+                'forecast_context': fingerprint + ['wind', 'solar'],
+            }
+            for index in range(37)
+        ]
+        self.c.history_db.append(rows, now.timestamp())
+        entry = types.SimpleNamespace(entry_id='test', data=self.c.settings, options={})
+        restarted = PilotCoordinator(self.hass, entry)
+        restarted.store.saved = {
+            'season': {'collecting': True, 'time': rows[-1]['time']},
+            'fingerprints': {room_id: fingerprint},
+            'models': {room_id: {**initial_model(room), 'response': .05}},
+        }
+        slots = [
+            Slot(current + timedelta(minutes=15 * index),
+                 current + timedelta(minutes=15 * (index + 1)), 28 if index < 8 else 8)
+            for index in range(32)
+        ]
+        self.hass.states['sensor.room'].state = '20.2'
+        with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=current):
+            await restarted.load()
+            self.hass.states['sensor.out'].state = 'unavailable'
+            await restarted._async_update_data()
+        response = (1 - exp(-4 / 3)) * exp(-5 / (60 * 3))
+        self.assertAlmostEqual(restarted.models[room_id]['response'], response)
+        self.assertFalse(restarted.previous)
+
+        self.hass.states['sensor.out'].state = '-10'
+        recovered_at = current + timedelta(minutes=5)
+        with (patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=recovered_at),
+              patch('thermal_pilot.coordinator.price_slots', return_value=slots)):
+            result = await restarted._async_update_data()
+        self.assertAlmostEqual(restarted.models[room_id]['response'], response * exp(-5 / (60 * 3)))
+        self.assertFalse(result['rooms'][room_id]['plan']['scheduled_heat'])
+
     async def test_restart_after_session_closing_preserves_pause_then_expires(self):
         restarted, room_id, start, end, current = await self.checkpointed_restart()
         closing = end - timedelta(minutes=restarted.settings['stop_offset_minutes'])

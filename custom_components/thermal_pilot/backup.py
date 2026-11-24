@@ -175,7 +175,7 @@ async def restore_backup(coordinator, content):
                 coordinator.settings = settings
                 from .air_control import AirHeatPumpControl
                 coordinator.air_control = AirHeatPumpControl(hass)
-                await coordinator.load()
+                await coordinator.load(restore_floor_heat=False)
                 coordinator.previous = {}
                 coordinator.forecast = []
                 coordinator.forecast_updated = None

@@ -255,6 +255,19 @@ class HistoryDatabase:
                     )
             connection.execute('DELETE FROM forecasts WHERE due < ?', (cutoff,))
 
+    def recent_room_observations(
+        self, room_ids: list[str], start: float, end: float,
+    ) -> dict[str, list[dict[str, Any]]]:
+        """Read a bounded run of observations per room without matching forecasts."""
+        with self._connect() as connection:
+            return {
+                room_id: [json.loads(payload) for payload, in connection.execute(
+                    'SELECT payload FROM observations WHERE room_id=? AND time BETWEEN ? AND ? ORDER BY time',
+                    (room_id, int(start), int(end)),
+                )]
+                for room_id in room_ids
+            }
+
     def read(self, cutoff: float) -> list[dict[str, Any]]:
         """Match frozen forecasts to observations within five minutes of their due time.
 
