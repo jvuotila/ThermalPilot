@@ -1030,6 +1030,58 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
             await self.c._async_update_data()
         self.assertAlmostEqual(planner.call_args.args[7],(28-20)/(32-20))
 
+    async def test_plan_filters_air_temperature_spikes_but_prefers_weather_forecast(self):
+        room_id = self.c.settings['rooms'][0]['id']
+        self.c.forecast_type = 'hourly'
+        forecast = [{'datetime': (now + timedelta(minutes=30)).isoformat(), 'temperature': -8}]
+        with (patch.object(self.c, 'get_forecast', return_value=forecast),
+              patch('thermal_pilot.coordinator.plan', return_value=None) as planner):
+            for minute, inside, outside in ((0, 20, -10), (5, 20.1, -11), (10, 22, 2), (11, 22, 2)):
+                self.hass.states['sensor.room'].state = str(inside)
+                self.hass.states['sensor.out'].state = str(outside)
+                with patch('thermal_pilot.coordinator.dt_util.utcnow',
+                           return_value=now + timedelta(minutes=minute)):
+                    data = await self.c._async_update_data()
+
+        self.assertEqual(planner.call_args.args[2], 20.1)
+        self.assertEqual(planner.call_args.args[3][0], -10)
+        self.assertIn(-8, planner.call_args.args[3])
+        self.assertEqual(data['rooms'][room_id]['temperature'], 22)
+        self.assertEqual(data['outdoor'], 2)
+        latest = self.c.history_db.read(0)[-1]
+        self.assertEqual(latest['temperature'], 22)
+        self.assertEqual(latest['outdoor'], 2)
+
+    async def test_air_filter_tracks_sustained_change_and_lets_room_limits_through(self):
+        with patch('thermal_pilot.coordinator.plan', return_value=None) as planner:
+            for minute, inside, outside in ((0, 20, -10), (5, 20, -10), (10, 18, -10),
+                                             (15, 21, -6), (20, 21, -6), (25, 21, -6)):
+                self.hass.states['sensor.room'].state = str(inside)
+                self.hass.states['sensor.out'].state = str(outside)
+                with patch('thermal_pilot.coordinator.dt_util.utcnow',
+                           return_value=now + timedelta(minutes=minute)):
+                    await self.c._async_update_data()
+            # The cold reading crossed the minimum and must reach the planner.
+            self.assertEqual(planner.call_args_list[2].args[2], 18)
+            self.assertEqual(planner.call_args.args[2], 21)
+            self.assertEqual(planner.call_args.args[3][0], -6)
+
+            self.c.settings['outdoor_entity'] = 'sensor.replacement_outdoor'
+            self.hass.states['sensor.replacement_outdoor'] = State('-4')
+            self.hass.states['sensor.room'].state = 'unavailable'
+            planner.reset_mock()
+            with patch('thermal_pilot.coordinator.dt_util.utcnow',
+                       return_value=now + timedelta(minutes=26)):
+                await self.c._async_update_data()
+            planner.assert_not_called()
+
+            self.hass.states['sensor.room'].state = '19.5'
+            with patch('thermal_pilot.coordinator.dt_util.utcnow',
+                       return_value=now + timedelta(minutes=27)):
+                await self.c._async_update_data()
+            self.assertEqual(planner.call_args.args[2], 19.5)
+            self.assertEqual(planner.call_args.args[3][0], -4)
+
     async def test_global_thermal_parameters_override_legacy_room_values(self):
         room=self.c.settings['rooms'][0]
         room.update(lag_hours=10,curve_warm_temp=10,curve_cold_temp=-30,water_reference=45,design_room_temp=25)
