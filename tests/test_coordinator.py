@@ -846,6 +846,53 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.c.stop()
         self.assertIsNone(self.c._source_unsubscribe)
 
+    async def test_routine_temperature_changes_share_five_minute_refresh(self):
+        from unittest.mock import Mock
+
+        self.c.listen_sources()
+        await self.c._async_update_data()
+        event = types.SimpleNamespace(data={
+            'entity_id': 'sensor.water', 'old_state': State('34'), 'new_state': State('25'),
+        })
+        cancel = Mock()
+        with patch('thermal_pilot.coordinator.async_track_point_in_utc_time', return_value=cancel) as track:
+            for seconds in (15, 45, 90, 120):
+                with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=now + timedelta(seconds=seconds)):
+                    self.c.source_changed(event)
+            track.assert_called_once()
+            self.assertEqual(track.call_args.args[2], now + timedelta(minutes=5))
+            with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=now + timedelta(minutes=5)):
+                await self.c._async_update_data()
+            self.assertTrue(cancel.called)
+            self.assertIsNone(self.c._source_timer)
+
+    async def test_control_and_availability_events_can_advance_queued_plan_refresh(self):
+        from unittest.mock import Mock
+
+        relay = 'binary_sensor.room_relay'
+        self.c.settings['rooms'][0]['activity_entity'] = relay
+        self.hass.states[relay] = State('off')
+        self.c.listen_sources()
+        await self.c._async_update_data()
+        cancel_routine, cancel_relay, cancel_urgent = Mock(), Mock(), Mock()
+        current = now + timedelta(minutes=1)
+        with (patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=current),
+              patch('thermal_pilot.coordinator.async_track_point_in_utc_time',
+                    side_effect=[cancel_routine, cancel_relay, cancel_urgent]) as track):
+            self.c.source_changed(types.SimpleNamespace(data={
+                'entity_id': 'sensor.water', 'old_state': State('34'), 'new_state': State('25'),
+            }))
+            self.c.source_changed(types.SimpleNamespace(data={
+                'entity_id': relay, 'old_state': State('off'), 'new_state': State('on'),
+            }))
+            cancel_routine.assert_called_once()
+            self.assertEqual(track.call_args.args[2], current + timedelta(seconds=30))
+            self.c.source_changed(types.SimpleNamespace(data={
+                'entity_id': 'sensor.water', 'old_state': State('25'), 'new_state': State('unavailable'),
+            }))
+            cancel_relay.assert_called_once()
+            self.assertEqual(track.call_args.args[2], current + timedelta(seconds=5))
+
     async def test_live_passive_uses_winter_and_summer_fallbacks(self):
         self.c.settings.update(simulation_enabled=False,live_control_confirmed=True,heating_enabled=False)
         self.hass.states['climate.room'].attributes['temperature']=22
@@ -1176,6 +1223,20 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
               patch('thermal_pilot.coordinator.plan', wraps=plan) as planner):
             await restarted._async_update_data()
         self.assertAlmostEqual(planner.call_args.args[7], (35 - 20) / (32 - 20))
+
+    async def test_two_hour_water_median_stays_stable_through_forty_minute_dip(self):
+        room = self.c.settings['rooms'][0]
+        for minute in range(0, 120, 5):
+            supply = 23 if minute >= 80 else 33
+            planning_water = await self.c.planning_water_temperature(
+                supply, [room], now + timedelta(minutes=minute),
+            )
+        self.assertEqual(planning_water, 33)
+        for minute in range(120, 145, 5):
+            planning_water = await self.c.planning_water_temperature(
+                23, [room], now + timedelta(minutes=minute),
+            )
+        self.assertEqual(planning_water, 23)
 
     async def test_passive_transition_compacts(self):
         self.c.settings['season_archive_enabled']=False  # Removed legacy preference is ignored.

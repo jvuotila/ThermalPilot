@@ -30,11 +30,13 @@ from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn,
 from .model import water_heating_factor
 
 _LOGGER = logging.getLogger(__name__)
+PLAN_REFRESH_INTERVAL = timedelta(minutes=5)
+WATER_TEMPERATURE_BUCKETS = 24  # Two hours at one sample per five minutes.
 
 
 class PilotCoordinator(DataUpdateCoordinator):
     def __init__(self, hass, entry):
-        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=timedelta(minutes=5))
+        super().__init__(hass, _LOGGER, name=DOMAIN, update_interval=PLAN_REFRESH_INTERVAL)
         self.backup_lock = asyncio.Lock()
         self.entry = entry
         self.settings = stored_settings(entry.data, entry.options)
@@ -71,7 +73,10 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.fallback_state = {}
         self._plan_settings = None
         self._source_timer = None
+        self._source_refresh_at = None
         self._source_unsubscribe = None
+        self._last_refresh_started = None
+        self._responsive_sources = set()
         self.wind_samples = []
         self.wind_source = None
         self.planning_water_samples: dict[int, float] = {}
@@ -80,9 +85,7 @@ class PilotCoordinator(DataUpdateCoordinator):
 
     def stop(self):
         self.cancel_command_timer()
-        if self._source_timer:
-            self._source_timer()
-            self._source_timer = None
+        self.cancel_source_timer()
         if self._source_unsubscribe:
             self._source_unsubscribe()
             self._source_unsubscribe = None
@@ -99,22 +102,35 @@ class PilotCoordinator(DataUpdateCoordinator):
                     and not (self.settings['price_entity'] == 'static' and key == 'price_forecast_entity')}
         if self.settings['price_entity'] == 'tibber' and self.settings['tibber_price_entity']:
             entities.add(self.settings['tibber_price_entity'])
-        entities.update(fireplace['fireplace_entity'] for fireplace in self.settings.get('fireplaces', []))
-        rooms = resolved_rooms(self.settings) + zone_rooms(self.settings)
+        responsive = {
+            self.settings['solar_power_entity'],
+            *(fireplace['fireplace_entity'] for fireplace in self.settings.get('fireplaces', [])),
+        }
+        primary_rooms = resolved_rooms(self.settings)
+        rooms = primary_rooms + zone_rooms(self.settings)
         for room in rooms:
             for key in ('temperature_entity', 'thermostat', 'activity_entity'):
                 if room.get(key):
                     entities.add(room[key])
-        for room in resolved_rooms(self.settings):
+            # Retain short relay and pump activity in history. Garage readings
+            # also drive temperature limits and door protection.
+            responsive.update((room.get('thermostat'), room.get('activity_entity')))
+            if room.get('is_garage'):
+                responsive.add(room.get('temperature_entity'))
+        for room in primary_rooms:
             for key in ('garage_door_entities', 'garage_presence_entities'):
-                entities.update(room.get(key, []))
+                responsive.update(room.get(key, []))
+        responsive.discard(None)
+        responsive.discard('')
+        entities.update(responsive)
+        self._responsive_sources = responsive
         self._source_unsubscribe = async_track_state_change_event(
             self.hass, entities, self.source_changed
         )
 
     @callback
     def source_changed(self, event: Any) -> None:
-        """Debounce input changes without replanning on our own target acknowledgements."""
+        """Coalesce ordinary measurements while keeping control events responsive."""
         entity = event.data.get('entity_id')
         old_state = event.data.get('old_state')
         new_state = event.data.get('new_state')
@@ -128,26 +144,36 @@ class PilotCoordinator(DataUpdateCoordinator):
                 and old_state.state == new_state.state
                 and old_state.attributes.get('hvac_action') == new_state.attributes.get('hvac_action')):
             return
-        if self._source_timer:
-            return
-
-        # Availability and tariff changes need prompt recovery. Ordinary sensor
-        # changes share a longer debounce to avoid repeated work from one update.
         urgent = (
             not old_state or not new_state
             or old_state.state in ('unknown', 'unavailable')
             or new_state.state in ('unknown', 'unavailable')
             or entity in (self.settings['price_entity'], self.settings['price_forecast_entity'], self.settings['away_zone'])
+            or (self.settings['price_entity'] == 'tibber' and entity == self.settings['tibber_price_entity'])
         )
+        now = dt_util.utcnow()
+        refresh_at = now + timedelta(seconds=5 if urgent else 30)
+        if not urgent and entity not in self._responsive_sources and self._last_refresh_started is not None:
+            refresh_at = max(refresh_at, self._last_refresh_started + PLAN_REFRESH_INTERVAL)
+        if self._source_refresh_at is not None and self._source_refresh_at <= refresh_at:
+            return
+        self.cancel_source_timer()
 
         async def refresh(_now):
             self._source_timer = None
+            self._source_refresh_at = None
             await self.async_request_refresh()
 
-        delay_seconds = 5 if urgent else 30
+        self._source_refresh_at = refresh_at
         self._source_timer = async_track_point_in_utc_time(
-            self.hass, refresh, dt_util.utcnow() + timedelta(seconds=delay_seconds)
+            self.hass, refresh, refresh_at
         )
+
+    def cancel_source_timer(self) -> None:
+        if self._source_timer is not None:
+            self._source_timer()
+            self._source_timer = None
+        self._source_refresh_at = None
 
     def cancel_command_timer(self):
         if self._command_timer is not None:
@@ -387,7 +413,7 @@ class PilotCoordinator(DataUpdateCoordinator):
     async def planning_water_temperature(
         self, water: float | None, water_rooms: list[dict[str, Any]], now: datetime,
     ) -> float | None:
-        """Use an hour of supply readings so short dips do not drive the whole plan."""
+        """Use two hours of supply readings to smooth short dips and cycling."""
         source = self.settings['water_entity']
         if source != self.planning_water_source:
             self.planning_water_samples.clear()
@@ -395,10 +421,11 @@ class PilotCoordinator(DataUpdateCoordinator):
         if water is None:
             return None
 
-        # Use twelve five-minute intervals. Rapid source events or multiple
-        # rooms reporting the same supply reading must not give it extra weight.
-        bucket = int(now.timestamp()) // 300 * 300
-        cutoff = bucket - 55 * 60
+        # Rapid source events or multiple rooms reporting the same supply
+        # reading must not give it extra weight.
+        sample_seconds = int(PLAN_REFRESH_INTERVAL.total_seconds())
+        bucket = int(now.timestamp()) // sample_seconds * sample_seconds
+        cutoff = bucket - (WATER_TEMPERATURE_BUCKETS - 1) * sample_seconds
         if self.planning_water_source is None:
             fingerprints = {
                 room['id']: learning_fingerprint(room, self.settings) for room in water_rooms
@@ -413,7 +440,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                         continue
                     observed_water = number(row.get('water'))
                     if observed_water is not None:
-                        observed_bucket = int(row['time']) // 300 * 300
+                        observed_bucket = int(row['time']) // sample_seconds * sample_seconds
                         self.planning_water_samples[observed_bucket] = observed_water
             self.planning_water_source = source
 
@@ -784,7 +811,10 @@ class PilotCoordinator(DataUpdateCoordinator):
 
     async def _update_data(self):
         self.cancel_command_timer()
+        # This refresh reads the latest states, including any queued changes.
+        self.cancel_source_timer()
         now = dt_util.utcnow()
+        self._last_refresh_started = now
         plan_settings = deepcopy(self.settings)
         await self.update_away_status({}, now)
         outdoor = self.value(self.settings['outdoor_entity'])
