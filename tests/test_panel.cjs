@@ -342,6 +342,42 @@ const viewport={clientWidth:3024,querySelector:()=>({replaceWith:svg=>replacedHT
 assert.equal(sized.priceChartWidth,3000);assert.match(replacedHTML,/viewBox="0 0 3000 630"/);resizeCallback([{contentRect:{width:1800}}]);assert.match(replacedHTML,/viewBox="0 0 1800 630"/);resizeCallback([{contentRect:{width:0}}]);assert.equal(sized.priceChartWidth,1800);sized.mountPriceChartSizing();assert.equal(disconnects,1);
 console.log('Price chart layout checks passed (immediate container measurement, resize, collapsed container, observer cleanup).');
 
+{
+ const storage=new Map();
+ context.localStorage={getItem:key=>storage.get(key)||null,setItem:(key,value)=>storage.set(key,value)};
+ const panel=new Component();
+ panel.settings=pricePanel.settings;
+ panel.info=pricePanel.info;
+ panel.historyHours=48;
+ panel.history=[{room_id:'r0',time:priceTime/1000,price:60,suggested_heat:1,activity:1}];
+ let historyHTML=panel.priceChart(true);
+ assert.match(historyHTML,/data-history-plan-toggle aria-pressed="true"/);
+ assert.match(historyHTML,/fill="url\(#suggested-heating-stripes\)"/);
+ const events={};
+ let focusCount=0;
+ const chartViewport={
+  addEventListener:(name,callback)=>{events[name]=callback;},
+  querySelector:selector=>selector==='[data-history-plan-toggle]'?{focus:()=>focusCount++}:null,
+ };
+ panel.replacePriceChartSvg=(_viewport,history)=>{historyHTML=panel.priceChart(history);};
+ panel.bindChartDetails(chartViewport);
+ const clickLegend=()=>events.click({target:{closest:selector=>selector==='[data-history-plan-toggle]'?{}:null}});
+ clickLegend();
+ assert.match(historyHTML,/data-history-plan-toggle aria-pressed="false"/);
+ assert.doesNotMatch(historyHTML,/fill="url\(#suggested-heating-stripes\)"/);
+ assert.match(historyHTML,/Actual relay On/);
+ assert.match(historyHTML,/height:630px/);
+ assert.equal(focusCount,1);
+ const restored=new Component();
+ assert.equal(restored.historySectionOpen('chart:suggested-heating'),false);
+ assert.match(panel.priceChart(false),/Suggested heating On/);
+ assert.doesNotMatch(panel.priceChart(false),/<button[^>]*data-history-plan-toggle/);
+ clickLegend();
+ assert.match(historyHTML,/data-history-plan-toggle aria-pressed="true"/);
+ assert.match(historyHTML,/height:810px/);
+ delete context.localStorage;
+}
+
 const trend=new Component();trend.info={data:{price_chart:[{start:'2026-10-10T00:00:00Z',end:'2026-10-12T00:00:00Z'}]}};
 const trendStart=Date.parse('2026-10-10T00:00:00Z')/1000;
 trend.statusHistory=[{time:trendStart,outdoor:4,water:31},{time:trendStart+300,outdoor:4.5,water:32}];
@@ -477,7 +513,7 @@ const handlers={},box={hidden:true,style:{},getBoundingClientRect:()=>({width:18
 const tooltipHost={addEventListener:(type,handler)=>handlers[type]=handler,querySelector:()=>box};
 context.window={innerWidth:320,innerHeight:600};detailsPanel.bindChartDetails(tooltipHost);
 const mark={dataset:{chartDetail:'Study · Actual relay On\nStart: 12.10.2026 10:00\nStop: 12.10.2026 11:00'},getBoundingClientRect:()=>({left:20,top:30,width:60})};
-const ev={target:{closest:()=>mark},clientX:310,clientY:590};
+const ev={target:{closest:selector=>selector==='[data-chart-detail]'?mark:null},clientX:310,clientY:590};
 handlers.pointermove(ev);assert.equal(box.hidden,false);assert.equal(box.textContent,mark.dataset.chartDetail);assert.equal(box.style.left,'132px');assert.equal(box.style.top,'512px');
 // A docked panel is narrower than the browser; chart details use the same bounds.
 context.window={innerWidth:1280,innerHeight:800};
