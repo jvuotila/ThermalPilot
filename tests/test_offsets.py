@@ -8,6 +8,23 @@ from thermal_pilot.const import DEFAULTS
 from thermal_pilot.model import thermostat_timing,thermostat_state
 T=datetime(2026,1,2,22,tzinfo=timezone.utc)
 class OffsetTests(unittest.TestCase):
+    def test_boost_closes_to_flex_target_and_restores_normal_after_the_expensive_block(self):
+        middle = T + timedelta(hours=1)
+        cheap = middle + timedelta(hours=2)
+        rows = [
+            {'start': T.isoformat(), 'end': middle.isoformat(),
+             'heat': True, 'mode': 'boost', 'price_flex_target': 19.5},
+            {'start': middle.isoformat(), 'end': cheap.isoformat(),
+             'heat': False, 'mode': 'reduced', 'price_flex_target': 19.5},
+            {'start': cheap.isoformat(), 'end': (cheap + timedelta(hours=1)).isoformat(),
+             'heat': False, 'mode': 'normal'},
+        ]
+        timing = thermostat_timing(rows, DEFAULTS, 20, T)
+        self.assertEqual(thermostat_state(timing, middle - timedelta(minutes=11))['setpoint'], 21.5)
+        self.assertEqual(thermostat_state(timing, middle - timedelta(minutes=10))['setpoint'], 19.5)
+        self.assertEqual(thermostat_state(timing, cheap - timedelta(minutes=1))['setpoint'], 19.5)
+        self.assertEqual(thermostat_state(timing, cheap)['setpoint'], 20)
+
     def timing(self,start=T,**settings):
         rows=[{'start':start.isoformat(),'end':(start+timedelta(minutes=15)).isoformat(),'heat':True},
               {'start':(start+timedelta(minutes=15)).isoformat(),'end':(start+timedelta(hours=1)).isoformat(),'heat':True}]

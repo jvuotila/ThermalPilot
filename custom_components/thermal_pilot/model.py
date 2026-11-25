@@ -881,31 +881,37 @@ def thermostat_timing(rows, settings, baseline, now):
     events = {}
     for row in rows:
         if not row['heat']:
-            events[stamp(row['start'])] = row.get('mode', 'reduced')
+            mode = row.get('mode', 'reduced')
+            events[stamp(row['start'])] = (mode, row.get('price_flex_target', targets[mode]))
     for window in windows:
         end = stamp(window['end'])
         following = next((row for row in rows if not row['heat'] and stamp(row['start']) >= end), None)
         # Current plans return to baseline after boost. Legacy two-state plans
         # retain the following reduced mode when no explicit normal mode exists.
-        if explicit_modes:
-            events[end] = 'normal'
+        flex_target = next((row['price_flex_target'] for row in rows
+                            if 'price_flex_target' in row and stamp(row['start']) <= end < stamp(row['end'])), None)
+        if flex_target is not None:
+            events[end] = ('reduced', flex_target)
+        elif explicit_modes:
+            events[end] = ('normal', baseline)
         elif following:
-            events[end] = following.get('mode', 'reduced')
+            mode = following.get('mode', 'reduced')
+            events[end] = (mode, targets[mode])
         else:
-            events[end] = default_mode
-        events[stamp(window['start'])] = 'boost'
+            events[end] = (default_mode, targets[default_mode])
+        events[stamp(window['start'])] = ('boost', boosted)
     if explicit_modes and rows:
-        events[stamp(rows[-1]['end'])] = 'normal'
+        events[stamp(rows[-1]['end'])] = ('normal', baseline)
     commands = []
-    previous = default_mode
-    for moment,mode in sorted(events.items()):
+    previous = (default_mode, targets[default_mode])
+    for moment, (mode, target) in sorted(events.items()):
         if any((stamp(window['start']) <= moment < stamp(window['end']) for window in windows)):
-            mode = 'boost'
-        if mode == previous:
+            mode, target = 'boost', boosted
+        if (mode, target) == previous:
             continue
-        commands.append({'time':moment.isoformat(),'setpoint':round(targets[mode],2),
+        commands.append({'time':moment.isoformat(),'setpoint':round(target,2),
                          'action':{'boost':'raise','reduced':'lower','normal':'restore'}[mode],'mode':mode})
-        previous = mode
+        previous = (mode, target)
     timing = {'sessions':sessions,'thermostat_windows':windows,'commands':commands,
               'boosted_setpoint':boosted,'reduced_setpoint':reduced,'normal_setpoint':baseline,
               'default_mode':default_mode}
@@ -918,15 +924,18 @@ def thermostat_state(timing, now):
         return {'heat':active,'mode':'boost' if active else 'reduced',
                 'setpoint':round(timing['boosted_setpoint'] if active else timing['reduced_setpoint'],2)}
     mode = timing['default_mode']
+    target = None
     for command in timing['commands']:
         if stamp(command['time']) <= now:
             mode = command['mode']
-    target = {
-        'boost': timing['boosted_setpoint'],
-        'reduced': timing['reduced_setpoint'],
-        'normal': timing['normal_setpoint'],
-        'away': timing.get('away_setpoint', timing['normal_setpoint'])
-    }[mode]
+            target = command.get('setpoint')
+    if target is None:
+        target = {
+            'boost': timing['boosted_setpoint'],
+            'reduced': timing['reduced_setpoint'],
+            'normal': timing['normal_setpoint'],
+            'away': timing.get('away_setpoint', timing['normal_setpoint'])
+        }[mode]
     return {'heat': mode == 'boost', 'mode': mode, 'setpoint': round(target, 2)}
 
 
@@ -1071,6 +1080,9 @@ def _search_room_plan(
     # Assistance changes the search objective, never the configured thermostat
     # targets or limits. Its effect must also improve the whole group's forecast.
     planning_target = room.get('planning_comfort_target', baseline)
+    flex_target = baseline
+    if room.get('price_flex_enabled'):
+        flex_target = max(room['minimum'], round(baseline + room['price_flex_reduction'], 2))
     if fireplace:
         loss *= 1 + room['fireplace_reduction'] / 100
 
@@ -1124,6 +1136,12 @@ def _search_room_plan(
         hours = (slot.end - max(now, slot.start)).total_seconds() / 3600
         if hours <= 0:
             continue
+        # Flexibility is triggered by the electricity tariff, before the COP
+        # adjustment used to compare how much each heating option costs.
+        flex_active = flex_target < baseline and slot.price > room['price_flex_threshold']
+        slot_target = flex_target if flex_active else planning_target
+        minimum_temperature = flex_target if flex_active else room['minimum']
+        coast_target = flex_target if flex_active else baseline
         coasting = coast_until is not None and slot.start < coast_until
         candidates = []
         wind = number(room.get('wind_speed'))
@@ -1148,7 +1166,7 @@ def _search_room_plan(
                 if coasting and boosted:
                     continue
                 if mode == 1 and (
-                    not reduction_credit or last_mode == 2
+                    flex_active or not reduction_credit or last_mode == 2
                     or response <= .05 or planning_rate <= high_price
                 ):
                     # A reduced target spends stored warmth after an earlier boost.
@@ -1177,7 +1195,7 @@ def _search_room_plan(
                         and remaining_hours < minimum_run):
                     continue
                 if (not boosted and current_temperature <= room['minimum']
-                        and not (mode == 0 and pause_blocked)):
+                        and not (mode == 0 and (pause_blocked or flex_active))):
                     # Baseline thermostat demand remains available during boost pauses.
                     continue
 
@@ -1185,6 +1203,8 @@ def _search_room_plan(
                     requested_target = min(room['maximum'], baseline + room['boost'])
                 elif mode == 1:
                     requested_target = max(room['minimum'], baseline + room['setback'])
+                elif flex_active:
+                    requested_target = flex_target
                 else:
                     requested_target = baseline
                 # Boost mode is a target, not proof that a thermostat relay is on.
@@ -1210,13 +1230,13 @@ def _search_room_plan(
                     + model.get('base_gain', 0) + slot_solar
                     + heat_transfer(model, current_temperature, neighbors)
                 )
-                if (mode == 1 or coasting) and predicted < baseline:
+                if (mode == 1 and predicted < baseline) or (coasting and predicted < coast_target):
                     continue
 
-                below_limit = max(0, room['minimum'] - predicted)
+                below_limit = max(0, minimum_temperature - predicted)
                 above_limit = max(0, predicted - room['maximum'])
                 next_violation = violation + hours * (below_limit + above_limit)
-                next_shortfall = shortfall + hours * max(0, planning_target - predicted)
+                next_shortfall = shortfall + hours * max(0, slot_target - predicted)
                 # Preserve score priority: limit violations and comfort shortfall
                 # are separate tuple fields, ahead of this price/switching score.
                 next_cost = (
@@ -1240,12 +1260,14 @@ def _search_room_plan(
                     'outdoor': round(outdoor[slot_index], 2),
                     'solar_gain': round(slot_solar, 4),
                     'heat': scheduled_heat,
-                    'mode': ('normal', 'reduced', 'boost')[mode],
+                    'mode': 'reduced' if flex_active and mode == 0 else ('normal', 'reduced', 'boost')[mode],
                     'reduction_available': next_reduction_credit,
                     'predicted_demand': bool(heating),
                     'temperature': round(predicted, 3),
                     'setpoint': round(requested_target, 2),
                 }
+                if flex_active:
+                    row['price_flex_target'] = flex_target
                 if slot.heating_cost_rate is not None:
                     row['heating_cost_rate'] = slot.heating_cost_rate
                 if boosted:

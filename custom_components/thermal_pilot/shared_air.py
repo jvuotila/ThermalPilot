@@ -204,9 +204,12 @@ def simulate_group(contexts: dict[str, dict], plans: dict[str, dict], now: datet
                     + heat_transfer(model, temperatures[key], neighbors)
                 )
                 updated[key] = temperatures[key] + step * change
-                violations[key] += step * (max(0, room['minimum'] - updated[key])
+                flexibility = None if coasting else row.get('price_flex_target')
+                minimum = room['minimum'] if flexibility is None else flexibility
+                comfort_target = context['baseline'] if flexibility is None else flexibility
+                violations[key] += step * (max(0, minimum - updated[key])
                                            + max(0, updated[key] - room['maximum']))
-                shortfalls[key] += step * max(0, context['baseline'] - updated[key])
+                shortfalls[key] += step * max(0, comfort_target - updated[key])
                 if not coasting:
                     ranges[key][0] = min(ranges[key][0], updated[key])
                     ranges[key][1] = max(ranges[key][1], updated[key])

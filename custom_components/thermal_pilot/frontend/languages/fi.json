@@ -2,6 +2,13 @@
   "language": "fi",
   "name": "Finnish",
   "messages": {
+    "Expensive electricity threshold (c/kWh)": "Kalliin sähkön hintaraja (c/kWh)",
+    "Allowed temperature flexibility (°C)": "Sallittu lämpötilajousto (°C)",
+    "Allow temperature flexibility during expensive hours": "Salli lämpötilajousto kalliina tunteina",
+    "Flexibility is available when the total electricity price exceeds this threshold.": "Lämpötilajoustoa voidaan käyttää, kun sähkön kokonaishinta ylittää tämän rajan.",
+    "Enable flexibility separately in each room using Allow temperature flexibility during expensive hours. It is off by default.": "Ota jousto käyttöön erikseen jokaisen haluamasi huoneen asetuksissa valinnalla Salli lämpötilajousto kalliina tunteina. Valinta on oletuksena pois päältä.",
+    "When flexibility is enabled and the total electricity price exceeds {price} c/kWh, heating aims to keep the room at or above {temperature} °C.": "Kun jousto on käytössä ja sähkön kokonaishinta ylittää {price} c/kWh, lämmitys pyrkii pitämään huoneen lämpötilan vähintään {temperature} °C:ssa.",
+    "Allowed temperature flexibility: use one decimal place.": "Sallittu lämpötilajousto: käytä yhden desimaalin tarkkuutta.",
     "Discard unsaved changes on both settings tabs?": "Hylätäänkö molempien asetusvälilehtien tallentamattomat muutokset?",
     "Fireplaces": "Tulisijat",
     "Fireplace name": "Takan nimi",

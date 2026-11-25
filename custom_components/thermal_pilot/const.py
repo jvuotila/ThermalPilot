@@ -1,6 +1,6 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.117'
+VERSION = '0.9.118'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
@@ -18,6 +18,7 @@ DEFAULTS = {
     'transfer_day_price': 0.0, 'transfer_night_price': 0.0,
     'transfer_day_start': '07:00', 'transfer_night_start': '22:00',
     'pricing_mode': 'flexible', 'minimum_run_minutes': 60,
+    'price_flex_threshold': 25.0, 'price_flex_reduction': -0.5,
     'solar_power_entity': '', 'solar_start_kw': 4.0, 'solar_stop_kw': 1.0,
     'solar_minimum_run_minutes': 30,
     'away_automatic': False, 'away_zone': '', 'away_delay_hours': 24.0, 'away_temperature': 16.0, 'away_cooling_temperature': 26.0,
@@ -41,7 +42,7 @@ DEFAULTS = {
 }
 ROOM_DEFAULTS = {
     'name': '', 'thermostat': '', 'temperature_entity': '',
-    'activity_entity': '', 'shared_air_rooms': [], 'away_exempt': False,
+    'activity_entity': '', 'shared_air_rooms': [], 'away_exempt': False, 'allow_price_flex': False,
     'baseline': 20.0, 'heating_priority': 'independent', 'assist_below_target': 0.5,
     'is_garage': False, 'heat_control': 'house', 'heating_zone_id': '',
     'garage_construction':'unknown', 'garage_minimum': 5.0, 'garage_maximum': 9.0,

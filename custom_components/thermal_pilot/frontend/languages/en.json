@@ -2,6 +2,12 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "Expensive electricity threshold (c/kWh)": "Expensive electricity threshold (c/kWh)",
+    "Allowed temperature flexibility (°C)": "Allowed temperature flexibility (°C)",
+    "Allow temperature flexibility during expensive hours": "Allow temperature flexibility during expensive hours",
+    "Flexibility is available when the total electricity price exceeds this threshold.": "Flexibility is available when the total electricity price exceeds this threshold.",
+    "Enable flexibility separately in each room using Allow temperature flexibility during expensive hours. It is off by default.": "Enable flexibility separately in each room using Allow temperature flexibility during expensive hours. It is off by default.",
+    "When flexibility is enabled and the total electricity price exceeds {price} c/kWh, heating aims to keep the room at or above {temperature} °C.": "When flexibility is enabled and the total electricity price exceeds {price} c/kWh, heating aims to keep the room at or above {temperature} °C.",
     "Discard unsaved changes on both settings tabs?": "Discard unsaved changes on both settings tabs?",
     "Fireplaces": "Fireplaces",
     "Fireplace name": "Fireplace name",

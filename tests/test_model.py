@@ -10,8 +10,8 @@ from zoneinfo import ZoneInfo
 ROOT=Path(__file__).resolve().parents[1]/'custom_components/thermal_pilot'
 pkg=types.ModuleType('thermal_pilot');pkg.__path__=[str(ROOT)];sys.modules.setdefault('thermal_pilot',pkg)
 from thermal_pilot.const import DEFAULTS, ROOM_DEFAULTS
-from thermal_pilot.model import Slot, price_slots, initial_model, learn, learning_progress, plan
-from thermal_pilot.config import validate, stored_settings
+from thermal_pilot.model import Slot, price_slots, initial_model, learn, learning_progress, plan, thermostat_state
+from thermal_pilot.config import room_settings, validate, stored_settings
 UTC=timezone.utc
 NOW=datetime(2026,1,2,tzinfo=UTC)
 
@@ -80,6 +80,31 @@ class PlannerTests(unittest.TestCase):
         return {**ROOM_DEFAULTS,'boost':DEFAULTS['boost'],'setback':DEFAULTS['setback'],'minimum':19,'maximum':23,'minimum_run_minutes':60,'terminal_reserve_hours':2,**kw}
     def slots(self, prices, minutes=60):
         return [Slot(NOW+timedelta(minutes=i*minutes),NOW+timedelta(minutes=(i+1)*minutes),p) for i,p in enumerate(prices)]
+
+    def test_price_flex_tracks_the_total_tariff_and_heats_before_reaching_the_floor(self):
+        room = self.room(
+            baseline=19.5, lag_hours=.25, minimum=19, terminal_reserve_hours=0,
+            price_flex_enabled=True, price_flex_threshold=25, price_flex_reduction=-1,
+        )
+        model = {**initial_model(room), 'loss': .012, 'gain': .7, 'base_gain': .08}
+        prices = [35] * 24 + [25] * 6 + [7] * 8
+        # Reverse the cost ranking to verify that COP cannot trigger flexibility.
+        slots = [Slot(slot.start, slot.end, slot.price, 5 if slot.price == 35 else 40)
+                 for slot in self.slots(prices, minutes=15)]
+        result = plan(room, model, 19.4, [0] * len(slots), slots, NOW, room['baseline'])
+        expensive_rows = result['slots'][:24]
+        self.assertEqual(thermostat_state(result, NOW)['setpoint'], 19)
+        self.assertFalse(expensive_rows[0]['predicted_demand'])
+        self.assertTrue(any(row['predicted_demand'] for row in expensive_rows))
+        self.assertGreaterEqual(min(row['temperature'] for row in expensive_rows), 19)
+        self.assertTrue(all(row['price_flex_target'] == 19 for row in expensive_rows))
+        self.assertFalse(any('price_flex_target' in row for row in result['slots'][24:]))
+        self.assertEqual(thermostat_state(result, slots[24].start)['setpoint'], 19.5)
+
+        opted_out = plan({**room, 'price_flex_enabled': False}, model, 19.4, [0] * len(slots),
+                         slots, NOW, room['baseline'])
+        self.assertTrue(opted_out['slots'][0]['predicted_demand'])
+        self.assertFalse(any('price_flex_target' in row for row in opted_out['slots']))
     def test_cross_day_gap_requires_bridge_heating(self):
         r=self.room();m=initial_model(r)
         p=plan(r,m,20,[-15]*48,self.slots([1]*4+[9]*15+[50]*4+[9]*21+[1]*4),NOW,20)
@@ -205,6 +230,28 @@ class PlannerTests(unittest.TestCase):
 
 
 class SettingsTests(unittest.TestCase):
+    def test_price_flex_defaults_and_eligibility(self):
+        room = {'name': 'Study', 'thermostat': 'climate.study', 'temperature_entity': 'sensor.study'}
+        settings = stored_settings({'price_entity': 'sensor.price', 'rooms': [room]}, {})
+        self.assertEqual(settings['price_flex_threshold'], 25)
+        self.assertEqual(settings['price_flex_reduction'], -.5)
+        room = settings['rooms'][0]
+        self.assertFalse(room['allow_price_flex'])
+        self.assertNotIn('price_flex_enabled', room_settings(room, settings))
+        room['allow_price_flex'] = True
+        self.assertTrue(room_settings(room, settings)['price_flex_enabled'])
+        self.assertNotIn('price_flex_enabled', room_settings({**room, 'is_garage': True}, settings))
+        self.assertNotIn('price_flex_enabled', room_settings(room, {**settings, 'price_entity': 'static'}))
+        self.assertNotIn('price_flex_enabled', room_settings(room, {**settings, 'price_entity': ''}))
+
+    def test_price_flex_reduction_accepts_only_tenths_in_range(self):
+        settings = {'price_entity': 'sensor.price', 'outdoor_entity': 'sensor.outdoor'}
+        for value in (-5, -.5, -.1):
+            self.assertEqual(validate({**settings, 'price_flex_reduction': value})['price_flex_reduction'], value)
+        for value in (-5.1, -.51, 0):
+            with self.assertRaisesRegex(ValueError, 'Allowed temperature flexibility'):
+                validate({**settings, 'price_flex_reduction': value})
+
     def test_unconfigured_price_can_be_saved_before_heating_system_setup(self):
         # Settings and house heat source are on separate tabs. Neither tab may
         # force a made-up tariff just to complete configuration on the other.

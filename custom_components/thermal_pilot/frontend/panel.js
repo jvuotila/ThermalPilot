@@ -57,6 +57,8 @@ const settingHelp = {
   away_zone:'Uses the zone’s tracked-person count. Zero means empty; unknown pauses automatic absence detection.',
   away_delay_hours:'Continuous absence required before changing targets. A return resets this timer; restarts preserve it.',
   away_exempt:'Keep normal heating and cooling, for example for aquariums. Shared heat-pump zones preserve all members’ normal targets if one is exempt.',
+  price_flex_threshold: 'Flexibility is available when the total electricity price exceeds this threshold.',
+  price_flex_reduction: 'Enable flexibility separately in each room using Allow temperature flexibility during expensive hours. It is off by default.',
   solar_minimum_run_minutes:'Minimum duration of the requested solar boost, preserved across restarts. It may use grid electricity. Manual control, missing inputs, cooling and temperature or door protections take priority.',
   shared_air_rooms:'Select primary heating circuits that directly share air and exchange warmth. Links work both ways; A–B and B–C do not add A–C. Removing a selection removes only that pair. Each circuit keeps its own sensor, target and limits. Assistance starts only after learning heat transfer from at least 12 heating hours and 12 idle hours with the linked sensors available.',
   heating_enabled: 'Enables planning, data collection and learning. Turning it off pauses these functions and keeps learned data. Simulation is separate: on calculates suggestions without applying scheduled targets; off allows live control after confirmation.',
@@ -131,7 +133,7 @@ const settingHelp = {
 const sourceSettingColumns = [
   [
     ['Integration settings',['heating_enabled','simulation_enabled','language']],
-    ['Electricity price settings',['price_entity','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode','minimum_run_minutes']],
+    ['Electricity price settings',['price_entity','static_price','nordpool_entry','nordpool_area','nordpool_vat','nordpool_margin','tibber_price_entity','price_forecast_entity','price_unit','transfer_tariff','transfer_fixed_price','transfer_day_start','transfer_day_price','transfer_night_start','transfer_night_price','pricing_mode','minimum_run_minutes','price_flex_threshold','price_flex_reduction']],
     ['Solar power heating settings',['solar_power_entity','solar_start_kw','solar_stop_kw','solar_minimum_run_minutes']],
   ],
   [
@@ -1237,7 +1239,7 @@ class ThermalPilotPanel extends HTMLElement {
       const sliderMax=Math.max(20,Math.ceil(Number(value||0)/10)*10);
       input=`<span class="solar-threshold"><input type="range" min="${min}" max="${sliderMax}" step="${step}" value="${escapeHTML(value)}" data-solar-range="${name}" aria-label="${escapeHTML(this.t(label))}"><input type="number" min="${min}" max="${max}" step="${step}" data-field="${name}" value="${escapeHTML(value)}" aria-label="${escapeHTML(this.t(label))}"></span>`;
     }
-    else if(type==='number')input=`<input type="number" step="${step}" min="${min}" max="${max}" data-field="${name}" value="${escapeHTML(value)}">`;
+    else if(type==='number')input=`<input type="number" step="${step}" min="${min}" max="${max}" data-field="${name}" value="${escapeHTML(value)}"${key.startsWith('price_flex_')?' required':''}>`;
     else if(type==='text')input=`<input data-field="${name}" value="${escapeHTML(value)}">`;
     else{
       const domains=type.split(','),rule=field[3]||{};const entities=Object.values(this._hass.states).filter(s=>domains.includes(s.entity_id.split('.')[0])&&entityMatches(s,rule,obj)).sort((a,b)=>entityLabel(a).localeCompare(entityLabel(b)));
@@ -1247,6 +1249,7 @@ class ThermalPilotPanel extends HTMLElement {
     if(sourceReadingKeys.includes(key))input+=`<small class="source-current-state" data-source-reading="${key}" role="status">${escapeHTML(this.t('Current state:'))} ${escapeHTML(this.t(sourceReading(key,value,this._hass?.states?.[value])))}</small>`;
     if(key==='fireplace_reduction')input=`<span class="number-unit">${input}<span>%</span></span>`;
     let helpText=settingHelp[type==='fireplace_rooms'?'fireplace_room_ids':prefix.startsWith('zone')&&key==='heating_enabled'?'zone_heating_enabled':key];
+    if(key==='allow_price_flex')helpText=this.priceFlexHelp(obj,prefix);
     if(key==='static_price'&&obj.transfer_tariff&&obj.transfer_tariff!=='included')helpText='Enter the price before transfer charges.';
     if(key==='transfer_day_start'||key==='transfer_night_start')helpText='Repeats daily in Home Assistant’s time zone.';
     if(prefix.startsWith('room')&&['thermostat','heat_control'].includes(key)){
@@ -1258,6 +1261,34 @@ class ThermalPilotPanel extends HTMLElement {
     const tag=(type.startsWith('entities:')||type==='rooms'||type==='room_links'||type==='fireplace_rooms'||type==='fireplace_links')?'div':'label';
     return `<${tag} ${tag==='div'?'class="sensor-list-field"':''} ${key==='fireplace_active_state'?`data-fireplace-state ${obj.fireplace_entity?'':'hidden'}`:['simulation_enabled','apply_season_setpoints'].includes(key)?`data-electric-control ${electricHeating(this.settings)?'':'hidden'}`:key==='solar_exposure'?`data-solar-exposure ${(!obj.solar_direction||obj.solar_direction==='disabled')?'hidden':''}`:''}><span>${escapeHTML(label)}${help}</span>${input}</${tag}>`;
   }
+  priceFlexHelp(room,prefix,readDraft=false){
+    const language=this.settings.language||'en';
+    const number=(field,saved)=>{
+      if(!readDraft)return saved;
+      const input=this.shadowRoot.querySelector(`[data-field="${field}"]`);
+      if(!input||input.value===''||input.validity?.valid===false)return saved;
+      return Number.isFinite(input.valueAsNumber)?input.valueAsNumber:saved;
+    };
+    const baseline=number(`${prefix}.baseline`,room.baseline);
+    let minimum=number('source.minimum',this.settings.minimum);
+    let maximum=number('source.maximum',this.settings.maximum);
+    const roomUsesPump=airRoom(room,this.settings)||this.settings.house_heat_source==='air_to_air';
+    if(roomUsesPump&&this.settings.air_use_fan_only===false){
+      minimum=number('source.air_minimum',this.settings.air_minimum??minimum);
+      maximum=number('source.air_maximum',this.settings.air_maximum??maximum);
+    }
+    const reduction=this.settings.price_flex_reduction??-0.5;
+    const price=this.settings.price_flex_threshold??25;
+    const target=Math.max(minimum,Math.min(maximum,baseline));
+    const floor=Math.max(minimum,target+reduction);
+    const temperatureText=new Intl.NumberFormat(language,{minimumFractionDigits:1,maximumFractionDigits:1}).format(floor);
+    const priceText=new Intl.NumberFormat(language,{maximumFractionDigits:2}).format(price);
+    return tpI18n.message(
+      'When flexibility is enabled and the total electricity price exceeds {price} c/kWh, heating aims to keep the room at or above {temperature} °C.',
+      {price:priceText,temperature:temperatureText},language
+    );
+  }
+
   settingsGroups(groups){
     const fields=new Map(this.info.source_fields.map(field=>[field[0],field]));
     return groups.map(([title,keys])=>{
@@ -1275,6 +1306,7 @@ class ThermalPilotPanel extends HTMLElement {
         if(['away_zone','away_delay_hours'].includes(key)&&!this.settings.away_automatic)return false;
         if(['solar_start_kw','solar_stop_kw','solar_minimum_run_minutes'].includes(key)&&!this.settings.solar_power_entity)return false;
         if(key==='static_price')return staticPrice;
+        if(['price_flex_threshold','price_flex_reduction'].includes(key))return Boolean(this.settings.price_entity)&&!staticPrice;
         if(key.startsWith('nordpool_'))return this.settings.price_entity==='nordpool';
         if(key==='tibber_price_entity')return this.settings.price_entity==='tibber';
         if(nativePrice&&key==='price_unit')return false;
@@ -1309,6 +1341,7 @@ class ThermalPilotPanel extends HTMLElement {
             ${row(['transfer_day_start','transfer_day_price'])}
             ${row(['transfer_night_start','transfer_night_price'])}
           </div>
+          ${row(['price_flex_threshold','price_flex_reduction'])}
         </div>`;
       }
       return available.length?`<div class="settings-group" data-setting-group="${keys[0]}" ${title==='Integration settings'?'data-integration-group':''} ${title==='Electricity price settings'?`data-electric-group ${electricHeating(this.settings)?'':'hidden'}`:title==='Air-to-air heat pump settings'?`data-air-group ${this.settings.rooms.some(r=>!r.is_garage&&r.heat_control==='air_to_air')||(this.settings.heating_zones||[]).some(z=>z.source_type!=='fireplace')||this.settings.house_heat_source==='air_to_air'?'':'hidden'}`:title==='Water heating'?`data-water-group ${waterDistribution(this.settings)?'':'hidden'}`:''}><h3>${escapeHTML(title)}</h3>${fieldMarkup}</div>`:'';
@@ -1380,6 +1413,13 @@ class ThermalPilotPanel extends HTMLElement {
     const electricFloor=!r.is_garage&&(r.heat_control||'house')==='house'&&this.settings.house_heat_source==='electric_resistance'&&this.settings.house_distribution==='electric_floor';
     const visible=this.info.room_fields.filter(field=>{
       const key=field[0];
+      if(key==='allow_price_flex'){
+        if(r.is_garage||!this.settings.price_entity||this.settings.price_entity==='static')return false;
+        const zone=(this.settings.heating_zones||[]).find(zone=>zone.id===r.heating_zone_id&&zone.source_type!=='fireplace');
+        if(zone&&zone.thermostat===r.thermostat)return false;
+        if(electricFloor&&r.heating_priority==='heat_pump_preferred'&&zone&&zone.heating_enabled!==false&&zone.climate_mode!=='cool')return false;
+        return airRoom(r,this.settings)||['air_to_water','ground_source','air_to_air','electric_resistance'].includes(this.settings.house_heat_source||'air_to_water');
+      }
       if(key==='heating_priority')return electricFloor;
       if(key==='assist_below_target')return electricFloor&&r.heating_priority==='heat_pump_preferred';
       if(key==='shared_air_rooms')return this.sharedAirEligible(r);
@@ -2799,7 +2839,12 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
   }
   capture(preserveEmptyLists=false){
     const target=name=>this.settingsFieldTarget(name);
-    this.shadowRoot.querySelectorAll('[data-field]').forEach(input=>{const [obj,key]=target(input.dataset.field);obj[key]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;});
+    this.shadowRoot.querySelectorAll('[data-field]').forEach(input=>{
+      const [obj,key]=target(input.dataset.field);
+      // An unfinished price field can disappear when switching to static pricing.
+      if(key.startsWith('price_flex_')&&input.value==='')return;
+      obj[key]=input.type==='checkbox'?input.checked:input.type==='number'?Number(input.value):input.value;
+    });
     const assignments=new Map(),editedZones=new Set(),sharedEdits=[],emptySharedLists=new Map();
     this.shadowRoot.querySelectorAll('[data-entity-list]').forEach(list=>{
       const [obj,key]=target(list.dataset.entityList);const selected=[...list.querySelectorAll('[data-entity-item]')].map(select=>select.value);
@@ -3363,6 +3408,14 @@ details{scroll-margin-block:16px}
       if(field?.startsWith('room')&&field.endsWith('.baseline')){
         const target=event.target.closest('.room-card')?.querySelector('.room-target');
         if(target)target.textContent=`${event.target.value||'—'} °C`;
+      }
+      if(field?.endsWith('.baseline')||['source.minimum','source.maximum','source.air_minimum','source.air_maximum'].includes(field)){
+        this.shadowRoot.querySelectorAll('[data-field$=".allow_price_flex"]').forEach(input=>{
+          const [room]=this.settingsFieldTarget(input.dataset.field);
+          const prefix=input.dataset.field.split('.')[0];
+          const tooltip=this.shadowRoot.querySelector(`#help-${prefix}-allow_price_flex`);
+          if(tooltip)tooltip.textContent=this.priceFlexHelp(room,prefix,true);
+        });
       }
     });
     this.shadowRoot.querySelectorAll('[data-settings-disclosure]').forEach(d=>{d.open=settingsOpen.has(d.dataset.settingsDisclosure);});

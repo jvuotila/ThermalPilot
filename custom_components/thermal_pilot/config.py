@@ -66,6 +66,8 @@ SOURCE_FIELDS = [
  ('transfer_night_price','Night transfer price (c/kWh)','number',0,10000,.01),
  ('pricing_mode','Scheduling mode','select:hourly,quarterly,flexible'),
  ('minimum_run_minutes','Minimum flexible heating run (minutes)','number',15,360,15),
+ ('price_flex_threshold', 'Expensive electricity threshold (c/kWh)', 'number', -1000, 10000, .01),
+ ('price_flex_reduction', 'Allowed temperature flexibility (°C)', 'number', -5.0, -.1, .1),
  ('solar_power_entity','Solar production power sensor','sensor',{'kind':'power'}),
  ('solar_start_kw','Start solar heating above (kW)','number',0.1,1000,0.1),
  ('solar_stop_kw','Stop solar heating below (kW)','number',0,1000,0.1),
@@ -112,6 +114,7 @@ ROOM_FIELDS = [
  ('heating_zone_id', 'Zone (optional)', 'text'),
  ('heat_control', 'Room heating control', 'select:house,air_to_air'),
  ('baseline', 'Target temperature (°C)', 'number', 5, 30, 0.1),
+ ('allow_price_flex', 'Allow temperature flexibility during expensive hours', 'bool'),
  ('heating_priority', 'Heating priority', 'select:independent,heat_pump_preferred'),
  ('assist_below_target', 'Allow floor assistance below target by (°C)', 'number', 0.1, 3, 0.1),
  ('away_exempt', 'Keep normal temperature during absences', 'bool'),
@@ -453,6 +456,13 @@ def room_settings(room, settings):
             boost=room['garage_maximum']-room['garage_minimum'],
             setback=0
         )
+    if (room.get('allow_price_flex') and not room.get('is_garage') and not room.get('secondary_zone')
+            and room.get('heat_control') != 'zone_member' and room_electric(room, settings)
+            and not preferred_zone(room, settings)
+            and settings.get('price_entity') not in (None, '', 'static')):
+        effective['price_flex_enabled'] = True
+        effective['price_flex_threshold'] = settings['price_flex_threshold']
+        effective['price_flex_reduction'] = settings['price_flex_reduction']
     return effective
 
 
@@ -594,6 +604,8 @@ def validate(payload, hass=None, *, require_outdoor=True):
         else:
             fields.append(field)
     check(result,fields)
+    if result['price_flex_reduction'] != round(result['price_flex_reduction'], 1):
+        raise ValueError('Allowed temperature flexibility: use one decimal place.')
     if result['away_automatic'] and not result['away_zone']:
         raise ValueError('Select a home presence zone for automatic away detection.')
     if result['solar_stop_kw'] >= result['solar_start_kw']:
