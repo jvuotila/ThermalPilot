@@ -706,6 +706,31 @@ class TransferTariffTests(unittest.TestCase):
 
 
 class PreheatingSearchTests(unittest.TestCase):
+    def test_flexible_floor_moves_heating_from_peak_to_cheaper_overnight_slots(self):
+        room = {
+            **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
+            'lag_hours': 3, 'minimum_run_minutes': 60, 'boost': 1.5, 'setback': -1,
+        }
+        model = {
+            **initial_model(room), 'loss': .012, 'gain': .65, 'base_gain': .08, 'response': 0,
+        }
+        rates = [26] * 22 + [18] * 13 + [23] * 13 + [34] * 8 + [50] * 42 + [27] * 10
+        slots = PlannerTests().slots(rates, minutes=15)
+        outdoor = [-1] * 48 + [-3] * (len(slots) - 48)
+        regular = plan(room, model, 20, outdoor, slots, NOW, 20)
+        updated = plan({**room, 'flexible_floor_heating': True}, model, 20, outdoor, slots, NOW, 20)
+
+        regular_demand = [row['price'] for row in regular['slots'] if row['predicted_demand']]
+        updated_demand = [row['price'] for row in updated['slots'] if row['predicted_demand']]
+        self.assertIn(50, regular_demand)
+        self.assertNotIn(50, updated_demand)
+        self.assertGreater(sum(rate <= 23 for rate in updated_demand),
+                           sum(rate <= 23 for rate in regular_demand))
+        self.assertLess(sum(updated_demand), sum(regular_demand))
+        self.assertLessEqual(updated['target_shortfall_degree_hours'], regular['target_shortfall_degree_hours'])
+        self.assertFalse(updated['comfort_risk'])
+        self.assertEqual([row['price'] for row in updated['slots']], rates)
+
     def test_floor_response_requires_recent_uninterrupted_matching_observations(self):
         from thermal_pilot.model import floor_response_from_history
 
@@ -741,7 +766,7 @@ class PreheatingSearchTests(unittest.TestCase):
         slots = PlannerTests().slots(rates, minutes=15)
         outdoor = [-1] * len(slots)
         regular = plan(room, model, 19.9, outdoor, slots, now, 19, .92)
-        room['compare_delayed_boost'] = True
+        room['flexible_floor_heating'] = True
         delayed = plan(room, model, 19.9, outdoor, slots, now, 19, .92)
 
         self.assertTrue(regular['heat'])
@@ -778,7 +803,7 @@ class PreheatingSearchTests(unittest.TestCase):
     def test_floor_cannot_wait_for_a_cheaper_run_when_room_is_cold(self):
         room = {
             **DEFAULTS, **ROOM_DEFAULTS, 'minimum': 18, 'maximum': 24,
-            'lag_hours': 3, 'compare_delayed_boost': True,
+            'lag_hours': 3, 'flexible_floor_heating': True,
         }
         model = {
             **initial_model(room), 'loss': .02, 'gain': .6, 'response': .02,

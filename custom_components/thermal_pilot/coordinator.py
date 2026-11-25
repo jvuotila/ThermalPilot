@@ -1213,7 +1213,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                         'stop_offset_minutes': self.settings['stop_offset_minutes'] if room_water else 0,
                         'boost': room['boost'], 'setback': room['setback'],
                         'minimum_run_minutes': minimum_run_minutes,
-                        'compare_delayed_boost': (
+                        'flexible_floor_heating': (
                             pricing_mode == 'flexible' and room_water
                             and self.settings['house_distribution'] == 'water_floor'
                             and not room.get('is_garage')

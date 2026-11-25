@@ -6,6 +6,7 @@ slab delay; it is not a physical measurement of the slab's stored energy.
 from typing import Any
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, timedelta, timezone
+from statistics import median
 import math
 from .const import (
     DEFAULTS, AIR_INITIAL_LAG_HOURS, GARAGE_INITIAL_COOLING_HOURS,
@@ -968,39 +969,81 @@ def plan(
     outdoor: list[float], slots: list[Slot], now: datetime, baseline: float,
     water_factor: float = 1.0, fireplace: bool = False,
 ) -> dict[str, Any] | None:
-    """Compare the regular forecast with coasting to a cheaper floor-heating run."""
+    """Compare flexible floor-heating plans against cheaper alternatives."""
     regular = _search_room_plan(room, model, temperature, outdoor, slots, now,
                                 baseline, water_factor, fireplace)
     if regular is None:
         return None
     result, score = regular
-    if (not result['heat'] or not room.get('compare_delayed_boost')
-            or temperature <= baseline):
+    if not room.get('flexible_floor_heating'):
         return result
 
-    minimum_run_minutes = room.get('minimum_run_minutes', 60)
-    committed = room.get('committed_session')
-    if committed:
-        minimum_end = stamp(committed['start']) + timedelta(minutes=minimum_run_minutes)
-        protected_until = min(stamp(committed['end']), minimum_end)
-        if now < protected_until:
-            return result
-    cheaper_start = _next_cheaper_heating_run(
-        slots, now, minimum_run_minutes, room.get('start_offset_minutes', 0)
-    )
-    if cheaper_start is None:
-        return result
+    if result['heat'] and temperature > baseline:
+        minimum_run_minutes = room.get('minimum_run_minutes', 60)
+        committed = room.get('committed_session')
+        protected = False
+        if committed:
+            minimum_end = stamp(committed['start']) + timedelta(minutes=minimum_run_minutes)
+            protected = now < min(stamp(committed['end']), minimum_end)
+        if not protected:
+            cheaper_start = _next_cheaper_heating_run(
+                slots, now, minimum_run_minutes, room.get('start_offset_minutes', 0)
+            )
+            if cheaper_start is not None:
+                # The bounded search can drop coasting paths before they reach
+                # cheaper hours. Compare them in a separate constrained search.
+                delayed = _search_room_plan(
+                    room, model, temperature, outdoor, slots, now, baseline,
+                    water_factor, fireplace, coast_until=cheaper_start,
+                )
+                if delayed is not None and delayed[1] < score:
+                    result, score = delayed
 
-    # The bounded search can discard coasting paths long before they reach the
-    # cheaper window. Run a separate search so those paths get a fair comparison.
-    delayed = _search_room_plan(
+    active_slots = [slot for slot in slots if slot.end > max(now, slot.start)]
+    rates = sorted(slot.planning_rate for slot in active_slots)
+    if not rates or rates[-1] <= 0:
+        return result
+    cheap_rate = rates[len(rates) // 4]
+    highest_rate = rates[-1]
+    if highest_rate - cheap_rate <= .5 * abs(cheap_rate):
+        return result
+    typical_rate = median(rates)
+    if typical_rate == highest_rate:
+        # When a high plateau occupies most of the horizon, use the cheaper
+        # hours to identify the peak instead of treating the plateau as normal.
+        typical_rate = cheap_rate
+    peak_rate = max(0.0, (typical_rate + highest_rate) / 2)
+
+    def expenditure(plan_result: dict[str, Any]) -> tuple[float, float]:
+        cost = peak_premium = 0.0
+        for slot, row in zip(active_slots, plan_result['slots']):
+            if row['predicted_demand']:
+                hours = (slot.end - max(now, slot.start)).total_seconds() / 3600
+                cost += hours * slot.planning_rate
+                peak_premium += hours * max(0.0, slot.planning_rate - peak_rate)
+        return cost, peak_premium
+
+    cost, peak_premium = expenditure(result)
+    if peak_premium <= 0:
+        return result
+    # A larger search carries more partly charged slab states into the peak.
+    # Bias this search away from the highest rates, then compare actual modeled
+    # spending and comfort before accepting any substitution.
+    preheated = _search_room_plan(
         room, model, temperature, outdoor, slots, now, baseline, water_factor, fireplace,
-        coast_until=cheaper_start,
+        peak_rate=peak_rate,
     )
-    if delayed is not None:
-        delayed_result, delayed_score = delayed
-        if delayed_score < score:
-            return delayed_result
+    if preheated is not None:
+        candidate, candidate_score = preheated
+        candidate_cost, candidate_premium = expenditure(candidate)
+        limit_risk, target_shortfall, _ = score
+        candidate_limit_risk, candidate_shortfall, _ = candidate_score
+        maintains_comfort = (
+            candidate_limit_risk <= limit_risk and candidate_shortfall <= target_shortfall
+        )
+        saves_peak_cost = candidate_cost <= cost + 1e-6 and candidate_premium < peak_premium - 1e-6
+        if maintains_comfort and saves_peak_cost:
+            return candidate
     return result
 
 
@@ -1008,6 +1051,7 @@ def _search_room_plan(
     room: dict[str, Any], model: dict[str, Any], temperature: float,
     outdoor: list[float], slots: list[Slot], now: datetime, baseline: float,
     water_factor: float, fireplace: bool, *, coast_until: datetime | None = None,
+    peak_rate: float | None = None,
 ) -> tuple[dict[str, Any], tuple[float, float, float]] | None:
     """Search a bounded set of schedules, preferring safety, comfort, then cost.
 
@@ -1070,10 +1114,13 @@ def _search_room_plan(
     # A negative duration tracks the pause since the last boosted target.
     beam = [(0.0, 0.0, 0.0, temperature, model['response'], initial_mode,
              run_hours, reduction_available, [])]
-    beam_limit = 120
-    cheap_path_limit = 40
+    beam_limit = 600 if peak_rate is not None else 120
+    cheap_path_limit = beam_limit // 3
     for slot_index, slot in enumerate(slots):
         planning_rate = slot.planning_rate
+        search_rate = planning_rate
+        if peak_rate is not None:
+            search_rate += max(0.0, planning_rate - peak_rate)
         hours = (slot.end - max(now, slot.start)).total_seconds() / 3600
         if hours <= 0:
             continue
@@ -1173,7 +1220,7 @@ def _search_room_plan(
                 # Preserve score priority: limit violations and comfort shortfall
                 # are separate tuple fields, ahead of this price/switching score.
                 next_cost = (
-                    cost + planning_rate * heating * hours
+                    cost + search_rate * heating * hours
                     + .3 * abs(boosted - (last_mode == 2))
                     + .02 * (mode != last_mode)
                     + .15 * hours * (predicted - baseline) ** 2
@@ -1268,7 +1315,7 @@ def _search_room_plan(
 
         # Some thermal representatives are already among the cheap paths.
         # Fill their places with mode/minimum-run alternatives, keeping at most
-        # 120 schedules per interval, bounding planning work on every update.
+        # the configured beam width, bounding planning work on every update.
         for index, candidate in enumerate(ranked):
             if len(beam) == beam_limit:
                 break
