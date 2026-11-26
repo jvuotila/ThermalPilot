@@ -2,6 +2,8 @@
   "language": "is",
   "name": "Íslenska",
   "messages": {
+    "Fireplace surface temperature sensor": "Yfirborðshitaskynjari eldstæðis",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Valfrjálst. ThermalPilot ber yfirborðshitann saman við mælingar í tengdum herbergjum. Eftir nokkur kyndingartímabil getur kerfið tekið tillit til uppsafnaðs varma þegar eldstæðið kólnar.",
     "Discard unsaved changes on both settings tabs?": "Henda óvistuðum breytingum á báðum stillingaflipunum?",
     "Per page": "Á síðu",
     "Total absences": "Fjarvistir alls",

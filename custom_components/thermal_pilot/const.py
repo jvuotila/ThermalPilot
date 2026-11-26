@@ -1,6 +1,6 @@
 """ThermalPilot constants; scheduled control is opt-in; simulation is enabled by default."""
 DOMAIN = 'thermal_pilot'
-VERSION = '0.9.121'
+VERSION = '0.9.122'
 PLATFORMS = ['sensor', 'binary_sensor', 'switch']
 RESERVE_HOURS = 6.0
 ARCHIVE_KEEP_DAYS = 7
@@ -74,6 +74,7 @@ ZONE_DEFAULTS = {
 
 FIREPLACE_DEFAULTS = {
     'name': '', 'fireplace_entity': '', 'fireplace_active_state': 'on', 'room_ids': [],
+    'surface_temperature_entity': '',
 }
 
 # Starting reference cooling time only; replaced by learned garage loss.

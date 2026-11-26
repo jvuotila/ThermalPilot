@@ -2,6 +2,8 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "Fireplace surface temperature sensor": "Fireplace surface temperature sensor",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.",
     "Expensive electricity threshold (c/kWh)": "Expensive electricity threshold (c/kWh)",
     "Allowed temperature flexibility (°C)": "Allowed temperature flexibility (°C)",
     "Allow temperature flexibility during expensive hours": "Allow temperature flexibility during expensive hours",

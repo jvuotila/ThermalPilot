@@ -2,6 +2,8 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "Fireplace surface temperature sensor": "Sensori i temperaturës së sipërfaqes së oxhakut",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Opsional. ThermalPilot krahason temperaturën e sipërfaqes me matjet në dhomat e lidhura. Pas disa ndezjeve mund të marrë parasysh nxehtësinë e grumbulluar ndërsa oxhaku ftohet.",
     "Discard unsaved changes on both settings tabs?": "Të hidhen poshtë ndryshimet e paruajtura në të dyja skedat e cilësimeve?",
     "Per page": "Për faqe",
     "Total absences": "Mungesa gjithsej",

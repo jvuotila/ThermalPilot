@@ -766,6 +766,17 @@ readingPanel.shadowRoot.querySelectorAll=()=>[readingHint];readingPanel.shadowRo
 readingPanel.updateSourceReadings();assert.equal(readingHint.textContent,'Nykyinen tila: 7 °C');
 assert.equal(readingPanel.settings.outdoor_entity,undefined);
 assert.match(previewPanel.field(['outdoor_entity','Outdoor temperature','sensor',{kind:'temperature'}],{outdoor_entity:''},'source'),/data-source-reading="outdoor_entity"/);
+readingPanel._hass.states['sensor.unsaved'].entity_id='sensor.unsaved';
+readingPanel._hass.states['sensor.stove_surface']={entity_id:'sensor.stove_surface',state:'43.2',attributes:{unit_of_measurement:'°C'}};
+readingPanel._hass.states['sensor.stove_power']={entity_id:'sensor.stove_power',state:'500',attributes:{unit_of_measurement:'W'}};
+const surfaceField=readingPanel.field(
+  ['surface_temperature_entity','Fireplace surface temperature sensor','sensor',{kind:'temperature'}],
+  {surface_temperature_entity:'sensor.stove_surface'},'fireplace0',
+);
+assert.match(surfaceField,/fireplace0\.surface_temperature_entity/);
+assert.match(surfaceField,/sensor\.stove_surface/);
+assert.doesNotMatch(surfaceField,/sensor\.stove_power/);
+assert.equal(readingPanel.t('Fireplace surface temperature sensor'),'Tulisijan pintalämpöanturi');
 console.log('Selected-source reading checks passed: units, zero values, measured climate water, weather, missing data and unsaved selection updates.');
 
 const headerPanel=new Component();headerPanel.settings={simulation_enabled:true,heating_enabled:true};

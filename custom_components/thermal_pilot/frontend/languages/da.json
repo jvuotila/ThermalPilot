@@ -2,6 +2,8 @@
   "language": "da",
   "name": "Dansk",
   "messages": {
+    "Fireplace surface temperature sensor": "Føler til ildstedets overfladetemperatur",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Valgfrit. ThermalPilot sammenligner overfladetemperaturen med målinger fra de tilknyttede rum. Efter flere fyringer kan den tage højde for lagret varme, mens ildstedet køler af.",
     "Discard unsaved changes on both settings tabs?": "Kassér ikke-gemte ændringer på begge indstillingsfaner?",
     "Per page": "Pr. side",
     "Total absences": "Fravær i alt",

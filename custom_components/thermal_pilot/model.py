@@ -14,6 +14,7 @@ from .const import (
     AIR_MAX_TEMPERATURE_RATE_PER_HOUR, WATER_REFERENCE,
 )
 from .shared_air import heat_transfer, learn_shared_air
+from .fireplace_surface import MAX_ROOM_HEATING_RATE, learn_surface_gain, surface_gain_rates
 
 
 def number(value, default=None):
@@ -742,6 +743,14 @@ def learn(
         + heat_transfer(model, previous['temperature'], previous.get('shared_air_temperatures', {}))
     )
     model['response'] = response
+    fireplace_rate = sum(surface_gain_rates(model, previous.get('fireplace_surfaces', {})).values())
+    if enabled and previous.get('fireplace_fit_allowed') and current.get('fireplace_fit_allowed'):
+        # Wait for a room-specific heat-loss fit and let stored slab heat decay
+        # before attributing a temperature change to the fireplace.
+        if (model.get('parameter_updates', 0) and previous['activity'] == 0
+                and current.get('activity') == 0 and average_response <= 0.05):
+            learn_surface_gain(model, previous, current, elapsed_hours, prediction)
+    prediction += elapsed_hours * min(MAX_ROOM_HEATING_RATE, fireplace_rate)
     error = abs(prediction - current['temperature'])
     if model['mae'] is None:
         model['mae'] = error
@@ -1128,6 +1137,7 @@ def _search_room_plan(
              run_hours, reduction_available, [])]
     beam_limit = 600 if peak_rate is not None else 120
     cheap_path_limit = beam_limit // 3
+    fireplace_forecast = room.get('fireplace_heat_forecast', [])
     for slot_index, slot in enumerate(slots):
         planning_rate = slot.planning_rate
         search_rate = planning_rate
@@ -1152,6 +1162,7 @@ def _search_room_plan(
         slot_solar = .5 * solar_exposure_factor(room) * solar_gain(
             model, solar_signal_value, solar_enabled(room)
         )
+        slot_fireplace_heat = fireplace_forecast[slot_index] if slot_index < len(fireplace_forecast) else 0.0
         neighbors = {
             peer: values[slot_index] for peer, values in room.get('shared_air_forecast', {}).items()
         }
@@ -1227,7 +1238,7 @@ def _search_room_plan(
                 predicted = current_temperature + hours * (
                     slot_loss * (outdoor[slot_index] - current_temperature)
                     + gain * water_factor * average_response
-                    + model.get('base_gain', 0) + slot_solar
+                    + model.get('base_gain', 0) + slot_solar + slot_fireplace_heat
                     + heat_transfer(model, current_temperature, neighbors)
                 )
                 if (mode == 1 and predicted < baseline) or (coasting and predicted < coast_target):

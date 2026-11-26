@@ -99,6 +99,7 @@ const settingHelp = {
   garage_presence_entities:'Presence sensors lower the fan speed to the selected occupied fan mode for more comfortable use of the garage. Any selected sensor detecting someone activates this mode. Normal heating or standby fan speed resumes when no selected sensor detects presence.',
 
   fireplace_active_state: 'A door/window contact sensor can monitor the fireplace damper position. Select the sensor state that means the fireplace is in use. For a damper contact sensor, Open normally means active and Closed means inactive. Door/window labels are converted to Home Assistant’s underlying on/off values. Other sensors show their declared options, current valid state and any saved value. A contact state indicates the damper position; it does not prove that a fire is burning.',
+  surface_temperature_entity: 'Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.',
   language: 'Choose the interface language. Room and entity names remain unchanged. Save settings to keep the choice. Embedded history cards follow this choice where supported by Home Assistant.',
   start_offset_minutes: 'Water-based systems only: raise the thermostat target this many minutes before the planned heat-delivery session, allowing slow valves to open. Electric and air distribution ignore this setting and use no advance offset.',
   stop_offset_minutes: 'Water-based systems only: lower the thermostat target this many minutes before the planned heat-delivery session ends, allowing valves to close. Electric and air distribution ignore this setting and use no closing offset.',
@@ -166,7 +167,7 @@ function fireplaceStateOptions(sensor,saved){
   if(usable(saved)&&!values.includes(saved))values.push(saved);
   return [...new Set(values)].map(value=>({value,label:binary?(value==='on'?(contact?'Open':'On'):value==='off'?(contact?'Closed':'Off'):value):value}));
 }
-const sourceReadingKeys=['price_entity','weather_entity','outdoor_entity','wind_entity','water_entity','solar_power_entity','away_zone'];
+const sourceReadingKeys=['price_entity','weather_entity','outdoor_entity','wind_entity','water_entity','solar_power_entity','away_zone','surface_temperature_entity'];
 function sourceReading(key,entity,sensor){
   if(key==='price_entity'&&entity==='static')return 'Static price';
   if(key==='price_entity'&&entity==='nordpool')return 'Nord Pool (Home Assistant)';
@@ -389,7 +390,8 @@ class ThermalPilotPanel extends HTMLElement {
   updateSourceReadings(){
     this.shadowRoot?.querySelectorAll('[data-source-reading]').forEach(hint=>{
       const key=hint.dataset.sourceReading;if(!sourceReadingKeys.includes(key))return;
-      const entity=this.shadowRoot.querySelector(`[data-field="source.${key}"]`)?.value??this.settings?.[key];
+      const control=hint.closest?.('label')?.querySelector('[data-field]')??this.shadowRoot.querySelector(`[data-field="source.${key}"]`);
+      const entity=control?.value??this.settings?.[key];
       hint.textContent=`${this.t('Current state:')} ${this.t(sourceReading(key,entity,this._hass?.states?.[entity]))}`;
     });
   }

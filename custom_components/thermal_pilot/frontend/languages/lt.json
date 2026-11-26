@@ -2,6 +2,8 @@
   "language": "lt",
   "name": "Lietuvių",
   "messages": {
+    "Fireplace surface temperature sensor": "Židinio paviršiaus temperatūros jutiklis",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Pasirenkama. ThermalPilot lygina paviršiaus temperatūrą su susietų patalpų matavimais. Po kelių kūrenimo ciklų jis gali atsižvelgti į sukauptą šilumą, kol židinys vėsta.",
     "Discard unsaved changes on both settings tabs?": "Atmesti neišsaugotus pakeitimus abiejuose nustatymų skirtukuose?",
     "Per page": "Puslapyje",
     "Total absences": "Išvykimų iš viso",

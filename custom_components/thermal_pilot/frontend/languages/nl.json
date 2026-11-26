@@ -2,6 +2,8 @@
   "language": "nl",
   "name": "Nederlands",
   "messages": {
+    "Fireplace surface temperature sensor": "Sensor voor de oppervlaktetemperatuur van de haard",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Optioneel. ThermalPilot vergelijkt de oppervlaktetemperatuur met metingen uit de gekoppelde kamers. Na meerdere stookbeurten kan het rekening houden met opgeslagen warmte terwijl de haard afkoelt.",
     "Discard unsaved changes on both settings tabs?": "Niet-opgeslagen wijzigingen op beide instellingentabbladen verwerpen?",
     "Per page": "Per pagina",
     "Total absences": "Totaal afwezigheden",

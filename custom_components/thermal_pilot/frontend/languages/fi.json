@@ -2,6 +2,9 @@
   "language": "fi",
   "name": "Finnish",
   "messages": {
+    "Fireplace surface temperature sensor": "Tulisijan pintalämpöanturi",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Valinnainen. ThermalPilot vertaa tulisijan pintalämpötilaa siihen liitettyjen huoneiden lämpötiloihin. Useamman lämmityskerran jälkeen se voi huomioida varastoituneen lämmön tulisijan jäähtyessä.",
+    "Fireplace surface temperature sensor: select a temperature sensor.": "Tulisijan pintalämpöanturiksi on valittava lämpötila-anturi.",
     "Expensive electricity threshold (c/kWh)": "Kalliin sähkön hintaraja (c/kWh)",
     "Allowed temperature flexibility (°C)": "Sallittu lämpötilajousto (°C)",
     "Allow temperature flexibility during expensive hours": "Salli lämpötilajousto kalliina tunteina",

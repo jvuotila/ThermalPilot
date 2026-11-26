@@ -2,6 +2,8 @@
   "language": "bg",
   "name": "Български",
   "messages": {
+    "Fireplace surface temperature sensor": "Датчик за температурата на повърхността на камината",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "По избор. ThermalPilot сравнява температурата на повърхността с измерванията в свързаните стаи. След няколко паления може да отчита натрупаната топлина, докато камината изстива.",
     "Discard unsaved changes on both settings tabs?": "Да се отхвърлят ли незаписаните промени и в двата раздела с настройки?",
     "Per page": "На страница",
     "Total absences": "Общо отсъствия",

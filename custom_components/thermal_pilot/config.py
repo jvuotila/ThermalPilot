@@ -174,6 +174,7 @@ FIREPLACE_FIELDS = [
     ('name', 'Fireplace name', 'text'),
     ('fireplace_entity', 'Fireplace activity sensor', 'sensor,binary_sensor', {'kind': 'activity'}),
     ('fireplace_active_state', 'Fireplace active when', 'text'),
+    ('surface_temperature_entity', 'Fireplace surface temperature sensor', 'sensor', {'kind': 'temperature'}),
 ]
 
 
@@ -859,6 +860,10 @@ def validate(payload, hass=None, *, require_outdoor=True):
         allowed = ['on', 'off'] if entity.startswith('binary_sensor.') else options
         if isinstance(allowed, list) and active_state not in allowed:
             raise ValueError('Fireplace active when: choose a valid state of the selected sensor.')
+        surface_entity = fireplace['surface_temperature_entity']
+        surface_state = hass.states.get(surface_entity) if hass is not None and surface_entity else None
+        if surface_state is not None and not entity_matches(surface_state, {'kind': 'temperature'}):
+            raise ValueError('Fireplace surface temperature sensor: select a temperature sensor.')
         room_ids = fireplace['room_ids']
         if (not isinstance(room_ids, list) or any(not isinstance(room_id, str) for room_id in room_ids)
                 or len(room_ids) != len(set(room_ids)) or not set(room_ids) <= available_rooms):

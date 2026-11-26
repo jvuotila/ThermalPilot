@@ -2,6 +2,8 @@
   "language": "sk",
   "name": "Slovenčina",
   "messages": {
+    "Fireplace surface temperature sensor": "Snímač povrchovej teploty krbu",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Voliteľné. ThermalPilot porovnáva povrchovú teplotu s meraniami v priradených miestnostiach. Po niekoľkých zakúreniach môže pri chladnutí krbu zohľadniť nahromadené teplo.",
     "Discard unsaved changes on both settings tabs?": "Zahodiť neuložené zmeny na oboch kartách nastavení?",
     "Per page": "Na stránke",
     "Total absences": "Celkový počet neprítomností",

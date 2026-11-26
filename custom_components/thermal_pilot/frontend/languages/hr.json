@@ -2,6 +2,8 @@
   "language": "hr",
   "name": "Hrvatski",
   "messages": {
+    "Fireplace surface temperature sensor": "Senzor površinske temperature kamina",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Neobavezno. ThermalPilot uspoređuje površinsku temperaturu s mjerenjima u povezanim prostorijama. Nakon nekoliko loženja može uzeti u obzir pohranjenu toplinu dok se kamin hladi.",
     "Discard unsaved changes on both settings tabs?": "Odbaciti nespremljene promjene na obje kartice postavki?",
     "Per page": "Po stranici",
     "Total absences": "Ukupno odsutnosti",

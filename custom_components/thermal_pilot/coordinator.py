@@ -23,6 +23,7 @@ from .away import calendar_periods, change_calendar, person_count, room_exempt
 from .away import overlay_plan as away_plan
 from .away import update as update_away
 from .fireplaces import active_fireplaces
+from .fireplace_surface import WARM_SURFACE_EXCESS, sample_surface, surface_gain_rates, surface_heat_forecast
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
@@ -59,6 +60,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.manual_sessions = {}
         self.solar_heating = {}
         self.heating_assistance = {}
+        self.fireplace_surfaces = {}
         self.away = {}
         self.away_status = {}
         self.season = {}
@@ -100,6 +102,9 @@ class PilotCoordinator(DataUpdateCoordinator):
         )
         entities = {self.settings[key] for key in source_keys if self.settings[key] and self.settings[key] not in PRICE_SOURCE_CHOICES
                     and not (self.settings['price_entity'] == 'static' and key == 'price_forecast_entity')}
+        entities.update(fireplace['surface_temperature_entity']
+                        for fireplace in self.settings.get('fireplaces', [])
+                        if fireplace.get('surface_temperature_entity'))
         if self.settings['price_entity'] == 'tibber' and self.settings['tibber_price_entity']:
             entities.add(self.settings['tibber_price_entity'])
         responsive = {
@@ -258,6 +263,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.manual_sessions = saved.get('manual_sessions', {})
         self.away = saved.get('away', {})
         self.heating_assistance = saved.get('heating_assistance', {})
+        self.fireplace_surfaces = saved.get('fireplace_surfaces', {})
         for assistance in self.heating_assistance.values():
             assistance['samples'] = []
             assistance['pump_since'] = None
@@ -512,9 +518,46 @@ class PilotCoordinator(DataUpdateCoordinator):
         return {'garage_door_warnings':self.garage_door_warnings,'away':self.away,'heating_assistance':self.heating_assistance,'solar_heating':self.solar_heating,'manual_sessions':self.manual_sessions,'models':self.models,'season':self.season,'zone_seasons':self.air_control.zone_seasons,'pump_thermal_modes':self.air_control.thermal_modes,'pump_reversals':self.air_control.reversals,
                 'applied_season_targets':self.applied_season_targets,
                 'fingerprints':self.config_fingerprint,'sensor_health':self.sensor_health,'managed_rooms':self.managed_rooms,'fallback_state':self.fallback_state,
-                'heating_sessions':self.session_plans}
+                'heating_sessions':self.session_plans,'fireplace_surfaces':self.fireplace_surfaces}
 
-    def zone_observations(self, now):
+    def read_fireplace_surfaces(self, now):
+        """Read each surface once and estimate its cooling trend from recent samples."""
+        readings = {}
+        records = {}
+        rooms = {room['id']: room for room in self.settings['rooms']}
+        for fireplace in self.settings.get('fireplaces', []):
+            entity = fireplace.get('surface_temperature_entity')
+            if not entity:
+                continue
+            fireplace_id = fireplace['id']
+            record = self.fireplace_surfaces.get(fireplace_id, {})
+            if record.get('entity') != entity:
+                record = {'entity': entity}
+            records[fireplace_id] = record
+            state = self.hass.states.get(entity)
+            reported = (getattr(state, 'last_reported', None)
+                        or getattr(state, 'last_updated', None))
+            if reported is not None and not 0 <= (now - reported).total_seconds() <= 3 * 3600:
+                continue
+            surface = self.value(entity)
+            if surface is None or not -40 <= surface <= 600:
+                continue
+            temperatures = [self.value(rooms[room_id]['temperature_entity'])
+                            for room_id in fireplace['room_ids'] if room_id in rooms]
+            room_values = [temperature for temperature in temperatures if temperature is not None]
+            readings[fireplace_id] = {'temperature': surface}
+            if room_values:
+                activity = self.hass.states.get(fireplace['fireplace_entity'])
+                active = None
+                if activity is not None and activity.state not in ('unknown', 'unavailable'):
+                    active = activity.state == fireplace['fireplace_active_state']
+                warm = sample_surface(record, now.timestamp(), surface, median(room_values), active)
+                if warm:
+                    readings[fireplace_id].update(warm, entity=entity)
+        self.fireplace_surfaces = records
+        return readings
+
+    def zone_observations(self, now, fireplace_surfaces=None):
         rows = []
         for zone in self.settings.get('heating_zones',[]):
             fireplace = zone.get('source_type') == 'fireplace'
@@ -538,9 +581,12 @@ class PilotCoordinator(DataUpdateCoordinator):
         active = {fireplace['id'] for fireplace in active_fireplaces(self.hass, self.settings)}
         for fireplace in self.settings.get('fireplaces', []):
             fireplace_id = fireplace['id']
+            surface = (fireplace_surfaces or {}).get(fireplace_id)
             rows.append({'zone_id': fireplace_id, 'room_id': 'zone:' + fireplace_id, 'time': now.timestamp(),
                          'zone_mode': 'heat' if fireplace_id in active else None,
-                         'zone_basis': 'fireplace', 'zone_entity': fireplace['fireplace_entity']})
+                         'zone_basis': 'fireplace', 'zone_entity': fireplace['fireplace_entity'],
+                         **({'surface_temperature': surface['temperature'],
+                             'surface_temperature_entity': fireplace['surface_temperature_entity']} if surface else {})})
         return rows
 
     def learning_changes(self, settings):
@@ -819,9 +865,10 @@ class PilotCoordinator(DataUpdateCoordinator):
         await self.update_away_status({}, now)
         outdoor = self.value(self.settings['outdoor_entity'])
         heating_active = self.settings['heating_enabled']
+        fireplace_surfaces = self.read_fireplace_surfaces(now)
         await self.hass.async_add_executor_job(
             self.history_db.append_zones,
-            self.zone_observations(now),
+            self.zone_observations(now, fireplace_surfaces),
             now.timestamp()-HISTORY_DAYS*86400
         )
         forecasts = await self.get_forecast(now)
@@ -978,8 +1025,13 @@ class PilotCoordinator(DataUpdateCoordinator):
         if uses_water and water is None:
             warnings.append('Heating water temperature is not available; planning and learning use observed thermostat demand without water-temperature adjustment.')
         planning_water = await self.planning_water_temperature(water, water_rooms, now)
-        fireplace_rooms = {room_id for fireplace in active_fireplaces(self.hass, self.settings)
-                           for room_id in fireplace['room_ids']}
+        active_fireplace_ids = {fireplace['id'] for fireplace in active_fireplaces(self.hass, self.settings)}
+        warm_fireplace_ids = {key for key, surface in fireplace_surfaces.items() if 'surface' in surface}
+        heating_fireplace_ids = active_fireplace_ids | warm_fireplace_ids
+        fireplaces_by_room = {}
+        for fireplace in self.settings.get('fireplaces', []):
+            for room_id in fireplace['room_ids']:
+                fireplaces_by_room.setdefault(room_id, []).append(fireplace['id'])
         readings, room_data = ([], {})
         shared_groups = room_groups([room for room in primary_rooms if not air_room(room, self.settings)])
         by_id = {room['id']: room for room in primary_rooms}
@@ -991,22 +1043,32 @@ class PilotCoordinator(DataUpdateCoordinator):
             for room in primary_rooms if not room.get('is_garage')
         }
         blocked_groups = set()
+        unsafe_fireplace_fit_groups = set()
+        shared_fireplaces = {}
         manual_groups = set()
         planning_contexts = {}
         previous_runs = deepcopy(self.suggested_runs)
         for group in shared_groups:
+            group_fireplaces = {
+                fireplace_id for room_id in group for fireplace_id in fireplaces_by_room.get(room_id, [])
+                if fireplace_id in heating_fireplace_ids
+            }
             for room_id in group:
                 member = by_id[room_id]
                 state = self.hass.states.get(member['thermostat'])
                 secondary = self.hass.states.get(member.get('secondary_pump_entity', ''))
-                member_fire = room_id in fireplace_rooms
+                member_fire = heating_fireplace_ids.intersection(fireplaces_by_room.get(room_id, []))
+                shared_fireplaces[room_id] = group_fireplaces
                 secondary_active = bool(secondary and (
                     secondary.state == 'cool' or secondary.attributes.get('hvac_action') in ('heating', 'cooling')
                     or (secondary.attributes.get('hvac_action') is None and secondary.state in ('heat', 'cool'))
                 ))
                 cooling = bool(state and (state.state == 'cool' or state.attributes.get('hvac_action') == 'cooling'))
-                if (shared_temperatures[room_id] is None or self.activity(member) is None
-                        or member_fire or secondary_active or cooling):
+                unreliable_peer = (shared_temperatures[room_id] is None or self.activity(member) is None
+                                   or secondary_active or cooling)
+                if unreliable_peer:
+                    unsafe_fireplace_fit_groups.update(group)
+                if unreliable_peer or member_fire:
                     # A neighbor's unexplained heater must not become apparent
                     # primary heating capacity in the coupled fit or schedule.
                     blocked_groups.update(group)
@@ -1016,8 +1078,9 @@ class PilotCoordinator(DataUpdateCoordinator):
         for configured_room in primary_rooms+[candidate_room for candidate_room in zone_rooms(self.settings) if candidate_room['heat_control']!='zone_member']:
             room = {**room_settings(configured_room, self.settings), 'water_reference': WATER_REFERENCE}
             room_water = room_water_distribution(room, self.settings)
-            room_fireplace = room.get('source_room_id', room['id']) in fireplace_rooms
             room_id = room['id']
+            linked_fireplaces = fireplaces_by_room.get(room.get('source_room_id', room_id), [])
+            room_active_fireplaces = active_fireplace_ids.intersection(linked_fireplaces)
             temperature = zone_temperature(self.hass, room, self.settings)[0] if room.get('secondary_zone') else self.value(room['temperature_entity'])
             if room.get('shared_air_signature'):
                 temperature = shared_temperatures[room_id]
@@ -1118,7 +1181,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                     thermostat_state.state == 'cool'
                     or thermostat_state.attributes.get('hvac_action') == 'cooling'
                 ))
-                excluded = cooling or room_fireplace
+                excluded = cooling
                 if not excluded and room.get('is_garage'):
                     excluded = any(binary(self.hass, entity) is not False
                                    for entity in room.get('garage_door_entities', []))
@@ -1157,7 +1220,25 @@ class PilotCoordinator(DataUpdateCoordinator):
                         peer: shared_temperatures[peer] for peer in room['shared_air_rooms']
                         if shared_temperatures.get(peer) is not None
                     }
-                    current['excluded'] = current['excluded'] or room_id in blocked_groups
+                room_surfaces = {}
+                room_warm_fireplaces = warm_fireplace_ids.intersection(linked_fireplaces)
+                for fireplace_id in sorted(room_warm_fireplaces):
+                    surface = fireplace_surfaces[fireplace_id]
+                    excess = surface['surface'] - temperature
+                    if excess >= WARM_SURFACE_EXCESS:
+                        room_surfaces[fireplace_id] = {**surface, 'excess': excess}
+                if room_surfaces:
+                    current['fireplace_surfaces'] = room_surfaces
+                    # Learn from the cooling masonry, with no other known heat
+                    # source and little or no direct solar input.
+                    current['fireplace_fit_allowed'] = (
+                        not current['excluded'] and not room_active_fireplaces
+                        and room_id not in unsafe_fireplace_fit_groups
+                        and shared_fireplaces.get(room_id, set()) <= room_surfaces.keys()
+                        and (current_solar is None or current_solar < 0.05)
+                    )
+                current['excluded'] = (current['excluded'] or bool(room_active_fireplaces or room_warm_fireplaces)
+                                       or room_id in blocked_groups)
                 prediction = None
                 if self.season['collecting']:
                     previous = self.previous.get(room_id)
@@ -1277,8 +1358,16 @@ class PilotCoordinator(DataUpdateCoordinator):
                         planning_water_factor = water_heating_factor(
                             planning_water if room_water else None, planning_temperature
                         )
+                        fireplace_rates = surface_gain_rates(model, room_surfaces)
+                        # Retain the manual compensation for an active fireplace
+                        # without a learned estimate. Do not apply both to the room.
+                        fireplace_fallback = bool(room_active_fireplaces - fireplace_rates.keys())
+                        if fireplace_rates and not fireplace_fallback:
+                            settings['fireplace_heat_forecast'] = surface_heat_forecast(
+                                fireplace_rates, room_surfaces, room_slots, now,
+                            )
                         result['plan'] = await self.hass.async_add_executor_job(plan, settings, deepcopy(model),
-                            planning_temperature, outdoors, room_slots, now, baseline, planning_water_factor, room_fireplace)
+                            planning_temperature, outdoors, room_slots, now, baseline, planning_water_factor, fireplace_fallback)
                         if (room.get('shared_air_signature') and room_id not in blocked_groups
                                 and room_id not in manual_groups):
                             planning_contexts[room_id] = {
@@ -1308,6 +1397,8 @@ class PilotCoordinator(DataUpdateCoordinator):
                     # each peer already has its own persisted observation row.
                     observation = dict(current)
                     observation.pop('shared_air_temperatures', None)
+                    observation.pop('fireplace_surfaces', None)
+                    observation.pop('fireplace_fit_allowed', None)
                     readings.append({'room_id':room_id, **observation, **({'pump_mode':pump_mode,'pump_basis':pump_basis,'pump_entity':room['thermostat']} if room.get('air_control') else {}), 'forecast_context':fingerprint+[self.settings['wind_entity']]+solar_context, 'actual_setpoint':actual_request,
                                  'prediction':prediction, 'suggested_heat':result['plan']['heat'] if result['plan'] else None,
                                  'suggested_setpoint':result['plan']['setpoint'] if result['plan'] else None,

@@ -2,6 +2,8 @@
   "language": "de",
   "name": "Deutsch",
   "messages": {
+    "Fireplace surface temperature sensor": "Oberflächentemperaturfühler der Feuerstätte",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Optional. ThermalPilot vergleicht die Oberflächentemperatur mit den Messwerten der verknüpften Räume. Nach mehreren Heizvorgängen kann es die gespeicherte Wärme beim Abkühlen der Feuerstätte berücksichtigen.",
     "Discard unsaved changes on both settings tabs?": "Ungespeicherte Änderungen auf beiden Einstellungsseiten verwerfen?",
     "Per page": "Pro Seite",
     "Total absences": "Abwesenheiten insgesamt",

@@ -2,6 +2,8 @@
   "language": "pt",
   "name": "Português",
   "messages": {
+    "Fireplace surface temperature sensor": "Sensor de temperatura da superfície da lareira",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Opcional. O ThermalPilot compara a temperatura da superfície com as medições das divisões associadas. Após observar várias utilizações, pode ter em conta o calor acumulado enquanto a lareira arrefece.",
     "Discard unsaved changes on both settings tabs?": "Descartar as alterações não guardadas nos dois separadores de definições?",
     "Per page": "Por página",
     "Total absences": "Total de ausências",

@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.121 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.122 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -133,6 +133,21 @@ If a sensor has been learning in an unsuitable location, move it first and let i
 settle. Consider resetting learning for that room using its circular-arrow button
 under **Climate setup**. This clears the learned parameters while retaining
 observation history; the room then needs fresh heating and idle observations.
+
+## Fireplace surface temperature
+
+Under **Heating and Cooling → Fireplaces**, select an optional surface
+temperature sensor and link the rooms the fireplace actually warms.
+ThermalPilot compares the surface reading with the air temperature in each
+linked room and learns how much the cooling fireplace helps that room. It needs
+usable observations from at least two separate firings before it can credit
+stored heat in the heating plan. A masonry fireplace can still contribute long
+after its damper closes. The estimate tapers with the observed cooling trend
+and the planner continues to enforce the configured room temperature limits.
+
+The activity sensor still drives configured heat-pump circulation. Existing
+fireplace compensation remains available while the surface estimate is learning
+or the sensor is unavailable.
 
 ## Heating circuits sharing an open space
 

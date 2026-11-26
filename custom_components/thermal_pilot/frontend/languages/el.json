@@ -2,6 +2,8 @@
   "language": "el",
   "name": "Ελληνικά",
   "messages": {
+    "Fireplace surface temperature sensor": "Αισθητήρας θερμοκρασίας επιφάνειας τζακιού",
+    "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Προαιρετικό. Το ThermalPilot συγκρίνει τη θερμοκρασία της επιφάνειας με τις μετρήσεις των συνδεδεμένων δωματίων. Μετά από αρκετές χρήσεις μπορεί να συνυπολογίσει την αποθηκευμένη θερμότητα καθώς το τζάκι κρυώνει.",
     "Discard unsaved changes on both settings tabs?": "Να απορριφθούν οι μη αποθηκευμένες αλλαγές και στις δύο καρτέλες ρυθμίσεων;",
     "Per page": "Ανά σελίδα",
     "Total absences": "Σύνολο απουσιών",
