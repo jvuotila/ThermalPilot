@@ -20,8 +20,16 @@ function awayCalendarMonth(month,selected,today,locale){
 const pumpTemperatureFields=['air_minimum','air_maximum','air_boost','air_setback'];
 const tooltipInfoIcon='<svg class="status-info" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="10" cy="10" r="8"/><path d="M10 9v5"/><circle class="status-info-dot" cx="10" cy="6" r="1"/></svg>';
 const roomFloorPlanAsset=typeof location!=='undefined'&&/\/PREVIEW\.html$/.test(location.pathname)?'./custom_components/thermal_pilot/frontend/rooms-floor-plan.png':'/thermal_pilot/rooms-floor-plan.png';
-const dateLabel = value => new Date(value).toLocaleDateString('fi-FI',{day:'2-digit',month:'2-digit',year:'numeric'});
-const timeLabel = value => `${dateLabel(value)} ${new Date(value).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`;
+const chartDateFormat=new Intl.DateTimeFormat('fi-FI',{day:'2-digit',month:'2-digit',year:'numeric'});
+const chartTimeFormat=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false});
+const dateLabel = value => {
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?'Invalid Date':chartDateFormat.format(date);
+};
+const timeLabel = value => {
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?'Invalid Date Invalid Date':`${chartDateFormat.format(date)} ${chartTimeFormat.format(date)}`;
+};
 const entityLabel = state => state?.attributes?.friendly_name || (state?.entity_id?.split('.').slice(1).join('.').replace(/_/g,' ')) || 'Unavailable entity';
 const pumpStageLabels={power:'Power on',hvac_mode:'Operating mode',temperature:'Heating setpoint',fan_mode:'Fan speed',swing_mode:'Swing mode',confirmed:'Confirmed',checking:'Checking'};
 const pumpOptionKeys={fireplace_fan:'fan_modes',fireplace_swing:'swing_modes',air_fan_cool:'fan_modes',air_swing_cool:'swing_modes',air_fan_heat:'fan_modes',air_fan_idle:'fan_modes',air_swing:'swing_modes',air_swing_idle:'swing_modes',garage_fan_heat:'fan_modes',garage_fan_idle:'fan_modes',garage_fan_presence:'fan_modes',garage_swing:'swing_modes',garage_swing_idle:'swing_modes'};
@@ -1158,8 +1166,8 @@ class ThermalPilotPanel extends HTMLElement {
       const manualEnds=Object.values(response.manual_controls||{}).map(control=>control.session?.ends*1000).filter(end=>end>Date.now());
       if(manualEnds.length)this.manualSessionTimer=setTimeout(()=>this.load(),Math.max(1,Math.min(...manualEnds)-Date.now()+1000));
       await tpI18n.load(this.settings.language||'en');
-      if(this.tab==='history')this.history=await this.call('history',{hours:this.historyHours});
-      else if(this.tab==='overview'){try{this.statusHistory=await this.call('history',{hours:48});}catch(error){this.statusHistory=[];}}
+      if(this.tab==='history')this.history=await this.call('history',{hours:this.historyHours,chart:'history'});
+      else if(this.tab==='overview'){try{this.statusHistory=await this.call('history',{hours:48,chart:'plan'});}catch(error){this.statusHistory=[];}}
       this.loaded=true;this.message='';this.render();
     }catch(e){this.message=e.message||String(e);this.messageLevel='error';this.saveConfirmation=false;this.render();}
     finally{this.loading=false;if(this.historyPeriodReload){this.historyPeriodReload=false;if(this.tab==='history')this.setHistoryPeriod(this.historyHours,this.historyPeriodFocus);}}
@@ -1883,7 +1891,7 @@ class ThermalPilotPanel extends HTMLElement {
       lastX=position;
       const label=this.t(labels[row.condition]||'Weather condition unavailable');
       const temperature=row.temperature.toLocaleString(this.settings?.language==='fi'?'fi-FI':this.settings?.language||'en',{minimumFractionDigits:1,maximumFractionDigits:1});
-      const time=new Date(row.time).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false});
+      const time=chartTimeFormat.format(row.time);
       const detail=`${row.saved?this.t('Saved forecast')+' · ':''}${timeLabel(row.time)} · ${label} · ${temperature} °C`;
       items+=`<g data-weather-hour="${row.time}"${row.saved?' data-saved-weather="true" opacity=".6"':''} ${detailAttributes(detail)}><rect x="${position-23}" y="${4+rowOffset}" width="46" height="76" rx="8" fill="transparent"/><text x="${position}" y="${20+rowOffset}" text-anchor="middle" fill="var(--secondary-text-color,#526b75)" style="font-size:11px">${time}</text><g transform="translate(${position-16} ${29+rowOffset}) scale(.9)">${weatherIcon(row.condition)}</g><text x="${position}" y="${75+rowOffset}" text-anchor="middle" fill="var(--primary-text-color,#253f49)" style="font-size:12px">${temperature}°</text></g>`;
     }
@@ -2072,6 +2080,13 @@ class ThermalPilotPanel extends HTMLElement {
   const start=history?historyStart:Math.floor((published[0]?.time??values[0]?.time??(now-86400000))/900000)*900000;
   const end=history?historyEnd:Math.ceil((published.at(-1)?.end??Math.max(values.at(-1)?.end??(now+86400000),now))/900000)*900000;
   const span=end-start;
+  const roomHistory=new Map(),zoneHistory=new Map();
+  for(const row of (history?this.history:this.statusHistory)||[]){
+   const records=row.zone_id?zoneHistory:roomHistory;
+   const id=row.zone_id||row.room_id;
+   if(!records.has(id))records.set(id,[]);
+   records.get(id).push(row);
+  }
   const weatherByTime=new Map();
   if(!history&&visibility.weather){
     const forecasts=(this.info.data?.weather_forecast||[]).map(row=>({...row,saved:false}));
@@ -2156,15 +2171,14 @@ class ThermalPilotPanel extends HTMLElement {
    const date=new Date(time);
    const day=String(date.getDate()).padStart(2,'0');
    const month=String(date.getMonth()+1).padStart(2,'0');
-   return `${day}.${month}. ${date.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false})}`;
+   return `${day}.${month}. ${chartTimeFormat.format(date)}`;
   };
   const labelRow=y=>axisTimes.map(time=>`<text x="${x(time)}" y="${y}" text-anchor="${time===start?'start':time===end?'end':'middle'}" fill="var(--secondary-text-color,#526b75)" font-size="11">${escapeHTML(axisLabel(time))}</text>`).join('');
   const timelineLegendHeight=compact?76:34;
   const roomGap=10,roomTop=(visibility.prices?210+priceHeaderHeight:68)+timelineLegendHeight;
-  const showSuggestedHeating=!history||this.historySectionOpen('chart:suggested-heating');
-  const twoRoomLanes=history&&showSuggestedHeating;
+  const showPastSuggestions=history&&this.historySectionOpen('chart:suggested-heating');
   const isAirRoom=room=>Boolean(airRoom(room,this.settings)||this.info.data?.rooms?.[room.id]?.air_control||(!isGarage(room)&&room.heat_control!=='zone_member'&&this.settings.house_heat_source==='air_to_air'));
-  const roomHeights=rooms.map(room=>!isAirRoom(room)&&twoRoomLanes?(compact?80:54):(compact?60:36));
+  const roomHeights=rooms.map(room=>!isAirRoom(room)&&showPastSuggestions?(compact?80:54):(compact?60:36));
   const roomsHeight=roomHeights.reduce((sum,height)=>sum+height,0);
   const ordinaryHeight=roomHeights.slice(0,ordinaryRooms.length).reduce((sum,height)=>sum+height,0);
   const zoneStart=roomTop+ordinaryHeight+30;
@@ -2175,13 +2189,12 @@ class ThermalPilotPanel extends HTMLElement {
   let chartHeight=roomTop+roomsHeight+garageGap+26;
   const lanes=rooms.map((room,roomIndex)=>{
    const rowHeight=roomHeights[roomIndex];
-   const rows=((history?this.history:this.statusHistory)||[]).filter(r=>r.room_id===room.id).sort((a,b)=>a.time-b.time),y=roomTop+roomHeights.slice(0,roomIndex).reduce((sum,height)=>sum+height,0)+(isGarage(room)?garageGap:0);
+   const rows=(roomHistory.get(room.id)||[]).sort((a,b)=>a.time-b.time);
+   const y=roomTop+roomHeights.slice(0,roomIndex).reduce((sum,height)=>sum+height,0)+(isGarage(room)?garageGap:0);
    const plan=this.info.data?.rooms?.[room.id]?.plan;
    const commands=[...(plan?.commands||[])].sort((a,b)=>new Date(a.time)-new Date(b.time));
    const recorded=rows.map((r,i)=>({start:r.time*1000,end:Math.min((rows[i+1]?.time??(r.time+300))*1000,r.time*1000+1800000,now),suggested_heat:r.suggested_heat,activity:r.activity,recorded:true,next:rows[i+1],previous:rows[i-1]}));
    const planned=commands.map((c,i)=>({start:Math.max(now,new Date(c.time).getTime()),originalStart:new Date(c.time).getTime(),end:commands[i+1]?new Date(commands[i+1].time).getTime():end,suggested_heat:c.action==='raise',activity:null}));
-   const pastRelays=recorded.map(v=>({...v,suggested_heat:v.activity,next:v.next?{...v.next,suggested_heat:v.next.activity}:undefined,previous:v.previous?{...v.previous,suggested_heat:v.previous.activity}:undefined}));
-   const intervals=history?[...recorded,...planned]:[...pastRelays,...planned];
    const air=isAirRoom(room);
    const laneTop=compact?24:0;
    if(air){
@@ -2209,7 +2222,7 @@ class ThermalPilotPanel extends HTMLElement {
    }
    const actualSummary=heatingSummary(recorded.filter(period=>period.activity===1),false);
    const planSummary=heatingSummary(planned.filter(period=>period.suggested_heat),true);
-   const lane=(key,offset,color)=>{
+   const marks=(intervals,key,offset)=>{
     // Adjacent On observations form one period; never join gaps or unknown states.
     const periods=[];
     for(const v of intervals){
@@ -2220,18 +2233,26 @@ class ThermalPilotPanel extends HTMLElement {
      if(previous&&previous.end===v.start&&previous.recorded===v.recorded){previous.end=v.end;previous.stopped=stopped;}
      else periods.push({...v,started,stopped});
     }
-    return `<rect x="${left}" y="${y+laneTop+offset}" width="${width}" height="14" rx="3" fill="var(--tp-track,#e5ebee)"/>`+periods.map(v=>{
+    return periods.map(v=>{
      const a=Math.max(start,v.start),b=Math.min(end,v.end);
+     if(b<=a)return '';
      const label=key==='activity'||(!history&&v.recorded)?'Actual relay':'Suggested heating';
      const tooltipStart=v.originalStart??v.start;
      const detail=`${room.name} · ${label} On\n${v.recorded&&!v.started?'First observed On':'Start'}: ${timeLabel(tooltipStart)}\n${v.recorded&&!v.stopped?'Observed until':'Stop'}: ${timeLabel(v.end)}\n${v.recorded?'Observed duration':'Duration'}: ${durationLabel(v.end-tooltipStart)}${v.recorded?'\nTimes are based on recorded observations; gaps are not filled.':''}${v.recorded?(key==='activity'||!history?actualSummary:''):planSummary}`;
-     return b>a?`<rect ${detailAttributes(detail)} x="${x(a)}" y="${y+laneTop+offset}" width="${(b-a)/span*width}" height="14" fill="${!history&&v.recorded?'#EC7063':key==='suggested_heat'?'url(#suggested-heating-stripes)':color}"></rect>`:'';
+     const color=label==='Actual relay'?'#EC7063':'url(#suggested-heating-stripes)';
+     return `<rect ${detailAttributes(detail)} x="${x(a)}" y="${y+laneTop+offset}" width="${(b-a)/span*width}" height="14" fill="${color}"></rect>`;
     }).join('');
    };
-   const suggestedLane=showSuggestedHeating?lane('suggested_heat',0,'#EC7063'):'';
-   const recordedLane=history?lane('activity',twoRoomLanes?18:0,'#EC7063'):'';
-   const nameY=y+(!compact&&twoRoomLanes?7:-1);
-   return `<g class="chart-timeline-row"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'var(--tp-garage-alt,#e9e1d8)':'var(--tp-garage,#eee8e1)'):(roomIndex%2?'var(--tp-row-alt,#f1f4f7)':'var(--tp-row,#f0f5f3)')}"/><foreignObject x="20" y="${nameY}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'var(--primary-text-color,#253f49)')}</foreignObject>${temperatureLabel(room,y)}${suggestedLane}${recordedLane}</g>`;
+   const track=offset=>`<rect x="${left}" y="${y+laneTop+offset}" width="${width}" height="14" rx="3" fill="var(--tp-track,#e5ebee)"/>`;
+   let timeline;
+   if(showPastSuggestions){
+    timeline=track(0)+marks([...recorded,...planned],'suggested_heat',0)+track(18)+marks(recorded,'activity',18);
+   }else{
+    // Recorded activity ends at Now, where the current plan can take over the same lane.
+    timeline=track(0)+marks(recorded,'activity',0)+marks(planned,'suggested_heat',0);
+   }
+   const nameY=y+(!compact&&showPastSuggestions?7:-1);
+   return `<g class="chart-timeline-row"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'var(--tp-garage-alt,#e9e1d8)':'var(--tp-garage,#eee8e1)'):(roomIndex%2?'var(--tp-row-alt,#f1f4f7)':'var(--tp-row,#f0f5f3)')}"/><foreignObject x="20" y="${nameY}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'var(--primary-text-color,#253f49)')}</foreignObject>${temperatureLabel(room,y)}${timeline}</g>`;
   });
   let zoneY=zoneStart;
   const zoneHeading=zones.length?`<text x="${manualNames?76:20}" y="${zoneY-9}" fill="var(--primary-text-color,#76532b)" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Zones'))}</text>`:'';
@@ -2241,7 +2262,7 @@ class ThermalPilotPanel extends HTMLElement {
    const showPlan=!history&&tariff;
    const laneTop=compact?26:0,zoneHeight=compact?50:26;
    zoneY+=zoneHeight+roomGap;
-   const rows=((history?this.history:this.statusHistory)||[]).filter(row=>row.zone_id===zone.id).sort((a,b)=>a.time-b.time);
+   const rows=(zoneHistory.get(zone.id)||[]).sort((a,b)=>a.time-b.time);
    const observed=mode=>{
     const periods=[];
     rows.forEach((row,index)=>{
@@ -2274,9 +2295,8 @@ class ThermalPilotPanel extends HTMLElement {
    return `<g class="chart-timeline-row" data-zone-timeline="${escapeHTML(zone.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${zoneHeight}" rx="6" fill="var(--tp-zone,#f5f0e8)"/><foreignObject x="20" y="${compact?y-2:y-5+(zoneHeight-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(zone.name,'zone:'+zone.id,history,'var(--primary-text-color,#76532b)')}</foreignObject>${temperatureLabel(zone,y,true)}${track('Activity',0,'#EC7063',[...observed('heat'),...observed('cool'),...planned].sort((a,b)=>a.start-b.start))}</g>`;
   }).join('');
   const suggestedKey='<b aria-hidden="true" style="display:inline-block;width:24px;height:10px;border-radius:2px;background:repeating-linear-gradient(135deg,#F39C12 0 4px,#f6bf65 4px 6px)"></b> Suggested heating window';
-  const suggestedLegend=history
-    ?`<button type="button" data-suggested-heating-legend data-history-plan-toggle aria-pressed="${showSuggestedHeating}">${suggestedKey}</button>`
-    :`<span data-suggested-heating-legend>${suggestedKey}</span>`;
+  const suggestedLegend=`<span data-suggested-heating-legend>${suggestedKey}</span>`;
+  const pastSuggestionsToggle=`<label class="history-plan-toggle"><span>Hide past plans</span><input type="checkbox" class="setting-toggle" role="switch" data-history-plan-toggle ${showPastSuggestions?'':'checked'}></label>`;
   const timelineLegend=`<foreignObject data-timeline-legend x="8" y="${roomTop-timelineLegendHeight-36}" width="${viewWidth-28}" height="${timelineLegendHeight}"><div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;flex-wrap:wrap;gap:8px 18px;font:13px system-ui;line-height:20px;color:var(--primary-text-color,#213547)"><span data-heating-legend><b style="color:#EC7063">■</b> ${escapeHTML(this.t('Heating'))}</span>${zones.length||rooms.some(room=>airRoom(room,this.settings)||this.info.data?.rooms?.[room.id]?.air_control||(!isGarage(room)&&this.settings.house_heat_source==='air_to_air'))?`<span data-cooling-legend><b style="color:#3498DB">■</b> ${escapeHTML(this.t("Cooling"))}</span>`:''}${suggestedLegend}</div></foreignObject>`;
   const activePrice=published.find(slot=>slot.time<=now&&now<slot.end);
   const totalPriceValue=activePrice?new Intl.NumberFormat(this.settings?.language||'en',{minimumFractionDigits:2,maximumFractionDigits:2}).format(activePrice.price):'—';
@@ -2296,12 +2316,11 @@ class ThermalPilotPanel extends HTMLElement {
 .price-card{--tp-chart-card:color-mix(in srgb,#2196f3 7%,var(--card-background-color,#fff));--tp-chart-surface:color-mix(in srgb,var(--card-background-color,#fff) 85%,var(--tp-chart-card));--tp-track:color-mix(in srgb,var(--primary-text-color,#213547) 9%,var(--card-background-color,#fff));--tp-row:color-mix(in srgb,#008577 6%,var(--card-background-color,#fff));--tp-row-alt:color-mix(in srgb,#2196f3 6%,var(--card-background-color,#fff));--tp-garage:color-mix(in srgb,#91785e 22%,var(--card-background-color,#fff));--tp-garage-alt:color-mix(in srgb,#91785e 28%,var(--card-background-color,#fff));--tp-zone:color-mix(in srgb,#b58950 12%,var(--card-background-color,#fff));color:var(--primary-text-color,#213547)}
 .price-chart-viewport svg text{fill:var(--primary-text-color,#213547)}
 .manual-name{display:flex;align-items:center;gap:4px;font:600 13px system-ui;line-height:22px}.manual-label{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.manual-slot{display:flex;align-items:center;justify-content:center;width:24px;min-width:24px;height:22px}.manual-icon{display:flex;align-items:center;justify-content:center;width:24px;height:22px;box-sizing:border-box;padding:3px;border:0;background:transparent;border-radius:50%;color:#8b9ba2;cursor:pointer}.manual-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}.manual-icon[data-manual-mode="heat"]:hover,.manual-icon[data-manual-mode="heat"].active{color:#d85345;background:#ffe1dc}.manual-icon[data-manual-mode="cool"]:hover,.manual-icon[data-manual-mode="cool"].active{color:#1689cc;background:#dceffc}.manual-icon[data-manual-mode="heat"].active svg{fill:currentColor}.manual-icon.manual-session{box-shadow:0 0 0 1.5px currentColor}.manual-icon:focus-visible{outline:2px solid var(--primary-color,#007f8b);outline-offset:1px}.manual-icon:disabled{opacity:.65;cursor:default}
-[data-history-plan-toggle]{display:inline-flex;align-items:center;gap:4px;padding:3px 5px;border:0;border-radius:4px;background:transparent;color:inherit;font:inherit;cursor:pointer}
-[data-history-plan-toggle]:hover{background:var(--tp-track,#e5ebee)}
-[data-history-plan-toggle]:focus-visible{outline:2px solid var(--primary-color,#007f8b);outline-offset:-2px}
-[data-history-plan-toggle][aria-pressed="false"]{color:var(--secondary-text-color,#526b75);text-decoration:line-through}
-[data-history-plan-toggle][aria-pressed="false"] b{opacity:.45}
-.chart-row-background{transition:filter 120ms ease}.chart-timeline-row:hover>.chart-row-background,.chart-timeline-row:focus-within>.chart-row-background{filter:drop-shadow(0 2px 6px color-mix(in srgb,var(--primary-text-color,#213547) 40%,transparent))}@media(prefers-reduced-motion:reduce){.chart-row-background{transition:none}}</style><section class="price-card" style="background:var(--tp-chart-card,#edf4fa);margin-bottom:24px">${heading}${history?`<div class="chart-toolbar" style="display:flex;justify-content:flex-end;margin:12px 0">${this.historyPeriodSelector()}</div>`:''}${history&&!values.length?'<p>No electricity prices are available for this period. Recorded thermostat activity is shown below.</p>':''}<div class="price-chart-viewport" style="overflow-x:auto;background:var(--tp-chart-surface,#ffffffb3);border-radius:10px;padding:12px"><svg data-range-start="${start}" data-range-end="${end}" viewBox="0 0 ${viewWidth} ${chartHeight+chartOffset}" role="${history||manualNames?'group':'img'}" aria-label="Electricity prices with heating timelines for rooms and zones" style="width:100%;min-width:0;height:${chartHeight+chartOffset}px;max-height:none;display:block"><defs><pattern id="suggested-heating-stripes" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" fill="#F39C12"/><rect width="2" height="8" fill="#f6bf65"/></pattern></defs>${cop.svg}<g transform="translate(0 ${cop.height})">${weather.svg}</g><g transform="translate(0 ${chartOffset})">${visibility.prices?`${priceCaption}${ticks}${bars}${labelRow(157+priceHeaderHeight)}`:labelRow(25)}${timelineLegend}${ordinaryRooms.length?`<text x="${manualNames?76:20}" y="${roomTop-20}" fill="var(--primary-text-color,#253f49)" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Rooms'))}</text>`:''}${lanes.slice(0,ordinaryRooms.length).join('')}${zoneHeading}${zoneLanes}${garageHeading}${lanes.slice(ordinaryRooms.length).join('')}${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="${top}" y2="${chartHeight-26}" stroke="var(--secondary-text-color,#526b75)" stroke-dasharray="4 4" stroke-width="1"/><text x="${x(now)}" y="${12+priceHeaderHeight}" text-anchor="middle" fill="var(--secondary-text-color,#526b75)" font-size="11">Now</text>`:''}${labelRow(chartHeight-8)}</g>${dayLines}</svg><div class="chart-tooltip" role="tooltip" hidden></div></div>${dashboard?'':`<details class="retention-help chart-help"><summary>${escapeHTML(this.t('About this chart'))}</summary><small data-chart-notes style="display:block;margin-top:10px;color:var(--secondary-text-color,#526b75)">${["All room timelines share the price chart’s time axis.",...(zones.length?["Zone rows show recorded heating and cooling only; off and standby periods stay empty. Plan adds suggested heating only for tariff-optimized zones."]:[]),...(history?["The selected period controls past history. Today and tomorrow are included when prices are published. Recorded activity is shown before now; future suggestions follow the current plan. Price gaps stay empty."]:[]),"Times align to 15-minute boundaries; wider views show fewer labels. Hover, focus or tap a price bar or heating period for details."].map(note=>escapeHTML(this.t(note))).join(' ')}</small></details>`}${dashboard?'':'</div></details>'}</section>`;
+.chart-toolbar{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:12px 20px;margin:12px 0}
+.chart-toolbar .history-period{margin-left:0}
+.history-plan-toggle{display:inline-flex;flex-direction:row;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.history-plan-toggle .setting-toggle{flex-shrink:0;margin:0;align-self:center}
+.chart-row-background{transition:filter 120ms ease}.chart-timeline-row:hover>.chart-row-background,.chart-timeline-row:focus-within>.chart-row-background{filter:drop-shadow(0 2px 6px color-mix(in srgb,var(--primary-text-color,#213547) 40%,transparent))}@media(prefers-reduced-motion:reduce){.chart-row-background{transition:none}}</style><section class="price-card" style="background:var(--tp-chart-card,#edf4fa);margin-bottom:24px">${heading}${history?`<div class="chart-toolbar">${pastSuggestionsToggle}${this.historyPeriodSelector()}</div>`:''}${history&&!values.length?'<p>No electricity prices are available for this period. Recorded thermostat activity is shown below.</p>':''}<div class="price-chart-viewport" style="overflow-x:auto;background:var(--tp-chart-surface,#ffffffb3);border-radius:10px;padding:12px"><svg data-range-start="${start}" data-range-end="${end}" viewBox="0 0 ${viewWidth} ${chartHeight+chartOffset}" role="${history||manualNames?'group':'img'}" aria-label="Electricity prices with heating timelines for rooms and zones" style="width:100%;min-width:0;height:${chartHeight+chartOffset}px;max-height:none;display:block"><defs><pattern id="suggested-heating-stripes" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)"><rect width="8" height="8" fill="#F39C12"/><rect width="2" height="8" fill="#f6bf65"/></pattern></defs>${cop.svg}<g transform="translate(0 ${cop.height})">${weather.svg}</g><g transform="translate(0 ${chartOffset})">${visibility.prices?`${priceCaption}${ticks}${bars}${labelRow(157+priceHeaderHeight)}`:labelRow(25)}${timelineLegend}${ordinaryRooms.length?`<text x="${manualNames?76:20}" y="${roomTop-20}" fill="var(--primary-text-color,#253f49)" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Rooms'))}</text>`:''}${lanes.slice(0,ordinaryRooms.length).join('')}${zoneHeading}${zoneLanes}${garageHeading}${lanes.slice(ordinaryRooms.length).join('')}${now>start&&now<end?`<line x1="${x(now)}" x2="${x(now)}" y1="${top}" y2="${chartHeight-26}" stroke="var(--secondary-text-color,#526b75)" stroke-dasharray="4 4" stroke-width="1"/><text x="${x(now)}" y="${12+priceHeaderHeight}" text-anchor="middle" fill="var(--secondary-text-color,#526b75)" font-size="11">Now</text>`:''}${labelRow(chartHeight-8)}</g>${dayLines}</svg><div class="chart-tooltip" role="tooltip" hidden></div></div>${dashboard?'':`<details class="retention-help chart-help"><summary>${escapeHTML(this.t('About this chart'))}</summary><small data-chart-notes style="display:block;margin-top:10px;color:var(--secondary-text-color,#526b75)">${["All room timelines share the price chart’s time axis.",...(zones.length?["Zone rows show recorded heating and cooling only; off and standby periods stay empty. Plan adds suggested heating only for tariff-optimized zones."]:[]),...(history?["The selected period controls past history. Today and tomorrow are included when prices are published. Recorded activity is shown before now; future suggestions follow the current plan. Price gaps stay empty."]:[]),"Times align to 15-minute boundaries; wider views show fewer labels. Hover, focus or tap a price bar or heating period for details."].map(note=>escapeHTML(this.t(note))).join(' ')}</small></details>`}${dashboard?'':'</div></details>'}</section>`;
   }
   mountPriceChartSizing(){
     this.priceResizeObserver?.disconnect();
@@ -2359,14 +2378,6 @@ class ThermalPilotPanel extends HTMLElement {
     viewport.addEventListener('focusin',show);
     viewport.addEventListener('focusout',hide);
     viewport.addEventListener('click',event=>{
-      if(event.target.closest?.('[data-history-plan-toggle]')){
-        const key='chart:suggested-heating';
-        this.saveHistorySection(key,!this.historySectionOpen(key));
-        hide();
-        this.replacePriceChartSvg(viewport,true);
-        viewport.querySelector('[data-history-plan-toggle]')?.focus({preventScroll:true});
-        return;
-      }
       const manual=event.target.closest?.('[data-manual-id]');
       if(manual?.dataset?.manualId){
         event.preventDefault();event.stopPropagation();
@@ -2762,6 +2773,11 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
   saveHistorySection(section,open){
     this.historySectionState[section]=open;
     try{globalThis.localStorage?.setItem(this.historySectionStorageKey,JSON.stringify(this.historySectionState));}catch(error){}
+  }
+  setPastHeatingSuggestions(visible){
+    this.saveHistorySection('chart:suggested-heating',visible);
+    const viewport=this.shadowRoot.querySelector('.price-chart-viewport');
+    if(viewport)this.replacePriceChartSvg(viewport,true);
   }
   bindHistorySections(){
     this.historySectionOpen('about');
@@ -3526,6 +3542,8 @@ details{scroll-margin-block:16px}
     }));
     this.shadowRoot.querySelector('#add-zone')?.addEventListener('click',()=>{this.capture();this.settings.heating_zones??=[];const zone={...this.info.zone_defaults,id:roomId()};this.settings.heating_zones.push(zone);this.render();const accordion=this.shadowRoot.querySelector(`[data-settings-disclosure="${zone.id}"]`);if(accordion)accordion.open=true;});
     this.shadowRoot.querySelectorAll('[data-remove-zone]').forEach(button=>button.addEventListener('click',()=>{this.capture();const zone=this.settings.heating_zones[Number(button.dataset.removeZone)];if(!confirm(this.t('Remove zone')+' '+zone.name+'?'))return;this.settings.heating_zones.splice(Number(button.dataset.removeZone),1);this.settings.rooms.forEach(room=>{if(room.heating_zone_id===zone.id){room.heating_zone_id='';}});this.render();}));
+    const pastSuggestionsToggle=this.shadowRoot.querySelector('[data-history-plan-toggle]');
+    pastSuggestionsToggle?.addEventListener('change',()=>this.setPastHeatingSuggestions(!pastSuggestionsToggle.checked));
     this.shadowRoot.querySelectorAll('[data-history-period]').forEach(select=>select.addEventListener('change',event=>this.setHistoryPeriod(event.target.value,event.target.id)));
   }
 }

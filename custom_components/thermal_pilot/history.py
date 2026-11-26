@@ -269,26 +269,58 @@ class HistoryDatabase:
             }
 
     def read(self, cutoff: float) -> list[dict[str, Any]]:
+        """Return complete observations and forecast comparisons for the period."""
+        return self._read_observations(cutoff, cutoff)
+
+    def read_chart(
+        self, cutoff: float, forecast_cutoff: float | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return the chart fields, matching forecasts only for the room charts."""
+        fields = (
+            'room_id', 'time', 'activity', 'suggested_heat', 'pump_mode', 'pump_basis', 'pump_entity',
+            'zone_id', 'zone_mode', 'zone_basis', 'zone_entity', 'outdoor', 'water',
+        )
+        if forecast_cutoff is not None:
+            # A forecast due just before the room chart starts can still match
+            # an observation inside it.
+            forecast_cutoff = max(cutoff, forecast_cutoff - 300)
+            fields += ('price', 'temperature')
+            fields += tuple(f'forecast_{hours}h{suffix}'
+                            for hours in (1, 3, 6) for suffix in ('', '_details'))
+        rows = self._read_observations(cutoff, forecast_cutoff)
+        return [{key: row[key] for key in fields if key in row} for row in rows]
+
+    def _read_observations(
+        self, cutoff: float, forecast_cutoff: float | None,
+    ) -> list[dict[str, Any]]:
         """Match frozen forecasts to observations within five minutes of their due time.
 
         Include earlier observations while matching so heating-context checks cover
         the full forecast interval, then return only the requested display period.
         """
+        # The indexed timestamp is the bucket start, while payloads hold the
+        # actual observation time. Include the cutoff bucket, then trim by time.
+        read_from = int(cutoff) // 300 * 300
+        if forecast_cutoff is not None:
+            read_from = min(read_from, int(forecast_cutoff - 6 * 3600 - 300))
         with self._connect() as connection:
             all_rows = [json.loads(row[0]) for row in connection.execute(
                 'SELECT payload FROM observations WHERE time >= ? ORDER BY time,room_id',
-                (int(cutoff - 6 * 3600 - 300),),
+                (read_from,),
             )]
             zone_rows = [json.loads(row[0]) for row in connection.execute(
                 'SELECT payload FROM zone_observations WHERE time >= ? ORDER BY time,zone_id',
                 (int(cutoff),),
             )]
-            forecasts = [(room_id, json.loads(payload)) for room_id, payload in connection.execute(
-                'SELECT room_id,payload FROM forecasts WHERE due >= ? ORDER BY due', (cutoff,),
-            )]
+            forecasts = []
+            if forecast_cutoff is not None:
+                forecasts = [(room_id, json.loads(payload)) for room_id, payload in connection.execute(
+                    'SELECT room_id,payload FROM forecasts WHERE due >= ? ORDER BY due', (forecast_cutoff,),
+                )]
         grouped = {}
-        for row in all_rows:
-            grouped.setdefault(row['room_id'], []).append(row)
+        if forecasts:
+            for row in all_rows:
+                grouped.setdefault(row['room_id'], []).append(row)
         times = {room_id: [row['time'] for row in rows] for room_id, rows in grouped.items()}
         for room_id, forecast in forecasts:
             rows = grouped.get(room_id, [])

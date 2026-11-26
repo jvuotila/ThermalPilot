@@ -82,6 +82,30 @@ class HistoryTests(unittest.TestCase):
         self.assertIn('forecast_6h',matched)
         self.assertIsNone(matched['forecast_6h_details']['heating_match'])
 
+    def test_chart_history_projects_fields_and_matches_only_recent_forecasts(self):
+        self.db.record_forecasts(self.forecast_room(), 0, -1)
+        observations = self.observed_forecast_rows()
+        observations[1].update(time=305, water=31, suggested_heat=1, price=17)
+        self.db.append(observations, -1)
+        zone = {'room_id': 'zone:one', 'zone_id': 'one', 'time': 900, 'zone_mode': 'cool'}
+        self.db.append_zones([zone], -1)
+
+        plan = self.db.read_chart(304)
+        self.assertEqual(plan[0], {'room_id': 'test', 'time': 305, 'activity': 1,
+                                   'outdoor': -10, 'water': 31, 'suggested_heat': 1})
+        self.assertIn(zone, plan)
+        self.assertFalse(any('forecast_3h' in row for row in plan))
+
+        history = {row['time']: row for row in self.db.read_chart(304, 10900)
+                   if row['room_id'] == 'test'}
+        self.assertEqual(history[305]['price'], 17)
+        self.assertEqual(history[305]['suggested_heat'], 1)
+        self.assertNotIn('forecast_1h', history[3600])
+        full = {row['time']: row for row in self.db.read(304) if row['room_id'] == 'test'}
+        self.assertEqual(history[10800]['forecast_3h_details'], full[10800]['forecast_3h_details'])
+        self.assertEqual(history[21600]['forecast_6h_details'], full[21600]['forecast_6h_details'])
+        self.assertNotIn('forecast_context', history[21600])
+
     def test_different_actual_heating_is_reported_and_context_changes_are_excluded(self):
         self.db.record_forecasts(self.forecast_room(demand=True),0,-1)
         self.db.append(self.observed_forecast_rows(activity=0),-1)

@@ -350,31 +350,39 @@ console.log('Price chart layout checks passed (immediate container measurement, 
  panel.info=pricePanel.info;
  panel.historyHours=48;
  panel.history=[{room_id:'r0',time:priceTime/1000,price:60,suggested_heat:1,activity:1}];
+ const marks=(html,fill)=>[...html.matchAll(/<rect data-chart-detail="[\s\S]*?"[^>]* x="([^"]+)" y="([^"]+)" width="([^"]+)"[^>]* fill="([^"]+)"/g)]
+   .filter(mark=>mark[4]===fill).map(mark=>({x:Number(mark[1]),y:Number(mark[2]),width:Number(mark[3])}));
+ const stripes='url(#suggested-heating-stripes)';
  let historyHTML=panel.priceChart(true);
- assert.match(historyHTML,/data-history-plan-toggle aria-pressed="true"/);
- assert.match(historyHTML,/fill="url\(#suggested-heating-stripes\)"/);
- const events={};
- let focusCount=0;
- const chartViewport={
-  addEventListener:(name,callback)=>{events[name]=callback;},
-  querySelector:selector=>selector==='[data-history-plan-toggle]'?{focus:()=>focusCount++}:null,
- };
+ assert.match(historyHTML,/<label class="history-plan-toggle"><span>Hide past plans<\/span><input/);
+ assert.match(historyHTML,/\.history-plan-toggle\{[^}]*flex-direction:row/);
+ assert.match(historyHTML,/role="switch" data-history-plan-toggle >/);
+ assert.equal(marks(historyHTML,stripes).length,2);
+ const chartViewport={};
+ panel.shadowRoot.querySelector=selector=>selector==='.price-chart-viewport'?chartViewport:null;
  panel.replacePriceChartSvg=(_viewport,history)=>{historyHTML=panel.priceChart(history);};
- panel.bindChartDetails(chartViewport);
- const clickLegend=()=>events.click({target:{closest:selector=>selector==='[data-history-plan-toggle]'?{}:null}});
- clickLegend();
- assert.match(historyHTML,/data-history-plan-toggle aria-pressed="false"/);
- assert.doesNotMatch(historyHTML,/fill="url\(#suggested-heating-stripes\)"/);
+ panel.setPastHeatingSuggestions(false);
+ assert.match(historyHTML,/role="switch" data-history-plan-toggle checked/);
+ const upcoming=marks(historyHTML,stripes);
+ const [recorded]=marks(historyHTML,'#EC7063');
+ assert.equal(upcoming.length,1);
+ assert.equal(upcoming[0].y,recorded.y);
+ assert.ok(upcoming[0].x>=recorded.x+recorded.width-0.000001);
  assert.match(historyHTML,/Actual relay On/);
+ assert.match(historyHTML,/Upcoming plan in displayed period/);
  assert.match(historyHTML,/height:630px/);
- assert.equal(focusCount,1);
  const restored=new Component();
  assert.equal(restored.historySectionOpen('chart:suggested-heating'),false);
  assert.match(panel.priceChart(false),/Suggested heating On/);
- assert.doesNotMatch(panel.priceChart(false),/<button[^>]*data-history-plan-toggle/);
- clickLegend();
- assert.match(historyHTML,/data-history-plan-toggle aria-pressed="true"/);
+ assert.doesNotMatch(panel.priceChart(false),/role="switch" data-history-plan-toggle/);
+ panel.setPastHeatingSuggestions(true);
+ assert.match(historyHTML,/role="switch" data-history-plan-toggle >/);
+ const separatePlans=marks(historyHTML,stripes);
+ assert.equal(separatePlans.length,2);
+ assert.notEqual(separatePlans[1].y,marks(historyHTML,'#EC7063')[0].y);
  assert.match(historyHTML,/height:810px/);
+ const enabled=new Component();
+ assert.equal(enabled.historySectionOpen('chart:suggested-heating',false),true);
  delete context.localStorage;
 }
 

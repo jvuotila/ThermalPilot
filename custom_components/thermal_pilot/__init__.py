@@ -264,7 +264,7 @@ async def ws_plan_chart(hass, connection, msg):
     room_data_keys = ('air_control', 'is_garage')
     if include_manual_controls:
         room_data_keys += ('actual_activity',)
-    rows = await hass.async_add_executor_job(coordinator.history_db.read, dt_util.utcnow().timestamp() - 48 * 3600)
+    rows = await hass.async_add_executor_job(coordinator.history_db.read_chart, dt_util.utcnow().timestamp() - 48 * 3600)
     def subset(value,keys):return {key: value[key] for key in keys if key in value}
     settings = coordinator.settings
     data = coordinator.data or {}
@@ -359,15 +359,21 @@ async def ws_save(hass, connection, msg):
 @websocket_api.websocket_command({
     vol.Required('type'):'thermal_pilot/history',
     vol.Required('entry_id'):str,
-    vol.Optional('hours',default=48):vol.All(vol.Coerce(int),vol.Range(min=1,max=2160))
+    vol.Optional('hours',default=48):vol.All(vol.Coerce(int),vol.Range(min=1,max=2160)),
+    vol.Optional('chart'):vol.In(('plan', 'history')),
 })
 @websocket_api.require_admin
 @websocket_api.async_response
 async def ws_history(hass, connection, msg):
     if (c := get_coordinator(hass, connection, msg)) is not None:
-        from homeassistant.util import dt as dt_util
-        cutoff = dt_util.utcnow().timestamp() - msg['hours'] * 3600
-        rows = await hass.async_add_executor_job(c.history_db.read, cutoff)
+        now = dt_util.utcnow().timestamp()
+        cutoff = now - msg['hours'] * 3600
+        if msg.get('chart') == 'plan':
+            rows = await hass.async_add_executor_job(c.history_db.read_chart, cutoff)
+        elif msg.get('chart') == 'history':
+            rows = await hass.async_add_executor_job(c.history_db.read_chart, cutoff, now - 24 * 3600)
+        else:
+            rows = await hass.async_add_executor_job(c.history_db.read, cutoff)
         connection.send_result(msg['id'], rows)
 
 
