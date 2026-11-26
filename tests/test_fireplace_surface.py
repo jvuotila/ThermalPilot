@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import test_coordinator
 from test_coordinator import State, now
+from thermal_pilot.config import validate
 from thermal_pilot.const import DEFAULTS, ROOM_DEFAULTS
 from thermal_pilot.fireplace_surface import (
     sample_surface, surface_gain_rates, surface_heat_forecast,
@@ -14,6 +15,30 @@ from thermal_pilot.model import Slot, initial_model, learn, plan
 
 
 class FireplaceSurfaceTests(TestCase):
+    def test_fireplace_accepts_either_sensor_or_both(self):
+        fireplace = {'name': 'Masonry fireplace', 'fireplace_active_state': ''}
+        settings = {**DEFAULTS, 'fireplaces': [fireplace]}
+        surface = 'sensor.stove_surface'
+        activity = 'binary_sensor.damper'
+        for fields in (
+            {'surface_temperature_entity': surface},
+            {'fireplace_entity': activity, 'fireplace_active_state': 'on'},
+            {'surface_temperature_entity': surface, 'fireplace_entity': activity,
+             'fireplace_active_state': 'on'},
+        ):
+            with self.subTest(fields=fields):
+                fireplace.update(fields)
+                saved = validate(settings, require_outdoor=False)['fireplaces'][0]
+                self.assertEqual({key: saved[key] for key in fields}, fields)
+                for key in fields:
+                    fireplace.pop(key)
+        with self.assertRaisesRegex(ValueError, 'Choose an activity sensor'):
+            validate(settings, require_outdoor=False)
+        fireplace.update(fireplace_entity=activity, surface_temperature_entity=surface,
+                         fireplace_active_state='unknown')
+        with self.assertRaisesRegex(ValueError, 'choose a valid state'):
+            validate(settings, require_outdoor=False)
+
     def test_learn_linked_room_response_only_from_multiple_distinct_fires(self):
         room = {**DEFAULTS, **ROOM_DEFAULTS, 'baseline': 20}
         model = initial_model(room)
@@ -68,6 +93,22 @@ class FireplaceSurfaceTests(TestCase):
         reheated = sample_surface(record, 24 * 3600, 55, 20, True)
         self.assertEqual(reheated['cycle'], 24 * 3600)
 
+    def test_surface_only_detects_reheating_without_waiting_for_a_cold_fireplace(self):
+        record = {}
+        for minute in range(0, 181, 5):
+            cooling = sample_surface(record, minute * 60, 50 - minute / 30, 20, infer_firing=True)
+        self.assertTrue(cooling['fit_allowed'])
+        spike = sample_surface(record, 185 * 60, 80, 20, infer_firing=True)
+        self.assertEqual(spike['cycle'], cooling['cycle'])
+        for minute in range(190, 306, 5):
+            warming = sample_surface(record, minute * 60, 44 + (minute - 190) / 6, 20, infer_firing=True)
+        self.assertGreater(warming['cycle'], cooling['cycle'])
+        self.assertFalse(warming['fit_allowed'])
+        for minute in range(310, 501, 5):
+            cooling_again = sample_surface(record, minute * 60, 63 - (minute - 310) / 20, 20, infer_firing=True)
+        self.assertEqual(cooling_again['cycle'], warming['cycle'])
+        self.assertTrue(cooling_again['fit_allowed'])
+
 
 class FireplaceSurfaceCoordinatorTests(IsolatedAsyncioTestCase):
     asyncSetUp = test_coordinator.CoordinatorTests.asyncSetUp
@@ -84,6 +125,7 @@ class FireplaceSurfaceCoordinatorTests(IsolatedAsyncioTestCase):
         }]
         self.hass.states[entity] = State('104', {'unit_of_measurement': '°F'})
         self.hass.states['binary_sensor.damper'] = State('off')
+        self.assertEqual(self.c.chart_temperatures()['zones']['stove'], 40)
         model = self.c.models.setdefault(room['id'], initial_model(room))
         model['fireplace_surface_gains'] = {'stove': {
             'entity': entity, 'cycles': [
@@ -107,7 +149,17 @@ class FireplaceSurfaceCoordinatorTests(IsolatedAsyncioTestCase):
         self.assertEqual(self.c.fireplace_surfaces['stove']['cycle'], now.timestamp())
         self.assertIn('stove', self.c.models[room['id']]['fireplace_surface_gains'])
 
+        self.c.settings['fireplaces'][0]['fireplace_entity'] = ''
+        self.hass.states['binary_sensor.damper'].state = 'on'
+        with patch('thermal_pilot.coordinator.plan', wraps=plan) as planner:
+            await self.c._async_update_data()
+        settings, *_, legacy_compensation = planner.call_args.args
+        self.assertFalse(legacy_compensation)
+        self.assertGreater(settings['fireplace_heat_forecast'][0], 0)
+        self.c.settings['fireplaces'][0]['fireplace_entity'] = 'binary_sensor.damper'
+
         self.hass.states[entity].last_reported = now - timedelta(hours=4)
+        self.assertIsNone(self.c.chart_temperatures()['zones']['stove'])
         self.hass.states['binary_sensor.damper'].state = 'on'
         with patch('thermal_pilot.coordinator.plan', wraps=plan) as planner:
             await self.c._async_update_data()

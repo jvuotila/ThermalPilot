@@ -2,6 +2,7 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Choose an activity sensor, a surface temperature sensor, or both.",
     "Fireplace surface temperature sensor": "Fireplace surface temperature sensor",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.",
     "Expensive electricity threshold (c/kWh)": "Expensive electricity threshold (c/kWh)",

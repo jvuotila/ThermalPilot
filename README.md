@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.122 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.123 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -136,8 +136,10 @@ observation history; the room then needs fresh heating and idle observations.
 
 ## Fireplace surface temperature
 
-Under **Heating and Cooling → Fireplaces**, select an optional surface
-temperature sensor and link the rooms the fireplace actually warms.
+Under **Heating and Cooling → Fireplaces**, select an activity sensor, a
+surface temperature sensor, or both. Link the rooms the fireplace actually
+warms. With a surface sensor alone, ThermalPilot uses sustained surface
+temperature rises to identify another firing while the masonry is still warm.
 ThermalPilot compares the surface reading with the air temperature in each
 linked room and learns how much the cooling fireplace helps that room. It needs
 usable observations from at least two separate firings before it can credit
@@ -145,9 +147,10 @@ stored heat in the heating plan. A masonry fireplace can still contribute long
 after its damper closes. The estimate tapers with the observed cooling trend
 and the planner continues to enforce the configured room temperature limits.
 
-The activity sensor still drives configured heat-pump circulation. Existing
-fireplace compensation remains available while the surface estimate is learning
-or the sensor is unavailable.
+An activity sensor is required for automatic heat-pump circulation. When both
+sensors are configured, the activity reading also marks firings for the surface
+estimate. Existing activity-based compensation remains available while the
+surface estimate is learning or the surface sensor is unavailable.
 
 ## Heating circuits sharing an open space
 

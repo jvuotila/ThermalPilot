@@ -98,6 +98,7 @@ const settingHelp = {
   garage_door_delay:'One shared delay starts when the first selected door opens. Heating switches to fan-only after this many seconds while any selected door remains open. The timer resets when all selected doors are closed.',
   garage_presence_entities:'Presence sensors lower the fan speed to the selected occupied fan mode for more comfortable use of the garage. Any selected sensor detecting someone activates this mode. Normal heating or standby fan speed resumes when no selected sensor detects presence.',
 
+  fireplace_entity: 'Choose an activity sensor, a surface temperature sensor, or both.',
   fireplace_active_state: 'A door/window contact sensor can monitor the fireplace damper position. Select the sensor state that means the fireplace is in use. For a damper contact sensor, Open normally means active and Closed means inactive. Door/window labels are converted to Home Assistant’s underlying on/off values. Other sensors show their declared options, current valid state and any saved value. A contact state indicates the damper position; it does not prove that a fire is burning.',
   surface_temperature_entity: 'Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.',
   language: 'Choose the interface language. Room and entity names remain unchanged. Save settings to keep the choice. Embedded history cards follow this choice where supported by Home Assistant.',
@@ -1204,6 +1205,10 @@ class ThermalPilotPanel extends HTMLElement {
       const itemLabel=isRoomList?'Room':'Fireplace';
       input=`<span class="sensor-list" data-entity-list="${name}">${selected.map((id,index)=>{
         const options=choices.filter(candidate=>candidate.id===id||!selected.includes(candidate.id));
+        if(!isRoomList&&id&&!options.some(option=>option.id===id)){
+          const existing=this.settings.fireplaces?.find(fireplace=>fireplace.id===id);
+          if(existing)options.unshift(existing);
+        }
         return `<span class="sensor-list-row"><select data-entity-item data-fireplace-link aria-label="${escapeHTML(this.t(itemLabel))} ${index+1}">
           <option value="">— Select / not used —</option>
           ${options.map(option=>`<option data-user-text value="${escapeHTML(option.id)}" ${option.id===id?'selected':''}>${escapeHTML(option.name)}</option>`).join('')}
@@ -1467,10 +1472,11 @@ class ThermalPilotPanel extends HTMLElement {
       <button id="add-fireplace" type="button">Add fireplace</button></section>`;
   }
   zoneFireplaceSettings(zone,index){
-    if((zone.source_type||'air_to_air')!=='air_to_air'||!zone.thermostat||!(this.settings.fireplaces||[]).length)return '';
+    const sources=(this.settings.fireplaces||[]).filter(fireplace=>fireplace.name&&fireplace.fireplace_entity);
+    if((zone.source_type||'air_to_air')!=='air_to_air'||!zone.thermostat||(!sources.length&&!zone.fireplace_ids?.some(Boolean)))return '';
     const prefix=`zone${index}`;
     const links=this.field(['fireplace_ids','Linked fireplaces','fireplace_links'],zone,prefix);
-    if(!zone.fireplace_ids?.some(Boolean)||!zone.heating_enabled)return links;
+    if(!zone.heating_enabled||!sources.some(fireplace=>zone.fireplace_ids?.includes(fireplace.id)))return links;
     const circulation=this.field(['fireplace_circulation','Circulate air while a fireplace is active','bool'],zone,prefix);
     if(!zone.fireplace_circulation)return links+circulation;
     return links+circulation
@@ -2142,7 +2148,7 @@ class ThermalPilotPanel extends HTMLElement {
       const sign = adjustment > 0 ? '+' : adjustment < 0 ? '−' : '';
       detail += `: ${sign}${format.format(Math.abs(adjustment))} °C (${format.format(Number(item.baseline))} → ${format.format(Number(plan.setpoint))} °C)`;
      }
-     const arrowColor = boosted ? '#d94a43' : '#2586cf';
+     const arrowColor = 'var(--primary-text-color,#213547)';
      targetArrow = `<tspan data-target-adjustment="${boosted ? 'boost' : 'reduced'}" data-chart-detail="${escapeHTML(detail)}" tabindex="0" role="img" aria-label="${escapeHTML(detail)}" fill="${arrowColor}" style="fill:${arrowColor};font-weight:700;cursor:help"><title>${escapeHTML(detail)}</title>${boosted ? '↑' : '↓'} </tspan>`;
     }
    }

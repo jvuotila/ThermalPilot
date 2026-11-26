@@ -22,7 +22,7 @@ from .notifications import notify_away_reminder, notify_manual_door_pause, notif
 from .away import calendar_periods, change_calendar, person_count, room_exempt
 from .away import overlay_plan as away_plan
 from .away import update as update_away
-from .fireplaces import active_fireplaces
+from .fireplaces import active_fireplaces, fireplace_activity
 from .fireplace_surface import WARM_SURFACE_EXCESS, sample_surface, surface_gain_rates, surface_heat_forecast
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
 from .shared_air import room_groups, coordinate_plans
@@ -109,7 +109,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             entities.add(self.settings['tibber_price_entity'])
         responsive = {
             self.settings['solar_power_entity'],
-            *(fireplace['fireplace_entity'] for fireplace in self.settings.get('fireplaces', [])),
+            *(fireplace.get('fireplace_entity') for fireplace in self.settings.get('fireplaces', [])),
         }
         primary_rooms = resolved_rooms(self.settings)
         rooms = primary_rooms + zone_rooms(self.settings)
@@ -363,6 +363,10 @@ class PilotCoordinator(DataUpdateCoordinator):
         for room in zone_rooms(self.settings):
             if room['id'] == 'zone:' + room['heating_zone_id']:
                 zones[room['heating_zone_id']] = zone_temperature(self.hass, room, self.settings)[0]
+        now = dt_util.utcnow()
+        for fireplace in self.settings.get('fireplaces', []):
+            if entity := fireplace.get('surface_temperature_entity'):
+                zones[fireplace['id']] = self.fireplace_surface_temperature(entity, now)
 
         def target(entity):
             state = self.hass.states.get(entity) if entity else None
@@ -520,6 +524,15 @@ class PilotCoordinator(DataUpdateCoordinator):
                 'fingerprints':self.config_fingerprint,'sensor_health':self.sensor_health,'managed_rooms':self.managed_rooms,'fallback_state':self.fallback_state,
                 'heating_sessions':self.session_plans,'fireplace_surfaces':self.fireplace_surfaces}
 
+    def fireplace_surface_temperature(self, entity, now):
+        """Use the same range and freshness rules for planning and the chart."""
+        state = self.hass.states.get(entity)
+        reported = getattr(state, 'last_reported', None) or getattr(state, 'last_updated', None)
+        if reported is not None and not 0 <= (now - reported).total_seconds() <= 3 * 3600:
+            return None
+        surface = self.value(entity)
+        return surface if surface is not None and -40 <= surface <= 600 else None
+
     def read_fireplace_surfaces(self, now):
         """Read each surface once and estimate its cooling trend from recent samples."""
         readings = {}
@@ -533,25 +546,25 @@ class PilotCoordinator(DataUpdateCoordinator):
             record = self.fireplace_surfaces.get(fireplace_id, {})
             if record.get('entity') != entity:
                 record = {'entity': entity}
+            activity_entity = fireplace.get('fireplace_entity', '')
+            if record.get('activity_entity') != activity_entity:
+                record['activity_entity'] = activity_entity
+                record.pop('active', None)
+                record.pop('warming', None)
             records[fireplace_id] = record
-            state = self.hass.states.get(entity)
-            reported = (getattr(state, 'last_reported', None)
-                        or getattr(state, 'last_updated', None))
-            if reported is not None and not 0 <= (now - reported).total_seconds() <= 3 * 3600:
-                continue
-            surface = self.value(entity)
-            if surface is None or not -40 <= surface <= 600:
+            surface = self.fireplace_surface_temperature(entity, now)
+            if surface is None:
                 continue
             temperatures = [self.value(rooms[room_id]['temperature_entity'])
                             for room_id in fireplace['room_ids'] if room_id in rooms]
             room_values = [temperature for temperature in temperatures if temperature is not None]
             readings[fireplace_id] = {'temperature': surface}
             if room_values:
-                activity = self.hass.states.get(fireplace['fireplace_entity'])
-                active = None
-                if activity is not None and activity.state not in ('unknown', 'unavailable'):
-                    active = activity.state == fireplace['fireplace_active_state']
-                warm = sample_surface(record, now.timestamp(), surface, median(room_values), active)
+                warm = sample_surface(
+                    record, now.timestamp(), surface, median(room_values),
+                    fireplace_activity(self.hass, fireplace),
+                    infer_firing=not activity_entity,
+                )
                 if warm:
                     readings[fireplace_id].update(warm, entity=entity)
         self.fireplace_surfaces = records
@@ -584,7 +597,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             surface = (fireplace_surfaces or {}).get(fireplace_id)
             rows.append({'zone_id': fireplace_id, 'room_id': 'zone:' + fireplace_id, 'time': now.timestamp(),
                          'zone_mode': 'heat' if fireplace_id in active else None,
-                         'zone_basis': 'fireplace', 'zone_entity': fireplace['fireplace_entity'],
+                         'zone_basis': 'fireplace', 'zone_entity': fireplace.get('fireplace_entity', ''),
                          **({'surface_temperature': surface['temperature'],
                              'surface_temperature_entity': fireplace['surface_temperature_entity']} if surface else {})})
         return rows
@@ -1233,6 +1246,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                     # source and little or no direct solar input.
                     current['fireplace_fit_allowed'] = (
                         not current['excluded'] and not room_active_fireplaces
+                        and all(surface['fit_allowed'] for surface in room_surfaces.values())
                         and room_id not in unsafe_fireplace_fit_groups
                         and shared_fireplaces.get(room_id, set()) <= room_surfaces.keys()
                         and (current_solar is None or current_solar < 0.05)

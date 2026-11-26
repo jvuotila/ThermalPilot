@@ -2,6 +2,7 @@
   "language": "pl",
   "name": "Polski",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Wybierz czujnik aktywności, czujnik temperatury powierzchni lub oba.",
     "Fireplace surface temperature sensor": "Czujnik temperatury powierzchni kominka",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Opcjonalnie. ThermalPilot porównuje temperaturę powierzchni z pomiarami w przypisanych pomieszczeniach. Po kilku rozpaleniach może uwzględniać zgromadzone ciepło podczas stygnięcia kominka.",
     "Discard unsaved changes on both settings tabs?": "Odrzucić niezapisane zmiany na obu kartach ustawień?",

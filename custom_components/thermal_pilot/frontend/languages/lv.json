@@ -2,6 +2,7 @@
   "language": "lv",
   "name": "Latviešu",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Izvēlieties darbības sensoru, virsmas temperatūras sensoru vai abus.",
     "Fireplace surface temperature sensor": "Kamīna virsmas temperatūras sensors",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Pēc izvēles. ThermalPilot salīdzina virsmas temperatūru ar saistīto telpu mērījumiem. Pēc vairākām kurināšanas reizēm tas var ņemt vērā uzkrāto siltumu, kamēr kamīns atdziest.",
     "Discard unsaved changes on both settings tabs?": "Vai atmest nesaglabātās izmaiņas abās iestatījumu cilnēs?",

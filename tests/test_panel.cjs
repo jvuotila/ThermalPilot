@@ -1412,6 +1412,12 @@ assert.match(finnishNotesPanel.priceChart(false), /fill="url\(#suggested-heating
  currentChart.info.data.chart_temperatures.targets.rooms.kitchen=null;assert.equal(markColor('kitchen'),'var(--primary-text-color,#213547)');
  currentChart.settings.language='en';assert.match(currentChart.priceChart(false),/>20\.7 °C<\/text>/);
  currentChart.priceChartWidth=390;assert.match(currentChart.priceChart(false),/>20\.7 °C<\/text>/);
+ currentChart.settings.fireplaces=[{id:'stove',name:'Fireplace'}];
+ currentChart.info.data.chart_temperatures.zones.stove=43.2;
+ currentChart.info.data.temperature_history_entities={zones:{stove:'sensor.stove_surface'}};
+ assert.match(currentChart.priceChart(false),/data-current-temperature="stove" data-temperature-history-entity="sensor.stove_surface"[^>]*>43\.2 °C<\/text>/);
+ currentChart.info.data.chart_temperatures.zones.stove=null;
+ assert.doesNotMatch(currentChart.priceChart(false),/data-current-temperature="stove"/);
  console.log('Plan labels show localized current room/zone temperatures, hide missing values, and leave History labels unchanged.');
 }
 

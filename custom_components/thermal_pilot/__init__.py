@@ -126,6 +126,9 @@ def chart_history_entities(hass, coordinator):
             )
         if entity:
             zones[zone['id']] = entity
+    for fireplace in coordinator.settings.get('fireplaces', []):
+        if entity := fireplace.get('surface_temperature_entity'):
+            zones[fireplace['id']] = entity
     return {'rooms': rooms, 'zones': zones}
 
 
@@ -293,7 +296,8 @@ async def ws_plan_chart(hass, connection, msg):
         **({'manual_controls': coordinator.manual_controls()} if include_manual_controls else {}),
         'settings':{'language':settings.get('language','en'),'house_heat_source':settings.get('house_heat_source'),
                     'rooms':[subset(room,room_keys) for room in settings.get('rooms',[])],
-                    'heating_zones':[subset(zone,zone_keys) for zone in settings.get('heating_zones',[])]},
+                    'heating_zones':[subset(zone,zone_keys) for zone in settings.get('heating_zones',[])],
+                    'fireplaces':[subset(fireplace,('id', 'name')) for fireplace in settings.get('fireplaces',[])]},
         'data':{
             'rooms':chart_rooms,
             'zones':chart_zones,

@@ -2,6 +2,7 @@
   "language": "it",
   "name": "Italiano",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Seleziona un sensore di attività, un sensore della temperatura superficiale o entrambi.",
     "Fireplace surface temperature sensor": "Sensore della temperatura superficiale del camino",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Facoltativo. ThermalPilot confronta la temperatura superficiale con le misurazioni delle stanze associate. Dopo diversi utilizzi, può tenere conto del calore accumulato mentre il camino si raffredda.",
     "Discard unsaved changes on both settings tabs?": "Annullare le modifiche non salvate in entrambe le schede delle impostazioni?",

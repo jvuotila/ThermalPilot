@@ -2,6 +2,8 @@
   "language": "fi",
   "name": "Finnish",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Valitse tulisijan käyttötila-anturi, pintalämpöanturi tai molemmat.",
+    "Each fireplace needs a unique identifier and a name.": "Jokainen tulisija tarvitsee yksilöllisen tunnisteen ja nimen.",
     "Fireplace surface temperature sensor": "Tulisijan pintalämpöanturi",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Valinnainen. ThermalPilot vertaa tulisijan pintalämpötilaa siihen liitettyjen huoneiden lämpötiloihin. Useamman lämmityskerran jälkeen se voi huomioida varastoituneen lämmön tulisijan jäähtyessä.",
     "Fireplace surface temperature sensor: select a temperature sensor.": "Tulisijan pintalämpöanturiksi on valittava lämpötila-anturi.",

@@ -85,9 +85,13 @@ class PlanChartEndpointTests(unittest.IsolatedAsyncioTestCase):
         async def executor(fn,*args):return fn(*args)
         self.hass=types.SimpleNamespace(data={'thermal_pilot':{'one':self.coordinator}},async_add_executor_job=executor)
     async def test_read_only_snapshot_keeps_chart_fields_and_excludes_internal_data(self):
+        self.coordinator.settings['fireplaces'] = [
+            {'id': 'stove', 'name': 'Fireplace', 'surface_temperature_entity': 'sensor.private_surface'},
+        ]
         await self.handler(self.hass,self.connection,{'id':1})
         result=self.connection.result
         self.assertEqual(result['settings']['language'],'fi')
+        self.assertEqual(result['settings']['fireplaces'], [{'id': 'stove', 'name': 'Fireplace'}])
         self.assertNotIn('secret',result['settings']);self.assertNotIn('thermostat',result['settings']['heating_zones'][0])
         self.assertNotIn('model',result['data']['rooms']['room']);self.assertEqual(result['data']['chart_temperatures'],{'rooms':{'room':20.7},'zones':{'zone':19.2}})
         self.assertEqual(result['data']['rooms']['room']['plan'],{'commands':[{'time':'later','action':'raise'}],'slots':[{'end':'end'}]})

@@ -9,7 +9,7 @@ MIN_CYCLES = 2
 MAX_ROOM_HEATING_RATE = 0.5  # °C per hour credited in the planner.
 
 
-def sample_surface(record, now, surface, reference, active=None):
+def sample_surface(record, now, surface, reference, active=None, *, infer_firing=False):
     """Track a short cooling trend and identify distinct warm cycles."""
     if active is not None:
         if active and record.get('active') is False:
@@ -27,23 +27,39 @@ def sample_surface(record, now, surface, reference, active=None):
     excess = median(recent) - reference
     if excess < WARM_SURFACE_EXCESS - 0.5:
         record.pop('cycle', None)
+        record.pop('warming', None)
         return None
     if excess < WARM_SURFACE_EXCESS:
         return None
 
-    cycle = record.setdefault('cycle', now)
     # Compare half-hour medians instead of individual readings. If the surface
     # is warming, plan from its current heat and do not assume another firing.
     half_life = 4.0
-    latest = median([value for time, value in samples if time >= bucket - 1500])
+    recent_trend = [value for time, value in samples if time >= bucket - 1500]
+    latest = median(recent_trend)
     older = [value for time, value in samples if bucket - 7200 <= time < bucket - 5400]
-    if len(older) >= 3:
-        older_excess = median(older) - reference
+    cooling = False
+    if len(older) >= 3 and len(recent_trend) >= 3:
+        earlier = median(older)
+        older_excess = earlier - reference
         latest_excess = latest - reference
         if older_excess > latest_excess > 0:
             decay = log2(older_excess / latest_excess)
             half_life = min(12.0, max(1.0, 1.5 / max(decay, 0.125)))
-    return {'surface': reference + excess, 'cycle': cycle, 'half_life': half_life}
+        cooling = earlier - latest >= 0.3
+        if infer_firing:
+            if cooling:
+                record.pop('warming', None)
+            elif latest - earlier >= 3 and not record.get('warming'):
+                # A new fire can start before the masonry cools to room
+                # temperature. A sustained rise separates the two estimates.
+                record.pop('cycle', None)
+                record['warming'] = True
+    cycle = record.setdefault('cycle', now)
+    return {
+        'surface': reference + excess, 'cycle': cycle, 'half_life': half_life,
+        'fit_allowed': cooling if infer_firing else active is False,
+    }
 
 
 def learn_surface_gain(model, previous, current, hours, prediction_without_fireplace):

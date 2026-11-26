@@ -172,9 +172,9 @@ ZONE_FIELDS = [
 
 FIREPLACE_FIELDS = [
     ('name', 'Fireplace name', 'text'),
+    ('surface_temperature_entity', 'Fireplace surface temperature sensor', 'sensor', {'kind': 'temperature'}),
     ('fireplace_entity', 'Fireplace activity sensor', 'sensor,binary_sensor', {'kind': 'activity'}),
     ('fireplace_active_state', 'Fireplace active when', 'text'),
-    ('surface_temperature_entity', 'Fireplace surface temperature sensor', 'sensor', {'kind': 'temperature'}),
 ]
 
 
@@ -781,16 +781,12 @@ def validate(payload, hass=None, *, require_outdoor=True):
             attrs = state.attributes
             use_setpoints = not result['air_use_fan_only']
             required = ({'heat'} if zone['climate_mode'] == 'heat' else {'cool'} if zone['climate_mode'] == 'cool' else {'heat', 'cool'})
-            if not use_setpoints or zone['climate_mode'] != 'heat' or (zone['fireplace_ids'] and zone['fireplace_circulation']):
+            if not use_setpoints or zone['climate_mode'] != 'heat':
                 required.add('fan_only')
             if not required.issubset(attrs.get('hvac_modes', [])):
                 raise ValueError('The zone heat pump must support the selected heating/cooling modes and fan-only.')
             if not use_setpoints and zone['climate_mode'] in ('heat', 'both') and state.state == 'heat' and (not attrs.get('min_temp', 5) <= result['air_heat_target'] <= attrs.get('max_temp', 35)):
                 raise ValueError(f"{zone['name']}: heat pump heating setpoint {result['air_heat_target']:g} °C is outside device limits ({attrs.get('min_temp', 5):g}–{attrs.get('max_temp', 35):g} °C).")
-            if zone['fireplace_ids'] and zone['fireplace_circulation']:
-                for key, attribute in (('fireplace_fan', 'fan_modes'), ('fireplace_swing', 'swing_modes')):
-                    if zone[key] and zone[key] not in attrs.get(attribute, []):
-                        raise ValueError('The zone heat pump does not support the selected fireplace fan or swing mode.')
             for key,attribute in [
                 ('air_fan_heat','fan_modes'),
                 ('air_fan_idle','fan_modes'),
@@ -849,18 +845,21 @@ def validate(payload, hass=None, *, require_outdoor=True):
         except (ValueError, TypeError, AttributeError):
             raise ValueError('Invalid fireplace identifier.') from None
         check(fireplace, FIREPLACE_FIELDS)
-        entity = fireplace['fireplace_entity']
-        active_state = fireplace['fireplace_active_state']
-        if (fireplace['id'] in fireplace_ids or any(zone['id'] == fireplace['id'] for zone in result['heating_zones'])
-                or not fireplace['name'] or not entity
-                or active_state in ('', 'unknown', 'unavailable')):
-            raise ValueError('Each fireplace needs a unique identifier, a name, a sensor and a valid active state.')
-        state = hass.states.get(entity) if hass is not None else None
-        options = state.attributes.get('options') if state else None
-        allowed = ['on', 'off'] if entity.startswith('binary_sensor.') else options
-        if isinstance(allowed, list) and active_state not in allowed:
-            raise ValueError('Fireplace active when: choose a valid state of the selected sensor.')
+        activity_entity = fireplace['fireplace_entity']
         surface_entity = fireplace['surface_temperature_entity']
+        if (fireplace['id'] in fireplace_ids or any(zone['id'] == fireplace['id'] for zone in result['heating_zones'])
+                or not fireplace['name']):
+            raise ValueError('Each fireplace needs a unique identifier and a name.')
+        if not activity_entity and not surface_entity:
+            raise ValueError('Choose an activity sensor, a surface temperature sensor, or both.')
+        if activity_entity:
+            active_state = fireplace['fireplace_active_state']
+            state = hass.states.get(activity_entity) if hass is not None else None
+            options = state.attributes.get('options') if state else None
+            allowed = ['on', 'off'] if activity_entity.startswith('binary_sensor.') else options
+            if (active_state in ('', 'unknown', 'unavailable')
+                    or isinstance(allowed, list) and active_state not in allowed):
+                raise ValueError('Fireplace active when: choose a valid state of the selected sensor.')
         surface_state = hass.states.get(surface_entity) if hass is not None and surface_entity else None
         if surface_state is not None and not entity_matches(surface_state, {'kind': 'temperature'}):
             raise ValueError('Fireplace surface temperature sensor: select a temperature sensor.')
@@ -871,11 +870,21 @@ def validate(payload, hass=None, *, require_outdoor=True):
         fireplace_ids.add(fireplace['id'])
         fireplaces.append(fireplace)
     result['fireplaces'] = fireplaces
+    circulation_sources = {fireplace['id'] for fireplace in fireplaces if fireplace['fireplace_entity']}
     for zone in result['heating_zones']:
         selected = zone['fireplace_ids']
         if (not isinstance(selected, list) or any(not isinstance(item, str) for item in selected)
                 or len(selected) != len(set(selected)) or not set(selected) <= fireplace_ids):
             raise ValueError('Zone fireplaces: select each existing fireplace only once.')
+        if (hass is None or not zone['heating_enabled'] or not zone['fireplace_circulation']
+                or circulation_sources.isdisjoint(selected)):
+            continue
+        attrs = hass.states.get(zone['thermostat']).attributes
+        if 'fan_only' not in attrs.get('hvac_modes', []):
+            raise ValueError('The zone heat pump must support the selected heating/cooling modes and fan-only.')
+        for key, attribute in (('fireplace_fan', 'fan_modes'), ('fireplace_swing', 'swing_modes')):
+            if zone[key] and zone[key] not in attrs.get(attribute, []):
+                raise ValueError('The zone heat pump does not support the selected fireplace fan or swing mode.')
     return result
 
 

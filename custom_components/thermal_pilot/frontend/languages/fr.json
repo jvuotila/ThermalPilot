@@ -2,6 +2,7 @@
   "language": "fr",
   "name": "Français",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Sélectionnez un capteur d’activité, un capteur de température de surface ou les deux.",
     "Fireplace surface temperature sensor": "Capteur de température de surface du foyer",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Facultatif. ThermalPilot compare la température de surface aux mesures des pièces associées. Après plusieurs flambées, il peut tenir compte de la chaleur accumulée pendant le refroidissement du foyer.",
     "Discard unsaved changes on both settings tabs?": "Abandonner les modifications non enregistrées dans les deux onglets de paramètres ?",

@@ -2,6 +2,7 @@
   "language": "sr",
   "name": "Српски",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Изаберите сензор активности, сензор површинске температуре или оба.",
     "Fireplace surface temperature sensor": "Сензор површинске температуре камина",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Опционално. ThermalPilot пореди температуру површине са мерењима у повезаним просторијама. После неколико ложења може да урачуна акумулирану топлоту док се камин хлади.",
     "Discard unsaved changes on both settings tabs?": "Odbaciti nesačuvane izmene na obe kartice sa podešavanjima?",

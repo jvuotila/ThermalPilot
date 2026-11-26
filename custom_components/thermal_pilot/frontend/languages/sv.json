@@ -2,6 +2,7 @@
   "language": "sv",
   "name": "Svenska",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Välj en aktivitetsgivare, en yttemperaturgivare eller båda.",
     "Fireplace surface temperature sensor": "Givare för eldstadens yttemperatur",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Valfritt. ThermalPilot jämför yttemperaturen med mätningarna från de länkade rummen. Efter flera eldningar kan den ta hänsyn till lagrad värme medan eldstaden svalnar.",
     "Discard unsaved changes on both settings tabs?": "Förkasta osparade ändringar på båda inställningsflikarna?",

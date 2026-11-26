@@ -94,12 +94,16 @@ def migrate_fireplaces(settings):
     return settings
 
 
+def fireplace_activity(hass, fireplace):
+    """Return the confirmed activity state, or None without a usable reading."""
+    entity = fireplace.get('fireplace_entity')
+    state = hass.states.get(entity) if entity else None
+    if state is None or state.state in ('unknown', 'unavailable'):
+        return None
+    return state.state == fireplace['fireplace_active_state']
+
+
 def active_fireplaces(hass, settings):
-    """Only confirmed active readings contribute heat or override a pump."""
-    active = []
-    for fireplace in settings.get('fireplaces', []):
-        state = hass.states.get(fireplace['fireplace_entity'])
-        if (state is not None and state.state not in ('unknown', 'unavailable')
-                and state.state == fireplace['fireplace_active_state']):
-            active.append(fireplace)
-    return active
+    """Only confirmed activity can trigger the configured fan circulation."""
+    return [fireplace for fireplace in settings.get('fireplaces', [])
+            if fireplace_activity(hass, fireplace) is True]

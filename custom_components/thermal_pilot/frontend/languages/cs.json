@@ -2,6 +2,7 @@
   "language": "cs",
   "name": "Čeština",
   "messages": {
+    "Choose an activity sensor, a surface temperature sensor, or both.": "Vyberte snímač aktivity, snímač povrchové teploty nebo oba.",
     "Fireplace surface temperature sensor": "Snímač povrchové teploty krbu",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Volitelné. ThermalPilot porovnává povrchovou teplotu s měřením v přiřazených místnostech. Po několika zatopeních může při chladnutí krbu zohlednit akumulované teplo.",
     "Discard unsaved changes on both settings tabs?": "Zahodit neuložené změny na obou kartách nastavení?",
