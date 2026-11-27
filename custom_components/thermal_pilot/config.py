@@ -9,6 +9,21 @@ from .fireplaces import migrate_fireplaces
 from .sources import PRICE_SOURCE_CHOICES
 from .shared_air import room_connections, room_groups
 
+WATER_HEAT_DISTRIBUTIONS = ('water_floor', 'water_radiators', 'mixed')
+DRY_HEAT_DISTRIBUTIONS = ('electric_floor', 'electric_ceiling', 'electric_panels', 'warm_air', 'mixed_dry')
+HEAT_DISTRIBUTIONS_BY_SOURCE = {
+    'air_to_water': WATER_HEAT_DISTRIBUTIONS,
+    'ground_source': (*WATER_HEAT_DISTRIBUTIONS, 'warm_air'),
+    'air_to_air': ('warm_air',),
+    # Electric resistance includes both direct heaters and electric boilers.
+    'electric_resistance': (*DRY_HEAT_DISTRIBUTIONS, *WATER_HEAT_DISTRIBUTIONS),
+    'oil_boiler': WATER_HEAT_DISTRIBUTIONS,
+    'gas_boiler': WATER_HEAT_DISTRIBUTIONS,
+    'wood_boiler': WATER_HEAT_DISTRIBUTIONS,
+    'pellet_boiler': WATER_HEAT_DISTRIBUTIONS,
+    'district_heating': WATER_HEAT_DISTRIBUTIONS,
+}
+
 # key, label, input type, bounds/domain; used by the dedicated settings panel.
 SOURCE_FIELDS = [
  ('away_temperature','Away heating temperature (°C)','number',5,25,.5),
@@ -41,7 +56,8 @@ SOURCE_FIELDS = [
  (
      'house_distribution',
      'Heat distribution',
-     'select:water_floor,water_radiators,electric_floor,electric_ceiling,electric_panels,warm_air,mixed,mixed_dry,other'
+     'select:water_floor,water_radiators,electric_floor,electric_ceiling,electric_panels,warm_air,mixed,mixed_dry,other',
+     {'by_heat_source': HEAT_DISTRIBUTIONS_BY_SOURCE}
  ),
  (
      'house_heated_floor',
@@ -500,6 +516,12 @@ def learning_fingerprint(room, settings):
     return fingerprint
 
 
+def heat_distribution_matches_source(settings):
+    """Match the same options shown in the heat distribution picker."""
+    allowed = HEAT_DISTRIBUTIONS_BY_SOURCE.get(settings['house_heat_source'])
+    return allowed is None or settings['house_distribution'] in allowed
+
+
 def water_distribution(settings):
     # Keep the historical meaning of stored "mixed" configurations.
     return settings.get('house_distribution', 'water_floor') not in (
@@ -535,7 +557,7 @@ def stored_settings(data, options):
     return migrate_fireplaces(settings)
 
 
-def validate(payload, hass=None, *, require_outdoor=True):
+def validate(payload, hass=None, *, require_outdoor=True, previous_settings=None):
     if not isinstance(payload, dict):
         raise ValueError('Settings must be an object.')
     result = deepcopy(DEFAULTS)
@@ -608,11 +630,20 @@ def validate(payload, hass=None, *, require_outdoor=True):
         else:
             fields.append(field)
     check(result,fields)
+    if previous_settings is not None:
+        heat_source = result['house_heat_source']
+        distribution = result['house_distribution']
+        # Existing installations and restored backups keep their saved pair
+        # until the user changes either of these two settings.
+        unchanged = (heat_source == previous_settings.get('house_heat_source')
+                     and distribution == previous_settings.get('house_distribution'))
+        if not unchanged and not heat_distribution_matches_source(result):
+            raise ValueError('Choose a heat distribution that matches the heat source.')
     if result['price_flex_reduction'] != round(result['price_flex_reduction'], 1):
         raise ValueError('Allowed temperature flexibility: use one decimal place.')
     if result['away_automatic'] and not result['away_zone']:
         raise ValueError('Select a home presence zone for automatic away detection.')
-    if result['solar_stop_kw'] >= result['solar_start_kw']:
+    if result['solar_power_entity'] and result['solar_stop_kw'] >= result['solar_start_kw']:
         raise ValueError('Solar heating: the stop threshold must be lower than the start threshold.')
     if result['transfer_tariff'] == 'day_night' and result['transfer_day_start'] == result['transfer_night_start']:
         raise ValueError('Day and night start times must differ.')

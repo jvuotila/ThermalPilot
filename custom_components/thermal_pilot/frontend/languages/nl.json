@@ -2,6 +2,7 @@
   "language": "nl",
   "name": "Nederlands",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "De opgeslagen warmtebron en warmteverdeling zijn niet compatibel. Open Verwarming en koeling → Huisverwarming, kies de warmtebron en warmteverdeling die je gebruikt en sla de instellingen op.",
     "Mixed (includes water-based heating)": "Gemengd (met watergedragen verwarming)",
     "Mixed (no water-based heating)": "Gemengd (zonder watergedragen verwarming)",
     "Price-aware temperature limits": "Temperatuurgrenzen met prijssturing",

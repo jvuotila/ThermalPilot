@@ -641,7 +641,26 @@ for(const distribution of ['mixed','water_floor']){
  previewPanel.settings.house_distribution=distribution;
  assert.doesNotMatch(previewPanel.settingsView(),/data-water-group hidden/);
 }
-assert.match(houseSettings,/value="mixed_dry">Mixed \(no water-based heating\)/);
+const distributionPicker=()=>previewPanel.settingsView().match(
+ /<select data-field="source\.house_distribution"[^>]*>[\s\S]*?<\/select>/
+)[0];
+const distributionOptions=()=>[...distributionPicker().matchAll(/<option value="([^"]+)"/g)].map(match=>match[1]);
+assert.deepEqual(distributionOptions(),['water_floor','water_radiators','mixed']);
+previewPanel.settings.house_distribution='electric_floor';
+assert.match(distributionPicker(),/value="electric_floor" selected/,'retains an existing legacy selection');
+const capture=previewPanel.capture;
+previewPanel.capture=()=>{previewPanel.settings.house_heat_source='air_to_air';};
+previewPanel.captureHouseHeatSource();
+assert.equal(previewPanel.settings.house_distribution,'warm_air');
+assert.deepEqual(distributionOptions(),['warm_air']);
+assert.doesNotMatch(previewPanel.settingsView(),/data-field="source.house_heated_floor"/);
+previewPanel.capture=()=>{previewPanel.settings.house_heat_source='air_to_water';};
+previewPanel.captureHouseHeatSource();
+assert.equal(previewPanel.settings.house_distribution,'');
+assert.match(distributionPicker(),/value="" disabled selected/);
+assert.deepEqual(distributionOptions(),['water_floor','water_radiators','mixed']);
+previewPanel.settings.house_distribution='water_floor';
+previewPanel.capture=capture;
 console.log('House settings checks passed: card order, moved controls, conditional water groups and distribution classification.');
 
 const translate=vm.runInContext('translateText',context);

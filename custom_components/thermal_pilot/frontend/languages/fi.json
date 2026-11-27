@@ -2,6 +2,8 @@
   "language": "fi",
   "name": "Finnish",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Tallennettu lämmönlähde ja lämmönjako eivät sovi yhteen. Avaa Lämmitys ja jäähdytys → Talon lämmitysasetukset, valitse käytössä oleva lämmönlähde ja lämmönjakotapa ja tallenna asetukset.",
+    "Choose a heat distribution that matches the heat source.": "Valitse lämmönlähteeseen sopiva lämmönjakotapa.",
     "Mixed (includes water-based heating)": "Useita lämmönjakotapoja (sisältää vesikierron)",
     "Mixed (no water-based heating)": "Useita lämmönjakotapoja (ilman vesikiertoa)",
     "Choose how the main heating system delivers heat. For mixed systems, choose whether they include water-based heating. Water sensor settings and valve timing apply to water-based distribution.": "Valitse talon päälämmityksen lämmönjakotapa. Jos lämmönjakotapoja on useita, valitse, onko mukana vesikierto. Lämmitysvesianturi ja venttiilien ennakot koskevat vesikiertoista lämmönjakoa.",

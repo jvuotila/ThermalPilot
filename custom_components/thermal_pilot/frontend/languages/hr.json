@@ -2,6 +2,7 @@
   "language": "hr",
   "name": "Hrvatski",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Spremljeni izvor topline i način distribucije topline nisu kompatibilni. Otvorite Grijanje i hlađenje → Grijanje kuće, odaberite izvor i način distribucije koje upotrebljavate te spremite postavke.",
     "Mixed (includes water-based heating)": "Mješovito (s vodenim grijanjem)",
     "Mixed (no water-based heating)": "Mješovito (bez vodenog grijanja)",
     "Price-aware temperature limits": "Temperaturne granice prema cijeni",

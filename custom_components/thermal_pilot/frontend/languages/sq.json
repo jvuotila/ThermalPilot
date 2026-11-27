@@ -2,6 +2,7 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Burimi i ruajtur i nxehtësisë dhe mënyra e shpërndarjes nuk përputhen. Hapni Ngrohje dhe ftohje → Ngrohja e shtëpisë, zgjidhni burimin dhe mënyrën e shpërndarjes që përdorni dhe ruani cilësimet.",
     "Mixed (includes water-based heating)": "E përzier (me ngrohje me ujë)",
     "Mixed (no water-based heating)": "E përzier (pa ngrohje me ujë)",
     "Price-aware temperature limits": "Kufijtë e temperaturës sipas çmimit",

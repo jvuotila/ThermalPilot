@@ -2,6 +2,7 @@
   "language": "el",
   "name": "Ελληνικά",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Η αποθηκευμένη πηγή θερμότητας και ο τρόπος διανομής της δεν είναι συμβατά. Ανοίξτε Θέρμανση και ψύξη → Θέρμανση σπιτιού, επιλέξτε την πηγή και τον τρόπο διανομής που χρησιμοποιείτε και αποθηκεύστε τις ρυθμίσεις.",
     "Mixed (includes water-based heating)": "Μικτή (με θέρμανση νερού)",
     "Mixed (no water-based heating)": "Μικτή (χωρίς θέρμανση νερού)",
     "Price-aware temperature limits": "Όρια θερμοκρασίας με βάση την τιμή",

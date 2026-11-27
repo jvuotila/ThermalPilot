@@ -142,6 +142,34 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
         ]
         self.assertEqual(requested_modes, ['heat', 'fan_only', 'heat', 'fan_only'])
 
+    def test_garage_at_seven_to_ten_degrees_recovers_cycle_from_live_pump_mode(self):
+        # The garage uses a separate room sensor. The pump's own target is
+        # 18 °C, and its compressor may briefly report idle while in Heat.
+        self.room.update(garage_minimum=7, garage_maximum=10, garage_heat_target=18,
+                         garage_use_fan_only=True, garage_strategy='temperature')
+        self.hass.states['sensor.out'].state = '-6'
+        sensor = self.hass.states['sensor.garage']
+        sensor.state = '7'
+        self.assertEqual(self.intent()['mode'], 'fan_only')
+        sensor.state = '6.9'
+        self.assertEqual(self.intent(300)['mode'], 'heat')
+
+        self.pump.state = 'heat'
+        self.pump.attributes.update(temperature=18, hvac_action='idle')
+        self.control = AirHeatPumpControl(self.hass)
+        for time, temperature in ((600, 7.1), (900, 8.8), (1200, 9.9)):
+            with self.subTest(temperature=temperature):
+                sensor.state = str(temperature)
+                intent = self.intent(time)
+                self.assertEqual(intent['mode'], 'heat')
+                self.assertEqual(intent['target'], 18)
+
+        sensor.state = '10'
+        self.assertEqual(self.intent(1500)['mode'], 'fan_only')
+        self.pump.state = 'fan_only'
+        sensor.state = '9.9'
+        self.assertEqual(self.intent(1800)['mode'], 'fan_only')
+
     def test_garage_door_pause_does_not_resume_after_reaching_upper_limit(self):
         self.room.update(garage_minimum=7, garage_maximum=10, garage_door_entities=['binary_sensor.door'])
         door = self.hass.states['binary_sensor.door'] = state('off')

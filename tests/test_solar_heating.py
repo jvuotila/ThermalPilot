@@ -70,6 +70,10 @@ class SolarStateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'stop threshold'):
             validate(self.settings,require_outdoor=False)
 
+    def test_unused_solar_thresholds_do_not_prevent_disabling_the_sensor(self):
+        self.settings.update(solar_power_entity='', solar_start_kw=4, solar_stop_kw=4)
+        self.assertEqual(validate(self.settings, require_outdoor=False)['solar_power_entity'], '')
+
     def test_power_units_unavailable_and_freshness(self):
         self.assertEqual(production_kw(State('4500',{'unit_of_measurement':'W'}),now),4.5)
         self.assertEqual(production_kw(State('4.5',{'unit_of_measurement':'kW'}),now),4.5)

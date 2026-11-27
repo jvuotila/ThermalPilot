@@ -2,6 +2,7 @@
   "language": "bg",
   "name": "Български",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Запазените източник на топлина и начин на разпределение не си съответстват. Отворете Отопление и охлаждане → Отопление на къщата, изберете използваните източник и начин на разпределение и запазете настройките.",
     "Mixed (includes water-based heating)": "Смесено (с водно отопление)",
     "Mixed (no water-based heating)": "Смесено (без водно отопление)",
     "Price-aware temperature limits": "Температурни граници според цената",

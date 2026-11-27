@@ -2,6 +2,8 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.",
+    "Choose a heat distribution that matches the heat source.": "Choose a heat distribution that matches the heat source.",
     "Mixed (includes water-based heating)": "Mixed (includes water-based heating)",
     "Mixed (no water-based heating)": "Mixed (no water-based heating)",
     "Choose how the main heating system delivers heat. For mixed systems, choose whether they include water-based heating. Water sensor settings and valve timing apply to water-based distribution.": "Choose how the main heating system delivers heat. For mixed systems, choose whether they include water-based heating. Water sensor settings and valve timing apply to water-based distribution.",

@@ -2,6 +2,7 @@
   "language": "lt",
   "name": "Lietuvių",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Išsaugotas šilumos šaltinis ir šilumos paskirstymo būdas nesuderinami. Atverkite Šildymas ir vėsinimas → Namo šildymo nustatymai, pasirinkite naudojamą šilumos šaltinį ir paskirstymo būdą, tada išsaugokite nustatymus.",
     "Mixed (includes water-based heating)": "Mišri (su vandeniniu šildymu)",
     "Mixed (no water-based heating)": "Mišri (be vandeninio šildymo)",
     "Price-aware temperature limits": "Temperatūros ribos pagal kainą",

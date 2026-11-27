@@ -2,6 +2,7 @@
   "language": "ro",
   "name": "Română",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Sursa de căldură și modul de distribuție salvate nu sunt compatibile. Deschideți Încălzire și răcire → Încălzirea casei, alegeți sursa și modul de distribuție pe care le utilizați și salvați setările.",
     "Mixed (includes water-based heating)": "Mixtă (cu încălzire cu apă)",
     "Mixed (no water-based heating)": "Mixtă (fără încălzire cu apă)",
     "Price-aware temperature limits": "Limite de temperatură în funcție de preț",

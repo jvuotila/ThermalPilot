@@ -2,6 +2,7 @@
   "language": "fr",
   "name": "Français",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "La source de chaleur et le mode de distribution enregistrés ne sont pas compatibles. Ouvrez Chauffage et climatisation → Chauffage de la maison, sélectionnez la source et le mode de distribution utilisés, puis enregistrez les réglages.",
     "Mixed (includes water-based heating)": "Mixte (avec chauffage à eau)",
     "Mixed (no water-based heating)": "Mixte (sans chauffage à eau)",
     "Price-aware temperature limits": "Limites de température selon le prix",

@@ -30,7 +30,7 @@ sys.modules[event.__name__]=event
 now=datetime(2026,1,2,0,tzinfo=timezone.utc)
 dt=types.ModuleType('homeassistant.util.dt');dt.utcnow=lambda:now
 sys.modules[dt.__name__]=dt;sys.modules['homeassistant.util'].dt=dt
-from thermal_pilot.coordinator import PilotCoordinator
+from thermal_pilot.coordinator import HEAT_DISTRIBUTION_NOTICE, PilotCoordinator
 from thermal_pilot.const import DEFAULTS,ROOM_DEFAULTS
 
 class State:
@@ -45,6 +45,24 @@ class Hass:
     async def async_add_executor_job(self,fn,*args):return fn(*args)
 
 class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_saved_heat_distribution_mismatch_is_reported_until_corrected(self):
+        entry = self.c.entry
+        entry.options = {'house_heat_source': 'air_to_water', 'house_distribution': 'electric_floor'}
+        restarted = PilotCoordinator(self.hass, entry)
+        await restarted.load()
+
+        data = await restarted._async_update_data()
+        self.assertEqual(restarted.settings['house_distribution'], 'electric_floor')
+        self.assertEqual(data['warnings'].count(HEAT_DISTRIBUTION_NOTICE), 1)
+
+        restarted.settings['heating_enabled'] = False
+        data = await restarted._async_update_data()
+        self.assertEqual(data['warnings'].count(HEAT_DISTRIBUTION_NOTICE), 1)
+
+        restarted.settings['house_distribution'] = 'water_floor'
+        data = await restarted._async_update_data()
+        self.assertNotIn(HEAT_DISTRIBUTION_NOTICE, data['warnings'])
+
     async def test_transfer_prices_are_used_for_charts_history_and_schedule_checkpoints(self):
         self.c.settings.update(price_entity='static',static_price=8,transfer_tariff='day_night',
                                transfer_day_price=7.45,transfer_night_price=5.68)
@@ -233,6 +251,55 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(data['control']['fallback_rooms'], [])
                 self.assertTrue(data['collection']['collecting'])
                 self.assertEqual(self.c.previous[room_id]['water_factor'], 1)
+
+    async def test_mixed_dry_home_keeps_quarter_hour_commands_when_a_thermostat_disconnects(self):
+        # The second home used direct electric heating and still had legacy
+        # 5/10-minute valve offsets saved. Only the disconnected room should fail.
+        self.c.settings.update(
+            house_heat_source='electric_resistance', house_distribution='mixed_dry',
+            water_entity='', start_offset_minutes=5, stop_offset_minutes=10,
+            pricing_mode='quarterly', minimum_run_minutes=15,
+            minimum=5, maximum=23, boost=3,
+            simulation_enabled=False, live_control_confirmed=True,
+        )
+        room = self.c.settings['rooms'][0]
+        offline_room = {
+            **room, 'id': '22222222-2222-4222-8222-222222222222',
+            'name': 'Bedroom', 'thermostat': 'climate.bedroom',
+            'temperature_entity': 'sensor.bedroom',
+        }
+        self.c.settings['rooms'].append(offline_room)
+        available_thermostat = self.hass.states['climate.room']
+        available_thermostat.attributes['temperature'] = 17
+        self.hass.states['climate.bedroom'] = State('unavailable')
+        self.hass.states['sensor.bedroom'] = State('17.2')
+        self.hass.states['sensor.room'].state = '19'
+        self.hass.states['sensor.out'].state = '-6'
+        self.hass.states['sensor.price'].attributes['today'] = [20] * 24 + [42] * 52 + [30] * 20
+
+        data = await self.c._async_update_data()
+        room_plan = data['rooms'][room['id']]['plan']
+        self.assertTrue(room_plan['sessions'])
+        self.assertEqual(room_plan['thermostat_windows'], room_plan['sessions'])
+        self.assertTrue(room_plan['commands'])
+        for command in room_plan['commands']:
+            command_time = datetime.fromisoformat(command['time'])
+            self.assertEqual(command_time.minute % 15, 0)
+            self.assertEqual(command_time.second, 0)
+        self.assertFalse(data['source_status']['water_required'])
+        self.assertFalse(any('Heating water temperature' in notice for notice in data['warnings']))
+        self.assertTrue(any('Bedroom: thermostat unavailable' in error for error in data['control']['errors']))
+        self.assertFalse(any('Study: thermostat unavailable' in error for error in data['control']['errors']))
+        self.assertTrue(any(call.args[2].get('entity_id') == 'climate.room'
+                            for call in self.hass.services.async_call.await_args_list))
+
+        self.hass.states['climate.bedroom'] = State('heat', {**available_thermostat.attributes, 'temperature': 17})
+        self.hass.services.async_call.reset_mock()
+        with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=now + timedelta(minutes=5)):
+            data = await self.c._async_update_data()
+        self.assertFalse(any('Bedroom: thermostat unavailable' in error for error in data['control']['errors']))
+        self.assertTrue(any(call.args[2].get('entity_id') == 'climate.bedroom'
+                            for call in self.hass.services.async_call.await_args_list))
 
     async def test_house_metadata_preserves_existing_water_model_and_history(self):
         data=await self.c._async_update_data();rid=self.c.settings['rooms'][0]['id']
@@ -1267,6 +1334,56 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
               patch('thermal_pilot.coordinator.plan', wraps=plan) as planner):
             await restarted._async_update_data()
         self.assertAlmostEqual(planner.call_args.args[7], (35 - 20) / (32 - 20))
+
+    async def test_hydronic_plan_survives_a_recorded_supply_dip_at_restart(self):
+        from thermal_pilot.config import learning_fingerprint
+
+        # Rounded observations from a floor-heated home's backup. Use relative
+        # times and a simplified tariff, since the original forecast is absent.
+        supply_history = [31, 31, 32, 31, 31, 31, 31, 31, 31, 31, 31, 31,
+                          31, 32, 31, 32, 31, 31, 30, 30, 29, 29, 33, 30]
+        self.c.settings.update(
+            house_heat_source='air_to_water', house_distribution='water_floor',
+            start_offset_minutes=5, stop_offset_minutes=5, minimum_run_minutes=60,
+            minimum=18, maximum=24, boost=1.5, pricing_mode='flexible',
+        )
+        room = self.c.settings['rooms'][0]
+        room['baseline'] = 19
+        self.hass.states['sensor.room'].state = '19.7'
+        self.hass.states['sensor.out'].state = '-0.8'
+        self.hass.states['sensor.price'].attributes['today'] = [26] * 32 + [18] * 24 + [50] * 40
+        fingerprint = learning_fingerprint(room, self.c.settings)
+        self.c.history_db.append([
+            {
+                'room_id': room['id'], 'time': (now - timedelta(minutes=5 * (24 - index))).timestamp(),
+                'temperature': 19.7, 'outdoor': -0.8, 'water': supply, 'activity': None,
+                'forecast_context': fingerprint,
+            }
+            for index, supply in enumerate(supply_history)
+        ], (now - timedelta(days=1)).timestamp())
+        entry = types.SimpleNamespace(entry_id='test', data=self.c.settings, options={})
+        restarted = PilotCoordinator(self.hass, entry)
+        restarted.store.saved = deepcopy(self.c.store.saved)
+        self.hass.states['sensor.water'].state = '23'
+        await restarted.load()
+
+        result = await restarted._async_update_data()
+        self.assertEqual(result['water'], 23)
+        plan_after_dip = result['rooms'][room['id']]['plan']
+        self.assertTrue(plan_after_dip['sessions'])
+        observed = restarted.history_db.read(now.timestamp())[-1]
+        self.assertEqual(observed['water'], 23)
+
+        # Recalculate the same instant with the normal supply temperature. The
+        # reading changes, but the saved history should yield the same plan.
+        self.hass.states['sensor.water'].state = '31'
+        reference = PilotCoordinator(self.hass, entry)
+        reference.store.saved = deepcopy(self.c.store.saved)
+        await reference.load()
+        reference_plan = (await reference._async_update_data())['rooms'][room['id']]['plan']
+        self.assertEqual(plan_after_dip['sessions'], reference_plan['sessions'])
+        self.assertEqual([row['temperature'] for row in plan_after_dip['slots']],
+                         [row['temperature'] for row in reference_plan['slots']])
 
     async def test_two_hour_water_median_stays_stable_through_forty_minute_dip(self):
         room = self.c.settings['rooms'][0]

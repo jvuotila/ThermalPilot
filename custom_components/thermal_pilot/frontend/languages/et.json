@@ -2,6 +2,7 @@
   "language": "et",
   "name": "Eesti",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Salvestatud soojusallikas ja soojusjaotusviis ei sobi kokku. Ava Küte ja jahutus → Maja kütteseaded, vali kasutatav soojusallikas ja soojusjaotusviis ning salvesta seaded.",
     "Mixed (includes water-based heating)": "Segasüsteem (vesiküttega)",
     "Mixed (no water-based heating)": "Segasüsteem (vesikütteta)",
     "Price-aware temperature limits": "Hinnapõhised temperatuuripiirid",

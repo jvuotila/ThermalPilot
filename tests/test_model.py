@@ -596,6 +596,40 @@ class HouseSettingsTests(unittest.TestCase):
             self.assertEqual(validate({**payload,'house_distribution':distribution})['water_entity'],'')
         with self.assertRaises(ValueError):validate({**payload,'house_distribution':'unsupported'})
 
+    def test_changed_heat_source_and_distribution_must_be_compatible(self):
+        previous = {**DEFAULTS, 'outdoor_entity': 'sensor.out'}
+        choices = {
+            'air_to_water': ('water_floor', 'water_radiators', 'mixed'),
+            'air_to_air': ('warm_air',),
+            'electric_resistance': ('electric_floor', 'mixed_dry', 'water_radiators'),
+            'ground_source': ('water_floor', 'warm_air'),
+            'district_heating': ('water_radiators', 'mixed'),
+            'other': ('other', 'mixed_dry'),
+        }
+        for source, distributions in choices.items():
+            for distribution in distributions:
+                with self.subTest(source=source, distribution=distribution):
+                    proposed = {**previous, 'house_heat_source': source, 'house_distribution': distribution}
+                    self.assertEqual(validate(proposed, previous_settings=previous)['house_distribution'],
+                                     distribution)
+
+        for source, distribution in (('air_to_water', 'electric_floor'), ('air_to_water', 'warm_air'),
+                                     ('air_to_water', 'mixed_dry'), ('air_to_air', 'water_floor'),
+                                     ('oil_boiler', 'electric_panels'), ('district_heating', 'mixed_dry')):
+            with self.subTest(source=source, distribution=distribution):
+                proposed = {**previous, 'house_heat_source': source, 'house_distribution': distribution}
+                with self.assertRaisesRegex(ValueError, 'Choose a heat distribution'):
+                    validate(proposed, previous_settings=previous)
+
+    def test_existing_legacy_distribution_can_be_retained_during_an_unrelated_edit(self):
+        saved = {**DEFAULTS, 'outdoor_entity': 'sensor.out', 'house_distribution': 'electric_floor'}
+        self.assertEqual(validate(saved)['house_distribution'], 'electric_floor')  # Backup validation.
+        unrelated_edit = {**saved, 'language': 'fi'}
+        self.assertEqual(validate(unrelated_edit, previous_settings=saved)['house_distribution'], 'electric_floor')
+        corrected = {**saved, 'house_distribution': 'water_floor'}
+        self.assertEqual(validate(corrected, previous_settings=saved)['house_distribution'], 'water_floor')
+
+
 class LanguageSettingsTests(unittest.TestCase):
     def test_language_default_validation_and_saved_preference(self):
         self.assertEqual(stored_settings({}, {})['language'],'en')

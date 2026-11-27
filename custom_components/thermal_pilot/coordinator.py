@@ -25,7 +25,7 @@ from .away import overlay_plan as away_plan
 from .away import update as update_away
 from .fireplaces import active_fireplaces, fireplace_activity
 from .fireplace_surface import WARM_SURFACE_EXCESS, sample_surface, surface_gain_rates, surface_heat_forecast
-from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings
+from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings, heat_distribution_matches_source
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, response_step, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled, floor_response_from_history
@@ -34,6 +34,12 @@ from .model import water_heating_factor
 _LOGGER = logging.getLogger(__name__)
 PLAN_REFRESH_INTERVAL = timedelta(minutes=5)
 WATER_TEMPERATURE_BUCKETS = 24  # Two hours at one sample per five minutes.
+
+
+HEAT_DISTRIBUTION_NOTICE = (
+    'The saved heat source and heat distribution do not match. '
+    'Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.'
+)
 
 
 class PilotCoordinator(DataUpdateCoordinator):
@@ -903,7 +909,9 @@ class PilotCoordinator(DataUpdateCoordinator):
             getattr(self.hass.config, 'latitude', None)
         )
         await self.check_temperature_sensors(now,heating_active)
-        setpoint_errors = await self.apply_season_targets(heating_active)
+        warnings = list(await self.apply_season_targets(heating_active))
+        if not heat_distribution_matches_source(self.settings):
+            warnings.append(HEAT_DISTRIBUTION_NOTICE)
         previous_season = dict(self.season)
         self.season = collection_state(self.season, outdoor, now.timestamp(), self.settings)
         self.season['collecting'] = self.season['collecting'] and heating_active
@@ -930,7 +938,7 @@ class PilotCoordinator(DataUpdateCoordinator):
             await self.hass.async_add_executor_job(self.history_db.append, [], cutoff, self.season['season_id'])
             await self.store.async_save(self.storage_data())
             data = {'updated':now.isoformat(),'simulation_only':not self.live_enabled() and not self.settings['apply_season_setpoints'],'heating_active':False,
-                'collection':self.season,'zones':{},'collection_evidence':self.collection_evidence(),'warnings':['ThermalPilot is passive. Planning, collection and learning are stopped.']+setpoint_errors,
+                'collection':self.season,'zones':{},'collection_evidence':self.collection_evidence(),'warnings':['ThermalPilot is passive. Planning, collection and learning are stopped.']+warnings,
                 'rooms':{},'outdoor':outdoor,'water':None,'weather_forecast':chart_forecast,'weather_forecast_history':saved_weather,
                 'heat_pump_cop':cop_chart,
                 'season_summaries':await self.hass.async_add_executor_job(self.history_db.summaries),
@@ -941,7 +949,6 @@ class PilotCoordinator(DataUpdateCoordinator):
             data['warnings'].extend(f'Thermostat control: {w}' for w in data['control']['errors'])
             return data
         scheduling = price_required(self.settings)
-        warnings = list(setpoint_errors)
         if not electric_heating(self.settings):
             warnings.append('Observation only: this heat source does not use electricity-price scheduling or thermostat control.')
         if scheduling and (not self.settings['simulation_enabled']) and (not self.settings.get('live_control_confirmed')):

@@ -2,6 +2,7 @@
   "language": "sv",
   "name": "Svenska",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Den sparade värmekällan och värmedistributionen passar inte ihop. Öppna Värme och kyla → Husets värmeinställningar, välj den värmekälla och värmedistribution du använder och spara inställningarna.",
     "Mixed (includes water-based heating)": "Blandad (med vattenburen värme)",
     "Mixed (no water-based heating)": "Blandad (utan vattenburen värme)",
     "Price-aware temperature limits": "Temperaturgränser med prisstyrning",

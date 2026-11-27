@@ -2,6 +2,7 @@
   "language": "da",
   "name": "Dansk",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Den gemte varmekilde og varmefordeling passer ikke sammen. Åbn Varme og køling → Husets varmeindstillinger, vælg den varmekilde og varmefordeling, du bruger, og gem indstillingerne.",
     "Mixed (includes water-based heating)": "Blandet (med vandbåren varme)",
     "Mixed (no water-based heating)": "Blandet (uden vandbåren varme)",
     "Price-aware temperature limits": "Temperaturgrænser med pristilpasning",

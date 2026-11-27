@@ -2,6 +2,7 @@
   "language": "de",
   "name": "Deutsch",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Die gespeicherte Wärmequelle und die Wärmeverteilung passen nicht zusammen. Öffne Heizung und Kühlung → Heizungseinstellungen des Hauses, wähle die tatsächlich verwendete Wärmequelle und Wärmeverteilung aus und speichere die Einstellungen.",
     "Mixed (includes water-based heating)": "Gemischt (mit wassergeführter Heizung)",
     "Mixed (no water-based heating)": "Gemischt (ohne wassergeführte Heizung)",
     "Price-aware temperature limits": "Temperaturgrenzen mit Preisoptimierung",

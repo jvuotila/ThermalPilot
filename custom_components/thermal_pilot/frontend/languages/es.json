@@ -2,6 +2,7 @@
   "language": "es",
   "name": "Español",
   "messages": {
+    "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "La fuente de calor y la distribución de calor guardadas no son compatibles. Abre Calefacción y refrigeración → Calefacción de la casa, elige la fuente y la distribución que utilizas y guarda los ajustes.",
     "Mixed (includes water-based heating)": "Mixta (con calefacción por agua)",
     "Mixed (no water-based heating)": "Mixta (sin calefacción por agua)",
     "Price-aware temperature limits": "Límites de temperatura según el precio",

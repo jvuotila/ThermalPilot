@@ -351,7 +351,7 @@ async def ws_save(hass, connection, msg):
         return
     async with c.backup_lock:
         try:
-            settings = validate(msg['settings'], hass)
+            settings = validate(msg['settings'], hass, previous_settings=c.settings)
             settings = confirm_control_settings(settings, c.settings, msg.get('enable_live_control', False))
         except ValueError as error:
             connection.send_error(msg['id'], 'invalid_settings', str(error))

@@ -235,7 +235,7 @@ function languageFlag(language){
 }
 function electricHeating(settings){return ['air_to_water','ground_source','air_to_air','electric_resistance'].includes(settings?.house_heat_source||'air_to_water')||Boolean(settings?.heating_zones?.some(z=>(z.source_type||'air_to_air')==='air_to_air'))||Boolean(settings?.rooms?.some(r=>r.is_garage?['air_to_water','ground_source','air_to_air','electric_resistance'].includes(garageSource(r,settings)):r.heat_control==='air_to_air'));}
 
-function waterDistribution(settings){return !['electric_floor','electric_ceiling','electric_panels','warm_air','mixed_dry'].includes(settings?.house_distribution);}
+function waterDistribution(settings){return !['','electric_floor','electric_ceiling','electric_panels','warm_air','mixed_dry'].includes(settings?.house_distribution);}
 
 function roomId(){
   const crypto=globalThis.crypto;
@@ -315,7 +315,9 @@ function durationLabel(milliseconds){
   const hours=Math.floor(minutes/60),remaining=minutes%60;
   return hours?`${hours} h${remaining?` ${remaining} min`:''}`:`${remaining} min`;
 }
+const heatDistributionNotice="The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.";
 function statusMessageLevel(text){
+  if(text===heatDistributionNotice)return 'info';
   if(text.startsWith('Observation only:')||text.startsWith('ThermalPilot is passive.')||text.startsWith('Heating water temperature is not available;'))return 'info';
   if(text.startsWith('Thermostat control:'))return text.includes('fallback targets are being used')?'warning':'error';
   if(/season setpoint.*(failed|could not|outside)/i.test(text))return 'error';
@@ -1247,6 +1249,12 @@ class ThermalPilotPanel extends HTMLElement {
       const options=key==='heating_zone_id'?(this.settings.heating_zones||[]):this.settings.rooms.filter(r=>r.heating_zone_id===obj.id);
       input=`<select data-field="${name}"><option value="">— Select / not used —</option>${options.map(v=>`<option data-user-text value="${escapeHTML(v.id)}" ${v.id===value?'selected':''}>${escapeHTML(v.name||this.t('New room'))}</option>`).join('')}</select>`;
     }
+    else if(key==='house_distribution'){
+      const choices=field[3]?.by_heat_source?.[obj.house_heat_source]||type.slice(7).split(',');
+      // Keep a saved legacy choice until the user changes one of the fields.
+      const options=value&&!choices.includes(value)?[value,...choices]:choices;
+      input=`<select data-field="${name}" required><option value="" disabled ${value?'':'selected'}>${escapeHTML(this.t('Not configured'))}</option>${options.map(option=>`<option value="${escapeHTML(option)}"${option===value?' selected':''}>${escapeHTML(houseOptionLabels[option]||option)}</option>`).join('')}</select>`;
+    }
     else if(type.startsWith('select:'))input=`<select data-field="${name}">${type.slice(7).split(',').map(v=>`<option ${v===value?'selected':''} value="${escapeHTML(v)}">${escapeHTML(key==='garage_heat_source'&&v==='house'?'Use house heating system':key==='language'?({'en':'🇬🇧 English','fi':'🇫🇮 Finnish'}[v]||v):['garage_heat_source','heating_priority','heat_control','garage_strategy','temperature_policy','air_zone_temperature','source_type','climate_mode','heating_strategy'].includes(key)?controlOptionLabels[v]||v:key==='transfer_tariff'?({included:'Already included / no addition',fixed:'Fixed transfer price',day_night:'Day/night transfer prices'}[v]):key==='pricing_mode'?schedulingLabels[v]||v:(key.startsWith('house_')||['garage_construction','garage_heat_source'].includes(key))?houseOptionLabels[v]||v:key==='solar_direction'&&v==='disabled'?'Solar heating off':['solar_direction','solar_exposure'].includes(key)?v.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase()):v)}</option>`).join('')}</select>`;
     else if(type==='time')input=`<input type="time" step="60" data-field="${name}" value="${escapeHTML(value)}">`;
     else if(['solar_start_kw','solar_stop_kw'].includes(key)){
@@ -1303,6 +1311,15 @@ class ThermalPilotPanel extends HTMLElement {
     );
   }
 
+  captureHouseHeatSource(){
+    this.capture();
+    const field=this.info.source_fields.find(field=>field[0]==='house_distribution');
+    const compatible=field?.[3]?.by_heat_source?.[this.settings.house_heat_source];
+    if(compatible&&!compatible.includes(this.settings.house_distribution)){
+      this.settings.house_distribution=compatible.length===1?compatible[0]:'';
+    }
+  }
+
   settingsGroups(groups){
     const fields=new Map(this.info.source_fields.map(field=>[field[0],field]));
     return groups.map(([title,keys])=>{
@@ -1311,6 +1328,7 @@ class ThermalPilotPanel extends HTMLElement {
       const available=keys.filter(key=>{
         if(pumpTemperatureFields.includes(key))return this.settings.air_use_fan_only===false;
         if(key==='heat_pump_cop_entity')return this.settings.house_heat_source==='air_to_water';
+        if(key==='house_heated_floor')return ['water_floor','electric_floor','mixed','mixed_dry','other',undefined].includes(this.settings.house_distribution);
         if(this.settings.air_use_fan_only===false){
           if(key==='air_heat_target')return false;
           if(['air_fan_idle','air_swing_idle'].includes(key)){
@@ -3494,7 +3512,7 @@ details{scroll-margin-block:16px}
       if(key==='zone_rooms'){const selected=new Set(values.filter(Boolean));this.settings.rooms.forEach(room=>{if(room.heating_zone_id===obj.id&&!selected.has(room.id))room.heating_zone_id='';});if(!selected.has(obj.main_room_id))obj.main_room_id=this.settings.rooms.find(room=>selected.has(room.id))?.id||'';}
       clearSaveMessage();this.render();
     });
-    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if(event?.target?.closest?.('[data-entity-list]')?.dataset.entityList?.endsWith('.garage_door_entities')){this.capture(true);clearSaveMessage();this.render();return;}if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member')||event?.target?.hasAttribute?.('data-fireplace-link'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','garage_heat_source','garage_use_fan_only','air_use_fan_only','heat_control','thermostat','heating_zone_id','heating_priority','fireplace_entity','fireplace_circulation','heating_enabled','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff','source.nordpool_entry','source.solar_power_entity','source.away_automatic'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.capture();this.render();return;}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
+    settingsForm?.addEventListener('change',event=>{this.updateSourceReadings();if(event?.target?.closest?.('[data-entity-list]')?.dataset.entityList?.endsWith('.garage_door_entities')){this.capture(true);clearSaveMessage();this.render();return;}if((event?.target?.hasAttribute?.('data-zone-member')||event?.target?.hasAttribute?.('data-shared-air-member')||event?.target?.hasAttribute?.('data-fireplace-link'))){this.capture(true);clearSaveMessage();this.render();return;}if(['is_garage','garage_heat_source','garage_use_fan_only','air_use_fan_only','heat_control','thermostat','heating_zone_id','heating_priority','fireplace_entity','fireplace_circulation','heating_enabled','source_type','climate_mode'].some(key=>event?.target?.dataset?.field?.endsWith('.'+key))){this.capture();const field=event.target.dataset.field;const room=field.startsWith('room')?this.settings.rooms[Number(field.split('.')[0].slice(4))]:null;if(room?.is_garage&&['is_garage','thermostat'].some(key=>field.endsWith('.'+key))){const modes=this._hass.states[room.thermostat]?.attributes?.fan_modes||[];for(const [key,mode] of [['garage_fan_heat','high'],['garage_fan_idle','low'],['garage_fan_presence','medium']])if(!room[key]&&modes.includes(mode))room[key]=mode;}this.render();return;}if(['source.price_entity','source.transfer_tariff','source.nordpool_entry','source.solar_power_entity','source.away_automatic'].includes(event?.target?.dataset?.field)){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.fireplace_entity'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_heat_source'){this.captureHouseHeatSource();clearSaveMessage();this.render();return;}if(event?.target?.dataset?.field==='source.language'){this.capture();this.render();return;}if(event?.target?.dataset?.field==='source.house_distribution'){this.capture();this.render();return;}clearSaveMessage();this.updateUnsavedNotice();if(event?.target?.dataset?.field?.endsWith('.solar_direction')){const exposure=event.target.closest('.room-card')?.querySelector('[data-solar-exposure]');if(exposure)exposure.hidden=event.target.value==='disabled';}});
     this.shadowRoot.querySelector('#settings-cancel')?.addEventListener('click',()=>this.discardSettingsChanges());
     settingsForm?.addEventListener('submit',async e=>{
       e.preventDefault();if(this.saving||this.backupBusy)return;this.capture();

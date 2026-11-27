@@ -113,6 +113,12 @@ vm.runInNewContext(readFrontendSource(path.join(__dirname,'../custom_components/
  const warning='Optional wind sensor unavailable.';
  const error='Thermostat control: Kitchen: unavailable <device>';
  const newError='Thermostat control: Bedroom: unavailable';
+ const heatDistributionNotice='The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.';
+ update(heatDistributionNotice);
+ assert.equal(bell.dataset.severity,'info');
+ assert.equal(dialogs.length,0);
+ const finnishNotice=context.__thermalPilotLocalization.translateNotification(heatDistributionNotice,'fi');
+ assert.match(finnishNotice,/Lämmitys ja jäähdytys → Talon lämmitysasetukset/);
  update(info);
  assert.equal(bell.dataset.severity,'info');
  assert.equal(dialogs.length,0);
