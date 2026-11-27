@@ -971,7 +971,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         if scheduling and self.settings['price_entity'] and (not slots):
             warnings.append('No continuous prices from now: no heating plan is available.')
         pump_slots = cop_priced_slots(slots, cop_chart['forecast'], now) if cop_chart else slots
-        if not forecasts:
+        if self.settings['weather_entity'] and not forecasts:
             warnings.append('No weather forecast: current outdoor temperature is held constant. '+(self.forecast_error or 'No usable forecast was returned.'))
         price_outlook = {
             'enabled': scheduling and self.settings['price_entity'] != 'static' and bool(self.settings['price_forecast_entity']),
@@ -982,8 +982,6 @@ class PilotCoordinator(DataUpdateCoordinator):
             predicted_source = self.hass.states.get(self.settings['price_forecast_entity'])
             attributes = predicted_source.attributes if predicted_source and predicted_source.state not in ('unknown', 'unavailable') else {}
             price_outlook.update(price_forecast_reserve(attributes,slots[-1].end,RESERVE_HOURS))
-            if not price_outlook['available']:
-                warnings.append('Optional price forecast unavailable; planning uses confirmed prices and the normal heat reserve.')
         wind_status = self.wind_reading(now)
         if wind_status['enabled'] and (not wind_status['available']):
             warnings.append('Optional wind sensor unavailable or stale; heating and temperature-based planning continue.')
@@ -1025,18 +1023,18 @@ class PilotCoordinator(DataUpdateCoordinator):
         outdoors = [forecast_temperature(forecasts, self.forecast_type, slot.start,
                                          ZoneInfo(self.hass.config.time_zone), planning_outdoor) for slot in slots]
         water_rooms = [room for room in primary_rooms if room_water_distribution(room, self.settings)]
-        uses_water = bool(water_rooms)
-        water_state = self.hass.states.get(self.settings['water_entity']) if uses_water and self.settings['water_entity'] else None
+        water_entity = self.settings['water_entity'] if water_rooms else ''
+        water_state = self.hass.states.get(water_entity) if water_entity else None
         water = None
-        if water_state:
-            if self.settings['water_entity'].startswith('climate.'):
+        if water_state and water_state.state not in ('unknown', 'unavailable'):
+            if water_entity.startswith('climate.'):
                 try:
                     water = temperature_celsius(water_state.attributes.get('current_temperature'), water_state.attributes.get('temperature_unit', '°C'))
                 except ValueError:
                     water = None
             else:
-                water = self.value(self.settings['water_entity'])
-        if uses_water and water is None:
+                water = self.value(water_entity)
+        if water_entity and water is None:
             warnings.append('Heating water temperature is not available; planning and learning use observed thermostat demand without water-temperature adjustment.')
         planning_water = await self.planning_water_temperature(water, water_rooms, now)
         active_fireplace_ids = {fireplace['id'] for fireplace in active_fireplaces(self.hass, self.settings)}
@@ -1504,7 +1502,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                     'prices':bool(slots),
                     'prices_required':scheduling,
                     'outdoor':outdoor is not None,
-                    'water':water is not None or not uses_water,
+                    'water':water is not None or not water_entity,
                     'water_required':False
                 },
                 'fallback_season':self.fallback_summary()}
@@ -1945,7 +1943,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                 bucket[key]['solar_heating'] = deepcopy(sessions.get(room['id']))
         warning = 'Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.'
         data['warnings'] = [value for value in data.get('warnings', []) if value != warning]
-        if settings['solar_power_entity'] and power is None:
+        if enabled and settings['solar_power_entity'] and power is None:
             data['warnings'].append(warning)
         return sessions
 

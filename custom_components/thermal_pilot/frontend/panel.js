@@ -333,9 +333,8 @@ const notificationLevels=['error','warning','info'];
 function activeNotifications(data){
   const messages=new Map((data?.warnings||[]).map(text=>[text,statusMessageLevel(text)]));
   const outlook=data?.price_outlook;
-  if(outlook?.enabled&&!outlook.available){
-    const reason=outlook.reason||'Waiting for confirmed prices.';
-    messages.set(`Price forecast: ${reason}`,'warning');
+  if(outlook?.enabled&&!outlook.available&&outlook.reason){
+    messages.set(`Price forecast: ${outlook.reason}`,'warning');
   }
   return notificationLevels.flatMap(level=>[...messages].filter(([,severity])=>severity===level).map(([text])=>({text,level})));
 }

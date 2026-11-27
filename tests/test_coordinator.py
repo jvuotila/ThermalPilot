@@ -160,6 +160,28 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data['weather_forecast_history'][0]['temperature'], -3)
         self.assertEqual(data['weather_forecast_history'][0]['condition'], 'snowy')
 
+    async def test_optional_sources_left_unset_do_not_create_notifications(self):
+        self.c.settings.update(weather_entity='', wind_entity='', water_entity='',
+                               price_forecast_entity='', solar_power_entity='')
+        data = await self.c._async_update_data()
+        self.assertEqual(data['warnings'], [])
+        self.assertTrue(data['collection']['collecting'])
+        self.assertTrue(data['rooms'][self.c.settings['rooms'][0]['id']]['plan'])
+
+        self.c.settings['weather_entity'] = 'weather.missing'
+        data = await self.c._async_update_data()
+        self.assertTrue(any(warning.startswith('No weather forecast:') for warning in data['warnings']))
+
+    async def test_unavailable_solar_sensor_reports_only_when_solar_heating_can_run(self):
+        self.c.settings['solar_power_entity'] = 'sensor.missing_solar_power'
+        solar_warning = 'Solar production sensor is unavailable, stale or has an unsupported unit; solar heating is paused.'
+        data = await self.c._async_update_data()
+        self.assertIn(solar_warning, data['warnings'])
+
+        self.c.settings['heating_enabled'] = False
+        data = await self.c._async_update_data()
+        self.assertNotIn(solar_warning, data['warnings'])
+
     async def test_non_electric_sources_observe_without_prices_plans_or_control(self):
         self.c.settings.update(price_entity='',price_forecast_entity='',simulation_enabled=False,live_control_confirmed=True,apply_season_setpoints=True)
         self.hass.states.pop('sensor.price')
@@ -195,6 +217,23 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data['control']['fallback_rooms'],[])
         self.assertTrue(any(warning.startswith('Heating water temperature is not available')
                             for warning in data['warnings']))
+
+    async def test_optional_water_sensor_can_be_left_unset_on_hydronic_systems(self):
+        self.c.settings.update(water_entity='', simulation_enabled=False, live_control_confirmed=True)
+        room_id = self.c.settings['rooms'][0]['id']
+        for distribution in ('water_floor', 'mixed'):
+            with self.subTest(distribution=distribution):
+                self.c.settings['house_distribution'] = distribution
+                data = await self.c._async_update_data()
+                self.assertFalse(data['source_status']['water_required'])
+                self.assertTrue(data['source_status']['water'])
+                self.assertFalse(any(warning.startswith('Heating water temperature is not available')
+                                     for warning in data['warnings']))
+                self.assertTrue(data['rooms'][room_id]['plan'])
+                self.assertEqual(data['control']['fallback_rooms'], [])
+                self.assertTrue(data['collection']['collecting'])
+                self.assertEqual(self.c.previous[room_id]['water_factor'], 1)
+
     async def test_house_metadata_preserves_existing_water_model_and_history(self):
         data=await self.c._async_update_data();rid=self.c.settings['rooms'][0]['id']
         model=self.c.models[rid];model['loss']=.012;model['heated_hours']=40;model['idle_hours']=60

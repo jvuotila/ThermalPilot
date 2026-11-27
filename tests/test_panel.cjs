@@ -2124,7 +2124,9 @@ console.log('Companion recipient selector passed: explicit selection, legacy act
  const activeNotices=vm.runInContext('activeNotifications',context);
  assert.equal(activeNotices(noticePanel.info.data)[0].level,'warning');
  assert.equal(activeNotices(noticePanel.info.data)[0].text,'Price forecast: Forecast source unavailable');
- noticePanel.info.data.price_outlook.enabled=false;
+ noticePanel.info.data.price_outlook={enabled:true,available:false};
+ assert.equal(activeNotices(noticePanel.info.data).length,0,'missing confirmed prices have their own notification');
+ noticePanel.info.data.price_outlook={enabled:false,available:false,reason:'Forecast source unavailable'};
  assert.equal(activeNotices(noticePanel.info.data).length,0);
  console.log('Unavailable forecasts appear in the notification drawer rather than above the chart.');
 }
