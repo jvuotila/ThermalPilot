@@ -1080,6 +1080,8 @@ for(const history of [false,true]){
  const svg=zoneChartPanel.priceChart(history);
  assert.match(svg,/>Zones<\/text>[\s\S]*data-zone-timeline="z-last"[\s\S]*>Fireplaces<\/text>[\s\S]*data-zone-timeline="fireplace-a"/);
  assert.match(zoneGroup(svg,'fireplace-a'),/data-zone-period="heat"/);
+ assert.match(zoneGroup(svg,'fireplace-a'),/fill="var\(--tp-fireplace,#faede7\)"/);
+ assert.match(zoneGroup(svg,'z-last'),/fill="var\(--tp-zone,#f5f0e8\)"/);
 }
 
 console.log('Zone chart passed: alphabetic rows at bottom, distinct tint, heat/cool only, tariff-only Plan windows, History without plans, no-price and mobile layouts.');
@@ -1117,7 +1119,7 @@ garageChartPanel.info={data:{price_chart:zoneChartPanel.info.data.price_chart,ro
 for(const history of [true,false]){
  const html=garageChartPanel.priceChart(history);
  assert.match(html,/font-size:18px;font-weight:600">Garages<\/text>/);
- assert.match(html,/fill="var\(--tp-garage,#eee8e1\)"/);assert.match(html,/fill="var\(--tp-garage-alt,#e9e1d8\)"/);
+ assert.match(html,/fill="var\(--tp-garage,#f4f0eb\)"/);assert.match(html,/fill="var\(--tp-garage-alt,#eee8e0\)"/);
  const names=[...html.matchAll(/data-user-text title="([^"]+)"/g)].map(match=>match[1]);assert.deepEqual(names,['House room','A garage','Z garage']);
 }
 garageChartPanel.settings.rooms=garageChartPanel.settings.rooms.filter(room=>room.is_garage);

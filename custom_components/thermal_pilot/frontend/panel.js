@@ -309,6 +309,10 @@ const outdoorBarPalettes={
  mild:[[0,'#d7ead2'],[5,'#bddbb8'],[10,'#94be91'],[15,'#6d9f73'],[20,'#578a66'],[23,'#4c7e5e'],[24,'#a58e70'],[25,'#c69570'],[26.5,'#cf8c66'],[28,'#cc8568'],[30,'#c9796b'],[35,'#ac605c']],
 };
 const outdoorBarColor=value=>outdoorColor(value,value<0?outdoorBarPalettes.cold:outdoorBarPalettes.mild);
+const garageRowPalette=`:host{
+ --tp-garage:light-dark(#f4f0eb,#252d34);
+ --tp-garage-alt:light-dark(#eee8e0,#2c3740);
+}`;
 function durationLabel(milliseconds){
   const minutes=Math.max(0,Math.round(milliseconds/60000));
   if(!minutes&&milliseconds>0)return 'Less than 1 min';
@@ -2250,7 +2254,7 @@ class ThermalPilotPanel extends HTMLElement {
      const detail=`${room.name} · ${this.t(kind)}\n${this.t('Start:')} ${timeLabel(period.start)}\n${this.t('End:')} ${timeLabel(period.end)}\n${this.t('Duration')}: ${durationLabel(period.end-period.start)}${period.basis==='plan'?planSummary:period.mode==='heat'?actualSummary:''}`;
      return `<rect ${detailAttributes(detail)} data-pump-period="${period.basis==='plan'?'plan':period.mode}" x="${x(a)}" y="${y+laneTop}" width="${(b-a)/span*width}" height="13" rx="2" fill="${period.basis==='plan'?'url(#suggested-heating-stripes)':period.mode==='cool'?'#3498DB':'#EC7063'}"/>`;
     }).join('');
-    return `<g class="chart-timeline-row" data-pump-timeline="${escapeHTML(room.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'var(--tp-garage-alt,#e9e1d8)':'var(--tp-garage,#eee8e1)'):(roomIndex%2?'var(--tp-row-alt,#f1f4f7)':'var(--tp-row,#f0f5f3)')}"/><foreignObject x="20" y="${compact?y-2:y-5+(rowHeight-roomGap-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'var(--primary-text-color,#6d5848)')}</foreignObject>${temperatureLabel(room,y)}<rect x="${left}" y="${y+laneTop}" width="${width}" height="13" rx="3" fill="var(--tp-track,#e5ebee)"/>${activity}</g>`;
+    return `<g class="chart-timeline-row" data-pump-timeline="${escapeHTML(room.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'var(--tp-garage-alt,#eee8e0)':'var(--tp-garage,#f4f0eb)'):(roomIndex%2?'var(--tp-row-alt,#f1f4f7)':'var(--tp-row,#f0f5f3)')}"/><foreignObject x="20" y="${compact?y-2:y-5+(rowHeight-roomGap-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'var(--primary-text-color,#6d5848)')}</foreignObject>${temperatureLabel(room,y)}<rect x="${left}" y="${y+laneTop}" width="${width}" height="13" rx="3" fill="var(--tp-track,#e5ebee)"/>${activity}</g>`;
    }
    const actualSummary=heatingSummary(recorded.filter(period=>period.activity===1),false);
    const planSummary=heatingSummary(planned.filter(period=>period.suggested_heat),true);
@@ -2284,7 +2288,7 @@ class ThermalPilotPanel extends HTMLElement {
     timeline=track(0)+marks(recorded,'activity',0)+marks(planned,'suggested_heat',0);
    }
    const nameY=y+(!compact&&showPastSuggestions?7:-1);
-   return `<g class="chart-timeline-row"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'var(--tp-garage-alt,#e9e1d8)':'var(--tp-garage,#eee8e1)'):(roomIndex%2?'var(--tp-row-alt,#f1f4f7)':'var(--tp-row,#f0f5f3)')}"/><foreignObject x="20" y="${nameY}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'var(--primary-text-color,#253f49)')}</foreignObject>${temperatureLabel(room,y)}${timeline}</g>`;
+   return `<g class="chart-timeline-row"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${rowHeight-roomGap}" rx="6" fill="${isGarage(room)?((roomIndex-ordinaryRooms.length)%2?'var(--tp-garage-alt,#eee8e0)':'var(--tp-garage,#f4f0eb)'):(roomIndex%2?'var(--tp-row-alt,#f1f4f7)':'var(--tp-row,#f0f5f3)')}"/><foreignObject x="20" y="${nameY}" width="${roomNameWidth}" height="22">${this.manualChartName(room.name,room.id,history,'var(--primary-text-color,#253f49)')}</foreignObject>${temperatureLabel(room,y)}${timeline}</g>`;
   });
   const renderSourceLanes=(items,label,firstRow)=>{
    if(!items.length)return '';
@@ -2325,7 +2329,7 @@ class ThermalPilotPanel extends HTMLElement {
     const detail=`${zone.name} · ${this.t(kind)}\n${this.t('Start:')} ${timeLabel(period.start)}\n${this.t('End:')} ${timeLabel(period.end)}\n${this.t('Duration')}: ${durationLabel(period.end-period.start)}${period.basis==='plan'?planSummary:period.mode==='heat'?actualSummary:''}`;
     return `<rect ${detailAttributes(detail)} data-zone-period="${period.basis==='plan'?'plan':period.mode==='cool'?'cool':'heat'}" x="${x(a)}" y="${y+laneTop+offset}" width="${(b-a)/span*width}" height="13" rx="2" fill="${period.basis==='plan'?'url(#suggested-heating-stripes)':period.mode==='cool'?'#3498DB':color}"/>`;
    }).join('');
-   return `<g class="chart-timeline-row" data-zone-timeline="${escapeHTML(zone.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${zoneHeight}" rx="6" fill="var(--tp-zone,#f5f0e8)"/><foreignObject x="20" y="${compact?y-2:y-5+(zoneHeight-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(zone.name,'zone:'+zone.id,history,'var(--primary-text-color,#76532b)')}</foreignObject>${temperatureLabel(zone,y,true)}${track('Activity',0,'#EC7063',[...observed('heat'),...observed('cool'),...planned].sort((a,b)=>a.start-b.start))}</g>`;
+   return `<g class="chart-timeline-row" data-zone-timeline="${escapeHTML(zone.id)}"><rect class="chart-row-background" x="8" y="${y-5}" width="${viewWidth-20}" height="${zoneHeight}" rx="6" fill="${zone.source_type==='fireplace'?'var(--tp-fireplace,#faede7)':'var(--tp-zone,#f5f0e8)'}"/><foreignObject x="20" y="${compact?y-2:y-5+(zoneHeight-22)/2}" width="${roomNameWidth}" height="22">${this.manualChartName(zone.name,'zone:'+zone.id,history,'var(--primary-text-color,#76532b)')}</foreignObject>${temperatureLabel(zone,y,true)}${track('Activity',0,'#EC7063',[...observed('heat'),...observed('cool'),...planned].sort((a,b)=>a.start-b.start))}</g>`;
   };
   const zoneLanes=renderSourceLanes(zones,'Zones',zoneStart);
   const fireplaceLanes=renderSourceLanes(fireplaces,'Fireplaces',fireplaceStart);
@@ -2347,8 +2351,8 @@ class ThermalPilotPanel extends HTMLElement {
   // Calendar-day stepping preserves local midnight across 23/25-hour DST days.
   while(nextDay.getTime()<end){dayBoundaries.push(nextDay.getTime());nextDay.setDate(nextDay.getDate()+1);}
   const dayLines=dayBoundaries.map(time=>`<line data-day-boundary="${time}" x1="${x(time)}" x2="${x(time)}" y1="${chartOffset?8:top}" y2="${chartOffset+chartHeight-26}" stroke="#829aa3" stroke-opacity="0.55" stroke-width="1" vector-effect="non-scaling-stroke" pointer-events="none"/>`).join('');
-  return `<style>
-.price-card{--tp-chart-card:color-mix(in srgb,#2196f3 7%,var(--card-background-color,#fff));--tp-chart-surface:color-mix(in srgb,var(--card-background-color,#fff) 85%,var(--tp-chart-card));--tp-track:color-mix(in srgb,var(--primary-text-color,#213547) 9%,var(--card-background-color,#fff));--tp-row:color-mix(in srgb,#008577 6%,var(--card-background-color,#fff));--tp-row-alt:color-mix(in srgb,#2196f3 6%,var(--card-background-color,#fff));--tp-garage:color-mix(in srgb,#91785e 22%,var(--card-background-color,#fff));--tp-garage-alt:color-mix(in srgb,#91785e 28%,var(--card-background-color,#fff));--tp-zone:color-mix(in srgb,#b58950 12%,var(--card-background-color,#fff));color:var(--primary-text-color,#213547)}
+  return `<style>${dashboard?garageRowPalette:''}
+.price-card{--tp-chart-card:color-mix(in srgb,#2196f3 7%,var(--card-background-color,#fff));--tp-chart-surface:color-mix(in srgb,var(--card-background-color,#fff) 85%,var(--tp-chart-card));--tp-track:color-mix(in srgb,var(--primary-text-color,#213547) 9%,var(--card-background-color,#fff));--tp-row:color-mix(in srgb,#008577 6%,var(--card-background-color,#fff));--tp-row-alt:color-mix(in srgb,#2196f3 6%,var(--card-background-color,#fff));--tp-fireplace:light-dark(#faede7,#352923);--tp-zone:color-mix(in srgb,#b58950 12%,var(--card-background-color,#fff));color:var(--primary-text-color,#213547)}
 .price-chart-viewport svg text{fill:var(--primary-text-color,#213547)}
 .manual-name{display:flex;align-items:center;gap:4px;font:600 13px system-ui;line-height:22px}.manual-label{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.manual-slot{display:flex;align-items:center;justify-content:center;width:24px;min-width:24px;height:22px}.manual-icon{display:flex;align-items:center;justify-content:center;width:24px;height:22px;box-sizing:border-box;padding:3px;border:0;background:transparent;border-radius:50%;color:#8b9ba2;cursor:pointer}.manual-icon svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}.manual-icon[data-manual-mode="heat"]:hover,.manual-icon[data-manual-mode="heat"].active{color:#d85345;background:#ffe1dc}.manual-icon[data-manual-mode="cool"]:hover,.manual-icon[data-manual-mode="cool"].active{color:#1689cc;background:#dceffc}.manual-icon[data-manual-mode="heat"].active svg{fill:currentColor}.manual-icon.manual-session{box-shadow:0 0 0 1.5px currentColor}.manual-icon:focus-visible{outline:2px solid var(--primary-color,#007f8b);outline-offset:1px}.manual-icon:disabled{opacity:.65;cursor:default}
 .chart-toolbar{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:12px 20px;margin:12px 0}
@@ -2981,7 +2985,8 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
   render(){
     tpI18n.watch(this,this.settings?.language||'en');
     const settingsOpen=new Set([...this.shadowRoot.querySelectorAll('[data-settings-disclosure]')].filter(d=>d.open).map(d=>d.dataset.settingsDisclosure));
-    this.shadowRoot.innerHTML=`<style>.header-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0}.header-status .status-pill{font-size:21px;font-weight:600;padding:8px 15px;border-radius:10px}.header-status-description{font-size:14px;color:var(--secondary-text-color,#60737b)}.status-pill.header-simulation{background:#e74c3c20;border-left:3px solid #c0392b}.status-pill.header-live{background:#2ecc7126;border-left:3px solid #229954}.status-pill.header-paused{background:#f1c40f26;border-left:3px solid #b7950b}.status-pill.header-observation{background:#3498db20;border-left:3px solid #3498db}
+    this.shadowRoot.innerHTML=`<style>${garageRowPalette}
+.header-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0}.header-status .status-pill{font-size:21px;font-weight:600;padding:8px 15px;border-radius:10px}.header-status-description{font-size:14px;color:var(--secondary-text-color,#60737b)}.status-pill.header-simulation{background:#e74c3c20;border-left:3px solid #c0392b}.status-pill.header-live{background:#2ecc7126;border-left:3px solid #229954}.status-pill.header-paused{background:#f1c40f26;border-left:3px solid #b7950b}.status-pill.header-observation{background:#3498db20;border-left:3px solid #3498db}
 .settings-rooms .room-card.garage-room-card{background:linear-gradient(#91785e38,#91785e38),var(--card-background-color,white);border-color:#a18a75}
 .sensor-list-field{display:flex;flex-direction:column;gap:7px;min-width:0}.sensor-list{display:flex;flex-direction:column;gap:8px;min-width:0}.sensor-list-row{display:flex;align-items:center;gap:6px;min-width:0}.sensor-list-row select{flex:1;min-width:0}.sensor-list-row button{flex:none;margin:0;padding:6px 10px;font-size:20px}.sensor-list .add-sensor{align-self:flex-start;margin:0;padding:6px 10px}
 .fireplace-current-state,.source-current-state{font-size:13px;color:var(--secondary-text-color,#60737b);line-height:1.4}.language-picker{position:relative;display:block;min-width:0}.language-trigger{width:100%;margin:0;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-radius:6px;font:inherit;background:var(--card-background-color,white);text-align:left}.language-trigger>span:first-child{display:flex;align-items:center;gap:8px}.language-flag{display:inline-block;width:24px;height:15px;max-height:none;flex:0 0 24px;overflow:hidden;border:1px solid #819aa34d;border-radius:2px}.language-options{max-height:320px;overflow-y:auto;overscroll-behavior:contain;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;padding:4px;background:var(--card-background-color,white);border:1px solid var(--divider-color,#aabdc5);border-radius:6px;box-shadow:0 4px 12px #0002}.language-options[hidden]{display:none}.language-options button{display:flex;align-items:center;gap:8px;width:100%;margin:0;padding:9px 8px;border:0;text-align:left;background:transparent;font:inherit}.language-options button:hover,.language-options button:focus-visible,.language-options button[aria-selected=true]{background:var(--secondary-background-color,#edf4fa)}.language-trigger:focus-visible,.language-options button:focus-visible{outline:2px solid var(--primary-color,#087c85);outline-offset:2px}
@@ -3020,8 +3025,8 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
 .season-archives table tbody tr.garage-archive-row{background:linear-gradient(#91785e38,#91785e38),var(--card-background-color,white)}
 .retention-card table tbody tr.retention-garage-spacer{background:transparent}
 .retention-card .retention-garage-spacer td{height:44px;padding:0}
-.retention-card table tbody tr.garage-retention-row{background:#f4f0eb;background:light-dark(#f4f0eb,#252d34)}
-.retention-card table tbody tr.garage-retention-row-alt{background:#eee8e0;background:light-dark(#eee8e0,#2c3740)}
+.retention-card table tbody tr.garage-retention-row{background:var(--tp-garage,#f4f0eb)}
+.retention-card table tbody tr.garage-retention-row-alt{background:var(--tp-garage-alt,#eee8e0)}
 .retention-card table thead th{background:#e2efed;background:light-dark(#e2efed,#303e45)}
 .retention-card .retention-rating-learning{background:#dbe6f0;background:light-dark(#dbe6f0,#3d5268);color:#324c64;color:light-dark(#324c64,#f1f6fc)}
 #settings .garage-settings-heading{grid-column:1/-1;font-size:17px;margin:0 0 4px}
@@ -3076,7 +3081,9 @@ header.page-layout{position:relative;z-index:20;padding-bottom:0}
 .tab-panel.page-layout{margin:0 24px 24px;border:1px solid #91a5ad;border-radius:0 12px 12px 12px;padding:24px;background:var(--card-background-color,#fff);min-height:320px;box-shadow:0 2px 6px #00000008}
 .collection-date{display:block;margin-bottom:6px}
 @media(max-width:600px){.tab-panel.page-layout{margin:0 12px 12px;padding:12px}.tab-list{padding:0;gap:3px;flex-wrap:wrap}.tab-list button{min-width:0;padding-left:18px;padding-right:18px}}
-.observation-cards,.history-summary{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.observation-cards,.history-summary{display:grid;gap:16px;align-items:start}
+.observation-cards{grid-template-columns:repeat(auto-fit,minmax(min(100%,600px),1fr))}
+.history-summary{grid-template-columns:minmax(0,1fr)}
 .observation-cards>section,.history-summary>section{min-width:0;margin:0;padding:20px}
 .history-summary{margin-bottom:16px}
 .history-summary label{max-width:240px}
@@ -3094,7 +3101,7 @@ header.page-layout{position:relative;z-index:20;padding-bottom:0}
 .observation-card th,.observation-card td{padding:8px}
 .observation-card .temperature-chart{overflow:hidden}.observation-card .temperature-chart svg{min-width:0;width:100%;max-height:220px}
 .observation-card .chart-legend{gap:8px 16px;font-size:14px}
-@media(min-width:1200px){.observation-cards,.history-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(min-width:1200px){.history-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){
  .page-layout{padding:12px}
  .observation-cards>section,.history-summary>section,.status-card{padding:16px}
@@ -3209,14 +3216,9 @@ details{scroll-margin-block:16px}
 .native-tooltip-help{max-width:100%;min-width:0}.native-tooltip-help>[data-tooltip-trigger]{cursor:help}
 .native-tooltip-help>.room-heating{margin:0;flex:0 0 30px}.native-tooltip-help>.room-learning,.native-tooltip-help>.room-forecast-badge{margin:0;max-width:100%;white-space:normal}
 
-/* Alternating room-row colors follow the responsive one/two-column layout. */
 .observation-layout .observation-cards>.observation-card{--room-tint:#00857712;--room-heading-tint:#00857724;background:linear-gradient(var(--room-tint),var(--room-tint)),var(--card-background-color,white)}
 .observation-layout .observation-cards>.observation-card:nth-child(even){--room-tint:#2196f312;--room-heading-tint:#2196f324}
 .observation-layout .observation-card .observation-accordion>summary{background:linear-gradient(var(--room-heading-tint),var(--room-heading-tint)),var(--card-background-color,white)}
-@media(min-width:1200px){
- .observation-layout .observation-cards>.observation-card:nth-child(n){--room-tint:#00857712;--room-heading-tint:#00857724}
- .observation-layout .observation-cards>.observation-card:nth-child(4n+3),.observation-layout .observation-cards>.observation-card:nth-child(4n+4){--room-tint:#2196f312;--room-heading-tint:#2196f324}
-}
 
 .observation-layout .observation-cards>.observation-card.garage-observation-card:nth-child(n){--room-tint:#91785e38;--room-heading-tint:#91785e50;border-color:#a18a75}
 
