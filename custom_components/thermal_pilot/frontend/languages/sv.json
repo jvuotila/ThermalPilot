@@ -2,6 +2,8 @@
   "language": "sv",
   "name": "Svenska",
   "messages": {
+    "Mixed (includes water-based heating)": "Blandad (med vattenburen värme)",
+    "Mixed (no water-based heating)": "Blandad (utan vattenburen värme)",
     "Price-aware temperature limits": "Temperaturgränser med prisstyrning",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Välj en aktivitetsgivare, en yttemperaturgivare eller båda.",
     "Fireplace surface temperature sensor": "Givare för eldstadens yttemperatur",

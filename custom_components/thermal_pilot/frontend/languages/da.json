@@ -2,6 +2,8 @@
   "language": "da",
   "name": "Dansk",
   "messages": {
+    "Mixed (includes water-based heating)": "Blandet (med vandbåren varme)",
+    "Mixed (no water-based heating)": "Blandet (uden vandbåren varme)",
     "Price-aware temperature limits": "Temperaturgrænser med pristilpasning",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Vælg en aktivitetsføler, en overfladetemperaturføler eller begge.",
     "Fireplace surface temperature sensor": "Føler til ildstedets overfladetemperatur",

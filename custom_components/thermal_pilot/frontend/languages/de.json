@@ -2,6 +2,8 @@
   "language": "de",
   "name": "Deutsch",
   "messages": {
+    "Mixed (includes water-based heating)": "Gemischt (mit wassergeführter Heizung)",
+    "Mixed (no water-based heating)": "Gemischt (ohne wassergeführte Heizung)",
     "Price-aware temperature limits": "Temperaturgrenzen mit Preisoptimierung",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Wähle einen Aktivitätssensor, einen Oberflächentemperaturfühler oder beide.",
     "Fireplace surface temperature sensor": "Oberflächentemperaturfühler der Feuerstätte",

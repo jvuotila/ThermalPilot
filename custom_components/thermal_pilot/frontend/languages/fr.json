@@ -2,6 +2,8 @@
   "language": "fr",
   "name": "Français",
   "messages": {
+    "Mixed (includes water-based heating)": "Mixte (avec chauffage à eau)",
+    "Mixed (no water-based heating)": "Mixte (sans chauffage à eau)",
     "Price-aware temperature limits": "Limites de température selon le prix",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Sélectionnez un capteur d’activité, un capteur de température de surface ou les deux.",
     "Fireplace surface temperature sensor": "Capteur de température de surface du foyer",

@@ -2,6 +2,8 @@
   "language": "bg",
   "name": "Български",
   "messages": {
+    "Mixed (includes water-based heating)": "Смесено (с водно отопление)",
+    "Mixed (no water-based heating)": "Смесено (без водно отопление)",
     "Price-aware temperature limits": "Температурни граници според цената",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Изберете датчик за активност, датчик за температура на повърхността или и двата.",
     "Fireplace surface temperature sensor": "Датчик за температурата на повърхността на камината",

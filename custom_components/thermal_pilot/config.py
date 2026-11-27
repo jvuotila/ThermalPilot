@@ -41,7 +41,7 @@ SOURCE_FIELDS = [
  (
      'house_distribution',
      'Heat distribution',
-     'select:water_floor,water_radiators,electric_floor,electric_ceiling,electric_panels,warm_air,mixed,other'
+     'select:water_floor,water_radiators,electric_floor,electric_ceiling,electric_panels,warm_air,mixed,mixed_dry,other'
  ),
  (
      'house_heated_floor',
@@ -501,7 +501,10 @@ def learning_fingerprint(room, settings):
 
 
 def water_distribution(settings):
-    return settings.get('house_distribution', 'water_floor') not in ('electric_floor', 'electric_ceiling', 'electric_panels', 'warm_air')
+    # Keep the historical meaning of stored "mixed" configurations.
+    return settings.get('house_distribution', 'water_floor') not in (
+        'electric_floor', 'electric_ceiling', 'electric_panels', 'warm_air', 'mixed_dry',
+    )
 
 
 def stored_settings(data, options):

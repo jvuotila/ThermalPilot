@@ -2,6 +2,9 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "Mixed (includes water-based heating)": "Mixed (includes water-based heating)",
+    "Mixed (no water-based heating)": "Mixed (no water-based heating)",
+    "Choose how the main heating system delivers heat. For mixed systems, choose whether they include water-based heating. Water sensor settings and valve timing apply to water-based distribution.": "Choose how the main heating system delivers heat. For mixed systems, choose whether they include water-based heating. Water sensor settings and valve timing apply to water-based distribution.",
     "Price-aware temperature limits": "Price-aware temperature limits",
     "Price-aware temperature limits can pause heating below the upper limit when the garage can stay above the lower limit until a cheaper period. With flat or missing prices, heating follows the temperature limits.": "Price-aware temperature limits can pause heating below the upper limit when the garage can stay above the lower limit until a cheaper period. With flat or missing prices, heating follows the temperature limits.",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Choose an activity sensor, a surface temperature sensor, or both.",

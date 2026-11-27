@@ -176,11 +176,14 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
     async def test_nonwater_distributions_plan_learn_and_control_without_water(self):
         rid=self.c.settings['rooms'][0]['id']
         self.hass.states.pop('sensor.water')
-        self.c.settings.update(water_entity='',simulation_enabled=False,live_control_confirmed=True)
-        for distribution in ['electric_floor','electric_ceiling','electric_panels','warm_air']:
+        self.c.settings.update(water_entity='sensor.water', start_offset_minutes=5, stop_offset_minutes=10,
+                               simulation_enabled=False, live_control_confirmed=True)
+        for distribution in ['electric_floor','electric_ceiling','electric_panels','warm_air','mixed_dry']:
             self.c.settings['house_distribution']=distribution
             data=await self.c._async_update_data()
             self.assertFalse(data['source_status']['water_required'])
+            self.assertFalse(any(warning.startswith('Heating water temperature is not available')
+                                 for warning in data['warnings']))
             self.assertTrue(data['rooms'][rid]['plan'])
             self.assertEqual(data['control']['fallback_rooms'],[])
             self.assertEqual(self.c.previous[rid]['water_factor'],1)
@@ -190,6 +193,8 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         data=await self.c._async_update_data()
         self.assertTrue(data['rooms'][rid]['plan'])
         self.assertEqual(data['control']['fallback_rooms'],[])
+        self.assertTrue(any(warning.startswith('Heating water temperature is not available')
+                            for warning in data['warnings']))
     async def test_house_metadata_preserves_existing_water_model_and_history(self):
         data=await self.c._async_update_data();rid=self.c.settings['rooms'][0]['id']
         model=self.c.models[rid];model['loss']=.012;model['heated_hours']=40;model['idle_hours']=60

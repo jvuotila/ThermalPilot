@@ -2,6 +2,8 @@
   "language": "es",
   "name": "Español",
   "messages": {
+    "Mixed (includes water-based heating)": "Mixta (con calefacción por agua)",
+    "Mixed (no water-based heating)": "Mixta (sin calefacción por agua)",
     "Price-aware temperature limits": "Límites de temperatura según el precio",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Selecciona un sensor de actividad, un sensor de temperatura superficial o ambos.",
     "Fireplace surface temperature sensor": "Sensor de temperatura superficial de la chimenea",

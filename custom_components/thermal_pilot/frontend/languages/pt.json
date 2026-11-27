@@ -2,6 +2,8 @@
   "language": "pt",
   "name": "Português",
   "messages": {
+    "Mixed (includes water-based heating)": "Mista (com aquecimento a água)",
+    "Mixed (no water-based heating)": "Mista (sem aquecimento a água)",
     "Price-aware temperature limits": "Limites de temperatura conforme o preço",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Selecione um sensor de atividade, um sensor de temperatura da superfície ou ambos.",
     "Fireplace surface temperature sensor": "Sensor de temperatura da superfície da lareira",

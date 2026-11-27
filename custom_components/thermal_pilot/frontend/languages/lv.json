@@ -2,6 +2,8 @@
   "language": "lv",
   "name": "Latviešu",
   "messages": {
+    "Mixed (includes water-based heating)": "Jaukta (ar ūdens apkuri)",
+    "Mixed (no water-based heating)": "Jaukta (bez ūdens apkures)",
     "Price-aware temperature limits": "Temperatūras robežas atbilstoši cenai",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Izvēlieties darbības sensoru, virsmas temperatūras sensoru vai abus.",
     "Fireplace surface temperature sensor": "Kamīna virsmas temperatūras sensors",

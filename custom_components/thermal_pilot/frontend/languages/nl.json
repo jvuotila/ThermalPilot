@@ -2,6 +2,8 @@
   "language": "nl",
   "name": "Nederlands",
   "messages": {
+    "Mixed (includes water-based heating)": "Gemengd (met watergedragen verwarming)",
+    "Mixed (no water-based heating)": "Gemengd (zonder watergedragen verwarming)",
     "Price-aware temperature limits": "Temperatuurgrenzen met prijssturing",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Kies een activiteitssensor, een oppervlaktetemperatuursensor of beide.",
     "Fireplace surface temperature sensor": "Sensor voor de oppervlaktetemperatuur van de haard",

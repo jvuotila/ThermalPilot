@@ -2,6 +2,8 @@
   "language": "sr",
   "name": "Српски",
   "messages": {
+    "Mixed (includes water-based heating)": "Мешовито (са воденим грејањем)",
+    "Mixed (no water-based heating)": "Мешовито (без воденог грејања)",
     "Price-aware temperature limits": "Температурне границе према цени",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Изаберите сензор активности, сензор површинске температуре или оба.",
     "Fireplace surface temperature sensor": "Сензор површинске температуре камина",

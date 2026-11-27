@@ -2,6 +2,8 @@
   "language": "el",
   "name": "Ελληνικά",
   "messages": {
+    "Mixed (includes water-based heating)": "Μικτή (με θέρμανση νερού)",
+    "Mixed (no water-based heating)": "Μικτή (χωρίς θέρμανση νερού)",
     "Price-aware temperature limits": "Όρια θερμοκρασίας με βάση την τιμή",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Επιλέξτε αισθητήρα δραστηριότητας, αισθητήρα θερμοκρασίας επιφάνειας ή και τους δύο.",
     "Fireplace surface temperature sensor": "Αισθητήρας θερμοκρασίας επιφάνειας τζακιού",

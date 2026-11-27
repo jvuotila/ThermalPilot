@@ -2,6 +2,8 @@
   "language": "cs",
   "name": "Čeština",
   "messages": {
+    "Mixed (includes water-based heating)": "Kombinovaná (s teplovodním vytápěním)",
+    "Mixed (no water-based heating)": "Kombinovaná (bez teplovodního vytápění)",
     "Price-aware temperature limits": "Teplotní limity podle ceny",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Vyberte snímač aktivity, snímač povrchové teploty nebo oba.",
     "Fireplace surface temperature sensor": "Snímač povrchové teploty krbu",

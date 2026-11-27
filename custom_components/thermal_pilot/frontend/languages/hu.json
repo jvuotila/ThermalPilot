@@ -2,6 +2,8 @@
   "language": "hu",
   "name": "Magyar",
   "messages": {
+    "Mixed (includes water-based heating)": "Vegyes (vízkeringetéses fűtéssel)",
+    "Mixed (no water-based heating)": "Vegyes (vízkeringetéses fűtés nélkül)",
     "Price-aware temperature limits": "Árfüggő hőmérsékleti határok",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Válasszon aktivitásérzékelőt, felületi hőmérséklet-érzékelőt vagy mindkettőt.",
     "Fireplace surface temperature sensor": "A kandalló felületi hőmérséklet-érzékelője",

@@ -2,6 +2,9 @@
   "language": "fi",
   "name": "Finnish",
   "messages": {
+    "Mixed (includes water-based heating)": "Useita lämmönjakotapoja (sisältää vesikierron)",
+    "Mixed (no water-based heating)": "Useita lämmönjakotapoja (ilman vesikiertoa)",
+    "Choose how the main heating system delivers heat. For mixed systems, choose whether they include water-based heating. Water sensor settings and valve timing apply to water-based distribution.": "Valitse talon päälämmityksen lämmönjakotapa. Jos lämmönjakotapoja on useita, valitse, onko mukana vesikierto. Lämmitysvesianturi ja venttiilien ennakot koskevat vesikiertoista lämmönjakoa.",
     "Price-aware temperature limits": "Hintatietoiset lämpötilarajat",
     "Price-aware temperature limits can pause heating below the upper limit when the garage can stay above the lower limit until a cheaper period. With flat or missing prices, heating follows the temperature limits.": "Hintatietoiset lämpötilarajat voivat keskeyttää lämmityksen ennen ylärajaa, jos autotalli pysyy alarajan yläpuolella halvempaan jaksoon asti. Jos hinta on tasainen tai hintatietoja ei ole, lämmitys noudattaa lämpötilarajoja.",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Valitse tulisijan käyttötila-anturi, pintalämpöanturi tai molemmat.",

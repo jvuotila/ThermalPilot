@@ -2,6 +2,8 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "Mixed (includes water-based heating)": "E përzier (me ngrohje me ujë)",
+    "Mixed (no water-based heating)": "E përzier (pa ngrohje me ujë)",
     "Price-aware temperature limits": "Kufijtë e temperaturës sipas çmimit",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Zgjidhni një sensor aktiviteti, një sensor të temperaturës së sipërfaqes ose të dy.",
     "Fireplace surface temperature sensor": "Sensori i temperaturës së sipërfaqes së oxhakut",

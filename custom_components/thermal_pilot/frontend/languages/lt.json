@@ -2,6 +2,8 @@
   "language": "lt",
   "name": "Lietuvių",
   "messages": {
+    "Mixed (includes water-based heating)": "Mišri (su vandeniniu šildymu)",
+    "Mixed (no water-based heating)": "Mišri (be vandeninio šildymo)",
     "Price-aware temperature limits": "Temperatūros ribos pagal kainą",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Pasirinkite veiklos jutiklį, paviršiaus temperatūros jutiklį arba abu.",
     "Fireplace surface temperature sensor": "Židinio paviršiaus temperatūros jutiklis",

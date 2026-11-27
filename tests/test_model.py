@@ -590,7 +590,7 @@ class HouseSettingsTests(unittest.TestCase):
         self.assertEqual(legacy['house_heat_source'],'air_to_water')
         self.assertEqual(legacy['lag_hours'],3)
         payload={**DEFAULTS,'price_entity':'sensor.price','outdoor_entity':'sensor.out','water_entity':''}
-        for distribution in ['electric_floor','electric_ceiling','electric_panels','warm_air']:
+        for distribution in ['electric_floor','electric_ceiling','electric_panels','warm_air','mixed_dry']:
             self.assertEqual(validate({**payload,'house_distribution':distribution})['house_distribution'],distribution)
         for distribution in ['water_floor','water_radiators','mixed','other']:
             self.assertEqual(validate({**payload,'house_distribution':distribution})['water_entity'],'')

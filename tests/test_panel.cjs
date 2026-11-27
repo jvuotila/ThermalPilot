@@ -628,15 +628,20 @@ assert.doesNotMatch(detailsPanel.priceChart(false),/data-chart-detail="Study · 
 console.log('Plan relay history checks passed: observed amber periods, duration tooltips, future teal suggestions and no future relay history.');
 
 const isWater=vm.runInContext('waterDistribution',context);
-for(const distribution of ['electric_floor','electric_ceiling','electric_panels','warm_air'])assert.equal(isWater({house_distribution:distribution}),false);
+for(const distribution of ['electric_floor','electric_ceiling','electric_panels','warm_air','mixed_dry'])assert.equal(isWater({house_distribution:distribution}),false);
 for(const distribution of ['water_floor','water_radiators','mixed','other'])assert.equal(isWater({house_distribution:distribution}),true);
 const houseSettings=previewPanel.settingsView();
 assert.ok(houseSettings.indexOf('settings-sources')<houseSettings.indexOf('settings-house'));
 assert.ok(houseSettings.indexOf('settings-house')<houseSettings.indexOf('settings-shared'));
-previewPanel.settings.house_distribution='electric_floor';
-assert.match(previewPanel.settingsView(),/data-water-group hidden/);
-previewPanel.settings.house_distribution='water_floor';
-assert.doesNotMatch(previewPanel.settingsView(),/data-water-group hidden/);
+for(const distribution of ['electric_floor','mixed_dry']){
+ previewPanel.settings.house_distribution=distribution;
+ assert.match(previewPanel.settingsView(),/data-water-group hidden/);
+}
+for(const distribution of ['mixed','water_floor']){
+ previewPanel.settings.house_distribution=distribution;
+ assert.doesNotMatch(previewPanel.settingsView(),/data-water-group hidden/);
+}
+assert.match(houseSettings,/value="mixed_dry">Mixed \(no water-based heating\)/);
 console.log('House settings checks passed: card order, moved controls, conditional water groups and distribution classification.');
 
 const translate=vm.runInContext('translateText',context);

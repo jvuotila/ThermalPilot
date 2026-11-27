@@ -2,6 +2,8 @@
   "language": "et",
   "name": "Eesti",
   "messages": {
+    "Mixed (includes water-based heating)": "Segasüsteem (vesiküttega)",
+    "Mixed (no water-based heating)": "Segasüsteem (vesikütteta)",
     "Price-aware temperature limits": "Hinnapõhised temperatuuripiirid",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Vali aktiivsusandur, pinnatemperatuuri andur või mõlemad.",
     "Fireplace surface temperature sensor": "Küttekolde pinnatemperatuuri andur",

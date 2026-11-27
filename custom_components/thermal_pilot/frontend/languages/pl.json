@@ -2,6 +2,8 @@
   "language": "pl",
   "name": "Polski",
   "messages": {
+    "Mixed (includes water-based heating)": "Mieszana (z ogrzewaniem wodnym)",
+    "Mixed (no water-based heating)": "Mieszana (bez ogrzewania wodnego)",
     "Price-aware temperature limits": "Limity temperatury z uwzględnieniem cen",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Wybierz czujnik aktywności, czujnik temperatury powierzchni lub oba.",
     "Fireplace surface temperature sensor": "Czujnik temperatury powierzchni kominka",

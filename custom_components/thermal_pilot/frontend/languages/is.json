@@ -2,6 +2,8 @@
   "language": "is",
   "name": "Íslenska",
   "messages": {
+    "Mixed (includes water-based heating)": "Blönduð (með vatnshitun)",
+    "Mixed (no water-based heating)": "Blönduð (án vatnshitunar)",
     "Price-aware temperature limits": "Hitamörk með verðstýringu",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Veldu virkniskynjara, yfirborðshitaskynjara eða báða.",
     "Fireplace surface temperature sensor": "Yfirborðshitaskynjari eldstæðis",
