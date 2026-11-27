@@ -2,6 +2,7 @@
   "language": "et",
   "name": "Eesti",
   "messages": {
+    "Price-aware temperature limits": "Hinnapõhised temperatuuripiirid",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Vali aktiivsusandur, pinnatemperatuuri andur või mõlemad.",
     "Fireplace surface temperature sensor": "Küttekolde pinnatemperatuuri andur",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Valikuline. ThermalPilot võrdleb pinnatemperatuuri seotud ruumide näitudega. Pärast mitut kütmiskorda saab see arvestada salvestunud soojust küttekolde jahtumise ajal.",

@@ -2,6 +2,7 @@
   "language": "lt",
   "name": "Lietuvių",
   "messages": {
+    "Price-aware temperature limits": "Temperatūros ribos pagal kainą",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Pasirinkite veiklos jutiklį, paviršiaus temperatūros jutiklį arba abu.",
     "Fireplace surface temperature sensor": "Židinio paviršiaus temperatūros jutiklis",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Pasirenkama. ThermalPilot lygina paviršiaus temperatūrą su susietų patalpų matavimais. Po kelių kūrenimo ciklų jis gali atsižvelgti į sukauptą šilumą, kol židinys vėsta.",

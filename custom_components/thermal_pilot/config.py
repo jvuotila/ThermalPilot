@@ -125,7 +125,7 @@ ROOM_FIELDS = [
      'select:unknown,timber_frame,masonry,lightweight_metal'
  ),
  ('garage_heat_source', 'Heat source', 'select:house,air_to_air'),
- ('garage_strategy', 'Heating strategy', 'select:temperature,tariff'),
+ ('garage_strategy', 'Heating strategy', 'select:temperature,tariff,price_aware_limits'),
  ('garage_minimum', 'Lower temperature limit (°C)', 'number', -5, 25, 0.1),
  ('garage_maximum', 'Upper temperature limit (°C)', 'number', -5, 30, 0.1),
  ('garage_use_fan_only', 'Use Fan only between heating runs', 'bool'),
@@ -284,7 +284,7 @@ def price_required(settings):
             continue
         if room.get('zone_heating_strategy', 'tariff') != 'tariff':
             continue
-        if room.get('is_garage') and room.get('garage_strategy', 'temperature') != 'tariff':
+        if room.get('is_garage') and room.get('garage_strategy', 'temperature') == 'temperature':
             continue
         return True
     return not settings.get('rooms') and settings.get('house_heat_source', 'air_to_water') in (

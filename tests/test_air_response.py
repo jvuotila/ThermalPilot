@@ -45,3 +45,28 @@ class AirResponseTests(unittest.TestCase):
         model['air_response_lag_hours']=45/60
         learned=garage_cycle_plan(room,model,4,[-5],slots,now,False)
         self.assertLess(learned['slots'][0]['temperature'],initial['slots'][0]['temperature'])
+
+    def test_garage_price_pause_waits_for_lower_rates_only_with_enough_warmth(self):
+        room = {**DEFAULTS, **ROOM_DEFAULTS, 'is_garage': True, 'air_control': True,
+                'minimum': 7, 'maximum': 10, 'boost': 3, 'minimum_run_minutes': 60}
+        model = {**initial_model(room), 'loss': 0.04, 'gain': 2.5, 'response': 0.5}
+        now = datetime(2026, 11, 27, tzinfo=timezone.utc)
+        interval = timedelta(minutes=15)
+        slots = [
+            Slot(now + i * interval, now + (i + 1) * interval, price)
+            for i, price in enumerate([40] * 4 + [12] * 12)
+        ]
+        outdoors = [-5] * len(slots)
+        with_reserve = garage_cycle_plan(room, model, 8.5, outdoors, slots, now, True, price_aware=True)
+        first_hour = with_reserve['slots'][:4]
+        self.assertTrue(all(row.get('garage_price_pause') and not row['heat'] for row in first_hour))
+        self.assertTrue(with_reserve['slots'][4]['heat'])
+        self.assertGreaterEqual(with_reserve['forecast_minimum'], 7)
+
+        for temperature in (6.9, 7, 7.05):
+            near_limit = garage_cycle_plan(room, model, temperature, outdoors, slots, now, True, price_aware=True)
+            self.assertTrue(near_limit['slots'][0]['heat'])
+        flat_slots = [Slot(slot.start, slot.end, 12) for slot in slots]
+        flat_plan = garage_cycle_plan(room, model, 8.5, outdoors, flat_slots, now, True, price_aware=True)
+        temperature_plan = garage_cycle_plan(room, model, 8.5, outdoors, flat_slots, now, True)
+        self.assertEqual(flat_plan, temperature_plan)

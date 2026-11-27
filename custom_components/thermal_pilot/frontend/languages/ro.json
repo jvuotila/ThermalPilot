@@ -2,6 +2,7 @@
   "language": "ro",
   "name": "Română",
   "messages": {
+    "Price-aware temperature limits": "Limite de temperatură în funcție de preț",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Alegeți un senzor de activitate, un senzor de temperatură a suprafeței sau ambele.",
     "Fireplace surface temperature sensor": "Senzor de temperatură la suprafața șemineului",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Opțional. ThermalPilot compară temperatura suprafeței cu măsurătorile din încăperile asociate. După mai multe utilizări, poate ține cont de căldura acumulată pe măsură ce șemineul se răcește.",

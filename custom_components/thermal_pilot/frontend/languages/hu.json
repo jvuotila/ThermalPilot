@@ -2,6 +2,7 @@
   "language": "hu",
   "name": "Magyar",
   "messages": {
+    "Price-aware temperature limits": "Árfüggő hőmérsékleti határok",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Válasszon aktivitásérzékelőt, felületi hőmérséklet-érzékelőt vagy mindkettőt.",
     "Fireplace surface temperature sensor": "A kandalló felületi hőmérséklet-érzékelője",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Opcionális. A ThermalPilot összeveti a felületi hőmérsékletet a társított helyiségek méréseivel. Több fűtési alkalom után a kandalló lehűlése közben is figyelembe tudja venni a tárolt hőt.",

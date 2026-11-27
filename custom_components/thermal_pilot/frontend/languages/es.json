@@ -2,6 +2,7 @@
   "language": "es",
   "name": "Español",
   "messages": {
+    "Price-aware temperature limits": "Límites de temperatura según el precio",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Selecciona un sensor de actividad, un sensor de temperatura superficial o ambos.",
     "Fireplace surface temperature sensor": "Sensor de temperatura superficial de la chimenea",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Opcional. ThermalPilot compara la temperatura superficial con las mediciones de las habitaciones vinculadas. Tras observar varios usos, puede tener en cuenta el calor almacenado mientras la chimenea se enfría.",

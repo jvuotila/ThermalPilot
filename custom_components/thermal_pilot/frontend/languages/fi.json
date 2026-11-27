@@ -2,6 +2,8 @@
   "language": "fi",
   "name": "Finnish",
   "messages": {
+    "Price-aware temperature limits": "Hintatietoiset lämpötilarajat",
+    "Price-aware temperature limits can pause heating below the upper limit when the garage can stay above the lower limit until a cheaper period. With flat or missing prices, heating follows the temperature limits.": "Hintatietoiset lämpötilarajat voivat keskeyttää lämmityksen ennen ylärajaa, jos autotalli pysyy alarajan yläpuolella halvempaan jaksoon asti. Jos hinta on tasainen tai hintatietoja ei ole, lämmitys noudattaa lämpötilarajoja.",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Valitse tulisijan käyttötila-anturi, pintalämpöanturi tai molemmat.",
     "Each fireplace needs a unique identifier and a name.": "Jokainen tulisija tarvitsee yksilöllisen tunnisteen ja nimen.",
     "Fireplace surface temperature sensor": "Tulisijan pintalämpöanturi",

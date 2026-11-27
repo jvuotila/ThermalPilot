@@ -2,6 +2,7 @@
 from typing import Any
 from datetime import datetime, timedelta
 from copy import deepcopy
+from functools import partial
 import logging
 import asyncio
 from statistics import median
@@ -1153,6 +1154,16 @@ class PilotCoordinator(DataUpdateCoordinator):
             activity = self.activity(room)
             thermostat_state = self.hass.states.get(room['thermostat'])
             use_setpoints = pump_uses_setpoints(room, self.settings)
+            garage_strategy = room['garage_strategy'] if room.get('is_garage') else None
+            price_aware_garage = garage_strategy == 'price_aware_limits'
+            garage_cycle = garage_strategy in ('temperature', 'price_aware_limits')
+            if garage_cycle:
+                cycle = self.air_control.cycles.get(room_id, {})
+                heating = bool(thermostat_state and thermostat_state.state == 'heat')
+                if use_setpoints and price_aware_garage:
+                    heating = heating and number(thermostat_state.attributes.get('temperature')) == room['maximum']
+                    room['garage_heat_target'] = room['maximum']
+                heating = cycle.get('heating', heating) or cycle.get('garage_cycle_paused', False)
             if use_setpoints and room.get('is_garage') and room['garage_strategy'] == 'temperature':
                 target = room['garage_minimum']
                 if (thermostat_state and thermostat_state.state == 'heat'
@@ -1351,7 +1362,14 @@ class PilotCoordinator(DataUpdateCoordinator):
                         'reduction_available': previous_run.get('reduction_available', previous_run.get('heat', False)),
                         'previous_run_hours': max(0, (now.timestamp() - previous_run.get('since', now.timestamp())) / 3600),
                     }
-                    if room.get('is_garage') and room['garage_strategy'] == 'temperature':
+                    if price_aware_garage:
+                        room_slots = pump_slots if room_water and room_heat_source(room, self.settings) == 'air_to_water' else slots
+                        water_factor = water_heating_factor(planning_water if room_water else None, temperature)
+                        result['plan'] = await self.hass.async_add_executor_job(
+                            partial(garage_cycle_plan, price_aware=True, water_factor=water_factor),
+                            settings, deepcopy(model), temperature, outdoors, room_slots, now, heating,
+                        )
+                    elif garage_cycle:
                         result['plan'] = garage_cycle_plan(
                             settings,
                             model,
@@ -1359,7 +1377,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                             outdoors,
                             slots,
                             now,
-                            self.air_control.cycles.get(room_id, {}).get('heating', bool(thermostat_state and thermostat_state.state == 'heat'))
+                            heating,
                         )
                     else:
                         room_slots = slots
@@ -1389,7 +1407,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                                 'baseline': baseline, 'outdoor': outdoors, 'slots': room_slots,
                                 'water_factor': planning_water_factor, 'plan': result['plan'],
                             }
-                if room.get('is_garage') and room_electric(room, self.settings) and room['garage_strategy'] == 'temperature' and (not slots):
+                if garage_cycle and room_electric(room, self.settings) and not slots:
                     cycle_slots = [Slot(now + timedelta(minutes=15 * i), now + timedelta(minutes=15 * (i + 1)), 0) for i in range(96)]
                     result['plan'] = garage_cycle_plan(
                         room,
@@ -1398,7 +1416,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                         [planning_outdoor] * 96,
                         cycle_slots,
                         now,
-                        self.air_control.cycles.get(room_id, {}).get('heating', bool(thermostat_state and thermostat_state.state == 'heat'))
+                        heating,
                     )
                     result['plan']['prices_used'] = False
                 if result['plan'] and room.get('air_control'):
@@ -2041,6 +2059,11 @@ class PilotCoordinator(DataUpdateCoordinator):
             current = thermostat_state(planned, now) if planned and planned.get('slots') and (stamp(planned['slots'][0]['start']) <= now < stamp(planned['slots'][-1]['end'])) else None
             if current and current.get('mode') == 'away' and room.get('away_target') is None:
                 current = None
+            if current and room.get('is_garage') and room['garage_strategy'] == 'price_aware_limits':
+                current['garage_price_pause'] = any(
+                    row.get('garage_price_pause') and stamp(row['start']) <= now < stamp(row['end'])
+                    for row in planned['slots']
+                )
             intent = self.air_control.intent(
                 room,
                 self.settings,

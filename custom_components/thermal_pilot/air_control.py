@@ -155,12 +155,26 @@ class AirHeatPumpControl:
             heating = old_cycle.get('heating', state is not None and state.state == 'heat')
         else:
             heating = bool(state and state.state == 'heat')
-        if use_setpoints:
+        price_aware_garage = garage and room['garage_strategy'] == 'price_aware_limits'
+        if use_setpoints and not price_aware_garage:
             # Heat is an operating mode, not proof the compressor is running.
             heating = bool(state and state.attributes.get('hvac_action') == 'heating')
+        elif use_setpoints and old_cycle.get('signature') != signature:
+            heating = bool(state and state.state == 'heat'
+                           and number(state.attributes.get('temperature')) == room['garage_maximum'])
 
+        garage_temperature_cycle = (
+            price_aware_garage or (garage and not thermostat and not use_setpoints
+                                   and room['garage_strategy'] == 'temperature')
+        )
+        garage_cycle_paused = (
+            garage_temperature_cycle
+            and old_cycle.get('signature') == signature
+            and old_cycle.get('garage_cycle_paused', False)
+        )
         if room.get('manual_session_ended') or room.get('solar_session_ended'):
             heating = False
+            garage_cycle_paused = False
         door_entities = room.get('garage_door_entities', []) if garage and not thermostat else []
         door_states = {entity: binary(self.hass, entity) for entity in door_entities}
         door_open = any((value is True for value in door_states.values()))
@@ -184,6 +198,19 @@ class AirHeatPumpControl:
                 self.deadlines.append(deadline)
         elif doors_valid:
             self.doors.pop(room_id, None)
+
+        cycle_requested = heating or garage_cycle_paused
+        price_pause = (
+            price_aware_garage and cycle_requested and planned is not None
+            and planned.get('garage_price_pause', False) and temperature is not None
+            and temperature > lower_limit
+        )
+        if price_aware_garage and not manual and use_setpoints:
+            automatic_heat = enabled and not release and temperature is not None and outdoor is not None
+            cycle_requested = bool(
+                automatic_heat and outdoor <= lower_limit and not too_warm
+                and (temperature < lower_limit or cycle_requested)
+            )
 
         if use_setpoints and not manual and doors_valid and not paused and (not door_open or heating):
             if garage:
@@ -214,9 +241,21 @@ class AirHeatPumpControl:
             elif not garage and summer:
                 target = min(normal_target, settings['summer_setpoint'])
                 reason = 'Pump thermostat: maintenance target'
+            elif price_aware_garage and cycle_requested:
+                if price_pause:
+                    reason = 'Tariff standby'
+                else:
+                    target = boosted_target
+                    reason = 'Garage temperature cycle'
             elif planned and (not garage or room['garage_strategy'] == 'tariff'):
                 target = max(minimum, min(maximum, planned.get('setpoint', normal_target)))
                 reason = 'Pump thermostat: scheduled target'
+            if price_aware_garage:
+                self.cycles[room_id] = {
+                    'signature': signature,
+                    'heating': target > normal_target,
+                    'garage_cycle_paused': cycle_requested and price_pause,
+                }
             fan = values.get(prefix + 'fan_heat', '')
             if garage and any(binary(self.hass, entity) is True for entity in room.get('garage_presence_entities', [])):
                 fan = room.get('garage_fan_presence') or fan
@@ -225,6 +264,7 @@ class AirHeatPumpControl:
                     'errors': [], 'keep_heat': True, 'clamp_target': True}
 
         valid = temperature is not None and (manual or outdoor is not None) and doors_valid
+        resume_cycle = False
         if not enabled or release:
             heating = False
             reason = 'Heating paused'
@@ -236,6 +276,11 @@ class AirHeatPumpControl:
                 + ('using off standby.' if thermostat else 'using fan-only standby.')
             )
         elif paused or (door_open and not (heating or (manual and state and state.state == 'cool'))):
+            if (garage_temperature_cycle and not manual and not room.get('solar_session')
+                    and not too_warm and outdoor <= lower_limit):
+                # Stop the pump while the door is open, but keep the lower-to-upper
+                # cycle so closing the door can resume it above the start limit.
+                resume_cycle = cycle_requested
             heating = False
             reason = 'Garage door open: heating paused'
         elif manual:
@@ -268,11 +313,16 @@ class AirHeatPumpControl:
             elif temperature < lower_limit:
                 heating = True
                 reason = 'Garage below lower limit'
+            elif price_pause:
+                heating = False
+                resume_cycle = True
+                reason = 'Tariff standby'
             elif room['garage_strategy'] == 'tariff' and planned is not None:
                 heating = bool(planned.get('heat'))
                 reason = 'Tariff heating plan' if heating else 'Tariff standby'
             else:
                 # Between the two limits, keep the previous cycle direction.
+                heating = heating or garage_cycle_paused
                 reason = 'Garage temperature cycle' if heating else 'Standby'
         else:
             if too_warm:
@@ -301,6 +351,8 @@ class AirHeatPumpControl:
         elif not manual and garage and outdoor is not None and (outdoor > lower_limit) and (not paused) and valid:
             mode = 'off'
         self.cycles[room_id] = {'signature': signature, 'heating': heating}
+        if resume_cycle:
+            self.cycles[room_id]['garage_cycle_paused'] = True
         fan_key = 'fan_heat' if heating else 'fan_idle'
         fan = values.get(prefix + fan_key, '')
         if garage and mode != 'off':

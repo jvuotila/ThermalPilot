@@ -2,6 +2,7 @@
   "language": "hr",
   "name": "Hrvatski",
   "messages": {
+    "Price-aware temperature limits": "Temperaturne granice prema cijeni",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Odaberite senzor aktivnosti, senzor površinske temperature ili oba.",
     "Fireplace surface temperature sensor": "Senzor površinske temperature kamina",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Neobavezno. ThermalPilot uspoređuje površinsku temperaturu s mjerenjima u povezanim prostorijama. Nakon nekoliko loženja može uzeti u obzir pohranjenu toplinu dok se kamin hladi.",

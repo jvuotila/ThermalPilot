@@ -50,7 +50,7 @@ function retentionRating(value){
  if(Number.isFinite(value.reference_hours)&&value.reference_hours>0){const ratio=value.hours_per_degree/value.reference_hours;return {...relativeRetentionBands.find(band=>ratio<band.below),relative:true,ratio};}
  return retentionBands.find(band=>value.hours_per_degree<band.below);
 }
-const controlOptionLabels={independent:'Independent',heat_pump_preferred:'Heat pump preferred',house:'House heating system',air_to_air:'Air-to-air heat pump',temperature:'Temperature limits only',tariff:'Electricity tariff optimization',heat:'Heating only',cool:'Cooling only',both:'Heating in winter / cooling in summer',main:'Main room sensor',average:'Average of room sensors',coldest:'Coldest room sensor',fireplace:'Fireplace'};
+const controlOptionLabels={independent:'Independent',heat_pump_preferred:'Heat pump preferred',house:'House heating system',air_to_air:'Air-to-air heat pump',temperature:'Temperature limits only',tariff:'Electricity tariff optimization',price_aware_limits:'Price-aware temperature limits',heat:'Heating only',cool:'Cooling only',both:'Heating in winter / cooling in summer',main:'Main room sensor',average:'Average of room sensors',coldest:'Coldest room sensor',fireplace:'Fireplace'};
 const settingHelp = {
   nordpool_entry:'Read EUR prices through Home Assistant. For community Nord Pool, select its sensor instead.',
   nordpool_area:'Automatic requires one integration and one price area.',
@@ -83,7 +83,7 @@ const settingHelp = {
   garage_heat_target:'The heat pump’s internal setpoint while heating, separate from the garage sensor’s lower and upper limits. For example, a pump requiring at least 16°C can heat a garage cycling between 5°C and 9°C.',
   garage_door_warning_minutes:'Warn the selected Companion app device after a configured garage door has stayed open this long. Other heating systems continue heating. One warning is sent per opening, including across restarts; closing all doors arms the next warning. Select the device under Notifications.',
   garage_heat_source:'Use house heating system inherits the house heat source and distribution. Select Air-to-air heat pump only for a separate garage pump; its additional settings then appear. Non-electric house systems keep observation-only operation. Existing garages retain their heat-pump selection.',
-  garage_strategy:'Temperature limits only preserves the lower-to-upper cycle and works without electricity prices. Tariff optimization uses the learned room response and prices to consider earlier heating; the lower limit still takes priority. Missing prices fall back to temperature cycling.',
+  garage_strategy:'Price-aware temperature limits can pause heating below the upper limit when the garage can stay above the lower limit until a cheaper period. With flat or missing prices, heating follows the temperature limits.',
   garage_swing:'Options come from the selected heat pump’s swing_modes. Leave unchanged sends no swing command.',
   air_swing:'Options are those supported by every selected ordinary air-to-air heat pump. Leave unchanged sends no swing command.',
   air_use_fan_only:'On switches the pump between Heat and Fan only. Off keeps Heat selected during heating season and adjusts the pump setpoint using the room target, boost and reduction. If Home Assistant stops while Heat is selected, the pump can maintain its last setpoint with its own thermostat. Cooling and changeover can still leave Heat. Between cooling sessions, the pump can use Fan only with the switch on or off.',
@@ -2216,7 +2216,7 @@ class ThermalPilotPanel extends HTMLElement {
      if(previous&&previous.end===period.start&&previous.mode===mode&&previous.basis===period.basis&&previous.entity===period.entity)previous.end=period.end;
      else periods.push(period);
     });
-    const tariff=isGarage(room)?room.garage_strategy==='tariff':!room.heating_zone_id||(this.settings.heating_zones||[]).find(zone=>zone.id===room.heating_zone_id)?.heating_strategy==='tariff';
+    const tariff=isGarage(room)?['tariff','price_aware_limits'].includes(room.garage_strategy):!room.heating_zone_id||(this.settings.heating_zones||[]).find(zone=>zone.id===room.heating_zone_id)?.heating_strategy==='tariff';
     if(!history&&tariff)periods.push(...planned.filter(period=>period.suggested_heat).map(period=>({...period,mode:'heat',basis:'plan'})));
     const actualSummary=heatingSummary(periods.filter(period=>period.mode==='heat'&&period.basis!=='plan'),false);
     const planSummary=heatingSummary(periods.filter(period=>period.basis==='plan'),true);

@@ -2,6 +2,7 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "Price-aware temperature limits": "Kufijtë e temperaturës sipas çmimit",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Zgjidhni një sensor aktiviteti, një sensor të temperaturës së sipërfaqes ose të dy.",
     "Fireplace surface temperature sensor": "Sensori i temperaturës së sipërfaqes së oxhakut",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Opsional. ThermalPilot krahason temperaturën e sipërfaqes me matjet në dhomat e lidhura. Pas disa ndezjeve mund të marrë parasysh nxehtësinë e grumbulluar ndërsa oxhaku ftohet.",

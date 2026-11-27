@@ -1283,6 +1283,29 @@ class GarageCoordinatorTests(unittest.IsolatedAsyncioTestCase):
         await self.c.update_command_state(now+timedelta(seconds=10))
         writes=[call for call in self.hass.services.async_call.call_args_list if call.args[1]=='set_temperature']
         self.assertEqual([call.args[2]['temperature'] for call in writes],[16])
+
+    async def test_price_aware_garage_publishes_and_applies_a_pause_then_resumes(self):
+        self.garage.update(garage_strategy='price_aware_limits', garage_minimum=7, garage_maximum=10)
+        self.c.settings.update(rooms=[self.garage], simulation_enabled=False, live_control_confirmed=True)
+        self.hass.states['sensor.garage'].state = '8.5'
+        pump = self.hass.states['climate.garage']
+        pump.state = 'heat'
+        pump.attributes.update(hvac_action='heating', temperature=16)
+        self.hass.states['sensor.price'].attributes['today'] = [40] * 4 + [12] * 92
+        data = await self.c._async_update_data()
+        garage = data['rooms'][self.garage['id']]
+        self.assertTrue(data['source_status']['prices_required'])
+        self.assertTrue(garage['plan']['slots'][0]['garage_price_pause'])
+        self.assertEqual(garage['pump_suggestion']['mode'], 'fan_only')
+        self.assertEqual(self.hass.services.async_call.call_args.args[2]['hvac_mode'], 'fan_only')
+
+        pump.state = 'fan_only'
+        self.c.data = data
+        await self.c.update_command_state(now + timedelta(hours=1))
+        suggestion = self.c.data['rooms'][self.garage['id']]['pump_suggestion']
+        self.assertEqual(suggestion['mode'], 'heat')
+        self.assertEqual(self.hass.services.async_call.call_args.args[2]['hvac_mode'], 'heat')
+
     async def test_simulation_and_relinquish_are_separate_from_floor_targets(self):
         self.c.settings.update(rooms=[self.garage],price_entity='')
         await self.c._async_update_data();self.hass.services.async_call.assert_not_awaited()

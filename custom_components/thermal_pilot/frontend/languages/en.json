@@ -2,6 +2,8 @@
   "language": "en",
   "name": "English",
   "messages": {
+    "Price-aware temperature limits": "Price-aware temperature limits",
+    "Price-aware temperature limits can pause heating below the upper limit when the garage can stay above the lower limit until a cheaper period. With flat or missing prices, heating follows the temperature limits.": "Price-aware temperature limits can pause heating below the upper limit when the garage can stay above the lower limit until a cheaper period. With flat or missing prices, heating follows the temperature limits.",
     "Choose an activity sensor, a surface temperature sensor, or both.": "Choose an activity sensor, a surface temperature sensor, or both.",
     "Fireplace surface temperature sensor": "Fireplace surface temperature sensor",
     "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.": "Optional. ThermalPilot compares the surface temperature with readings from the linked rooms. After observing several fires, it can account for stored heat while the fireplace cools.",

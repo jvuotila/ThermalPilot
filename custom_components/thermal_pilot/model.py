@@ -950,6 +950,7 @@ def thermostat_state(timing, now):
 
 def _next_cheaper_heating_run(
     slots: list[Slot], now: datetime, minimum_run_minutes: float, valve_lead_minutes: float,
+    *, minimum_savings_fraction: float = 0.0,
 ) -> datetime | None:
     """Find the first later start with a cheaper full minimum run."""
     duration = timedelta(minutes=minimum_run_minutes)
@@ -972,12 +973,16 @@ def _next_cheaper_heating_run(
     immediate_cost = run_cost(0, max(now, slots[0].start))
     if immediate_cost is None:
         return None
+    maximum_later_cost = immediate_cost - minimum_savings_fraction * abs(immediate_cost)
     earliest_start = now + timedelta(minutes=valve_lead_minutes)
+    current_rate = slots[0].planning_rate
     for index, slot in enumerate(slots[1:], start=1):
         if slot.start <= earliest_start:
             continue
+        if minimum_savings_fraction and slot.planning_rate >= current_rate:
+            continue  # The first slot must already benefit from the cheaper tariff.
         later_cost = run_cost(index, slot.start)
-        if later_cost is not None and later_cost < immediate_cost - 1e-6:
+        if later_cost is not None and later_cost < maximum_later_cost - 1e-6:
             return slot.start
     return None
 
@@ -1501,27 +1506,77 @@ def fallback_season(
             'complete':bool(today.get('complete')),'days':days,'basis':basis}
 
 
-def garage_cycle_plan(room, model, temperature, outdoors, slots, now, heating=False):
-    """Temperature-only garage shadow forecast; no tariff decisions or valve offsets."""
+def garage_cycle_plan(
+    room, model, temperature, outdoors, slots, now, heating=False, *,
+    price_aware=False, water_factor=1.0,
+):
+    """Forecast garage cycles, with optional pauses until cheaper electricity."""
     pump = room.get('garage_heat_source', 'air_to_air') == 'air_to_air'
     maintenance = room.get('garage_maintenance_target')
     normal_target = room['minimum'] if maintenance is None else maintenance
     heat_target = room['garage_heat_target'] if pump else room['maximum']
+    lower_limit = room['minimum']
+    upper_limit = room['maximum']
+    lag = response_lag(room, model)
+    loss = effective_loss(model, room.get('wind_speed'))
+    gain = model['gain'] * water_factor
+    base_gain = model.get('base_gain', 0)
+    minimum_run_minutes = room.get('minimum_run_minutes', 60)
+    if price_aware and slots:
+        price_aware = any(slot.planning_rate != slots[0].planning_rate for slot in slots)
+
+    def advance(temperature, response, outdoor, hours, heating):
+        response, average = response_step(response, float(heating), hours, lag)
+        temperature += hours * (loss * (outdoor - temperature) + gain * average + base_gain)
+        return temperature, response
+
+    def can_pause(index, start, temperature, response):
+        # Compare a full heating run so a single cheap price slot cannot justify
+        # a pause. Small price changes should not interrupt a running heater.
+        cheaper_start = _next_cheaper_heating_run(
+            slots[index:], start, minimum_run_minutes, 0, minimum_savings_fraction=0.10,
+        )
+        if cheaper_start is None:
+            return False
+        recovery_end = cheaper_start + timedelta(minutes=minimum_run_minutes)
+        for future_slot, outdoor in zip(slots[index:], outdoors[index:]):
+            future_start = max(start, future_slot.start)
+            if future_start >= recovery_end:
+                break
+            resume = future_start >= cheaper_start
+            if resume and outdoor > lower_limit:
+                return False
+            future_end = min(future_slot.end, recovery_end)
+            hours = (future_end - future_start).total_seconds() / 3600
+            temperature, response = advance(temperature, response, outdoor, hours, resume)
+            if temperature < lower_limit:
+                return False
+            # Check the recovery as well as the pause. A slow heater can let
+            # the room cool further after the cheaper period has started.
+            if future_end == recovery_end or (resume and temperature >= upper_limit):
+                return True
+        return False
+
+    cycle_active = heating
     response = model['response']
     rows = []
-    for slot,outdoor in zip(slots,outdoors):
+    for index, (slot, outdoor) in enumerate(zip(slots, outdoors)):
         start = max(slot.start, now)
         hours = (slot.end - start).total_seconds() / 3600
         if hours <= 0:
             continue
         if maintenance is not None:
-            heating = temperature < maintenance
-        elif outdoor > room['minimum'] or temperature >= room['maximum']:
-            heating = False
-        elif temperature < room['minimum']:
-            heating = True
-        response, average = response_step(response, float(heating), hours, response_lag(room, model))
-        temperature += hours * (effective_loss(model, room.get('wind_speed')) * (outdoor - temperature) + model['gain'] * average + model.get('base_gain', 0))
+            cycle_active = temperature < maintenance
+        elif outdoor > lower_limit or temperature >= upper_limit:
+            cycle_active = False
+        elif temperature < lower_limit:
+            cycle_active = True
+        price_pause = (
+            price_aware and cycle_active and temperature > lower_limit
+            and can_pause(index, start, temperature, response)
+        )
+        heating = cycle_active and not price_pause
+        temperature, response = advance(temperature, response, outdoor, hours, heating)
         rows.append({
             'start':start.isoformat(),
             'end':slot.end.isoformat(),
@@ -1530,6 +1585,7 @@ def garage_cycle_plan(room, model, temperature, outdoors, slots, now, heating=Fa
             'heat':heating and maintenance is None,
             'mode':'boost' if heating and maintenance is None else 'normal',
             'predicted_demand':heating,
+            **({'garage_price_pause': True} if price_pause else {}),
             'temperature':round(temperature,3),
             'setpoint':heat_target if heating and maintenance is None else normal_target
         })

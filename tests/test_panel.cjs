@@ -1111,9 +1111,11 @@ for(const history of [true,false]){
  assert.doesNotMatch(lane,/>Suggested<|>Relay<|data-pump-period="plan"/);
  assert.equal((lane.match(/data-pump-period=/g)||[]).length,2);
 }
-pumpChartPanel.settings.rooms[0].garage_strategy='tariff';
-assert.match(pumpChartPanel.priceChart(false),/data-pump-period="plan"/);
-assert.doesNotMatch(pumpChartPanel.priceChart(true),/data-pump-period="plan"/);
+for(const strategy of ['tariff','price_aware_limits']){
+ pumpChartPanel.settings.rooms[0].garage_strategy=strategy;
+ assert.match(pumpChartPanel.priceChart(false),/data-pump-period="plan"/);
+ assert.doesNotMatch(pumpChartPanel.priceChart(true),/data-pump-period="plan"/);
+}
 pumpChartPanel.history=[{room_id:'garage',time:pumpNow/1000-600,activity:1}];
 assert.match(pumpChartPanel.priceChart(true),/data-pump-period="heat"/);
 console.log('Air pump room timelines share heat/cool/plan lane, omit standby and gate future plans on tariff strategy.');

@@ -4,7 +4,7 @@ Shift electric heating toward cheaper electricity periods while keeping rooms
 within their comfort limits. ThermalPilot learns each room’s heating and cooling
 response and shows proposed schedules before you enable real control.
 
-Version **0.9.123 — experimental simulation-first Home Assistant custom integration**.
+Version **0.9.124 — experimental simulation-first Home Assistant custom integration**.
 
 ![Total electricity prices and room heating timelines](docs/screenshots/electricity-and-heating.png)
 
@@ -717,6 +717,12 @@ setting still describes their heating response and whether manual sessions ask
 for a target or just a duration. Oil, gas, wood, pellet, district heating and
 **Other** retain observation and learning only, as for those house heat sources;
 they do not receive electricity-price schedules or thermostat commands.
+
+Choose **Price-aware temperature limits** to let a garage heating cycle pause
+before the upper limit when confirmed prices are cheaper later and the learned
+model expects the garage to stay above its lower limit. Heating resumes if the
+garage reaches the lower limit during the pause. With flat or missing prices,
+the garage follows its ordinary lower-to-upper cycle.
 
 ### Garage door push alerts
 

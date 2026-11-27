@@ -96,6 +96,98 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
         self.hass.states['sensor.garage'].state='9';self.assertEqual(self.intent(planned={'heat':True})['mode'],'fan_only')
         self.room['garage_strategy']='temperature';self.hass.states['sensor.garage'].state='7'
         self.assertEqual(self.intent(planned={'heat':True})['mode'],'fan_only')
+
+    async def test_garage_cycle_resumes_above_start_limit_after_door_pause(self):
+        self.room.update(
+            garage_minimum=7, garage_maximum=10, garage_heat_target=18,
+            garage_door_entities=['binary_sensor.door'],
+            garage_fan_heat='', garage_fan_idle='', garage_swing='',
+        )
+        door = self.hass.states['binary_sensor.door'] = state('off')
+        sensor = self.hass.states['sensor.garage']
+        sensor.state = '6.9'
+
+        async def apply_intent(now, mode):
+            intent = self.intent(now)
+            self.assertEqual(intent['mode'], mode)
+            await self.control.apply([self.room], {self.room['id']: intent}, now, lambda: True)
+
+        await apply_intent(0, 'heat')
+        self.pump.state = 'heat'
+        self.pump.attributes.update(temperature=18, hvac_action='idle')
+        sensor.state = '7'
+        await apply_intent(10, 'heat')
+
+        door.state = 'on'
+        await apply_intent(20, 'heat')
+        await apply_intent(80, 'fan_only')
+        self.pump.state = 'fan_only'
+        sensor.state = '7.5'
+        await apply_intent(90, 'fan_only')
+
+        door.state = 'off'
+        await apply_intent(100, 'heat')
+        self.pump.state = 'heat'
+        sensor.state = '9.9'
+        await apply_intent(110, 'heat')
+        sensor.state = '10'
+        await apply_intent(120, 'fan_only')
+        self.pump.state = 'fan_only'
+        sensor.state = '9.9'
+        await apply_intent(130, 'fan_only')
+
+        requested_modes = [
+            call.args[2]['hvac_mode'] for call in self.hass.services.async_call.await_args_list
+            if call.args[1] == 'set_hvac_mode'
+        ]
+        self.assertEqual(requested_modes, ['heat', 'fan_only', 'heat', 'fan_only'])
+
+    def test_garage_door_pause_does_not_resume_after_reaching_upper_limit(self):
+        self.room.update(garage_minimum=7, garage_maximum=10, garage_door_entities=['binary_sensor.door'])
+        door = self.hass.states['binary_sensor.door'] = state('off')
+        sensor = self.hass.states['sensor.garage']
+        self.assertEqual(self.intent()['mode'], 'heat')
+        door.state = 'on'
+        self.assertEqual(self.intent(10)['mode'], 'heat')
+        self.assertEqual(self.intent(70)['mode'], 'fan_only')
+        sensor.state = '10'
+        self.assertEqual(self.intent(80)['mode'], 'fan_only')
+        door.state = 'off'
+        sensor.state = '9.9'
+        self.assertEqual(self.intent(90)['mode'], 'fan_only')
+
+    def test_price_aware_garage_pauses_and_resumes_inside_its_limits(self):
+        self.room.update(garage_strategy='price_aware_limits', garage_minimum=7, garage_maximum=10)
+        self.assertEqual(validate(self.settings, self.hass)['rooms'][0]['garage_strategy'], 'price_aware_limits')
+        expensive = {'garage_price_pause': True}
+        sensor = self.hass.states['sensor.garage']
+        for fan_only, standby, active_target in ((True, 'fan_only', 16), (False, 'heat', 10)):
+            with self.subTest(fan_only=fan_only):
+                self.control = AirHeatPumpControl(self.hass)
+                self.room['garage_use_fan_only'] = fan_only
+                idle_target = None if fan_only else 7
+                sensor.state = '8'
+                intent = self.intent()
+                self.assertEqual((intent['mode'], intent['target']), (standby, idle_target))
+                sensor.state = '6.9'
+                intent = self.intent(planned=expensive)
+                self.assertEqual((intent['mode'], intent['target']), ('heat', active_target))
+                sensor.state = '8'
+                intent = self.intent(planned=expensive)
+                self.assertEqual((intent['mode'], intent['target']), (standby, idle_target))
+                sensor.state = '7'
+                intent = self.intent(planned=expensive)
+                self.assertEqual((intent['mode'], intent['target']), ('heat', active_target))
+                sensor.state = '8'
+                self.assertEqual(self.intent(planned=expensive)['reason'], 'Tariff standby')
+                # The cycle resumes if the price plan expires or prices go missing.
+                self.assertEqual(self.intent()['target'], active_target)
+                sensor.state = '10'
+                intent = self.intent()
+                self.assertEqual((intent['mode'], intent['target']), (standby, idle_target))
+                sensor.state = '9.9'
+                self.assertEqual(self.intent()['target'], idle_target)
+
     async def test_presence_fan_and_door_pause(self):
         self.room.update(garage_door_entities=['binary_sensor.door'],garage_presence_entities=['binary_sensor.presence'])
         self.hass.states.update({'binary_sensor.door':state('off'),'binary_sensor.presence':state('on')})
