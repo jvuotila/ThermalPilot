@@ -3,7 +3,7 @@ from typing import Any
 import asyncio
 from .model import number
 from .sources import temperature_celsius
-from .config import resolved_rooms, zone_rooms, garage_sensor_lists, garage_thermostat, room_heat_source, pump_uses_setpoints, pump_temperature_settings
+from .config import resolved_rooms, zone_rooms, garage_sensor_lists, garage_thermostat, room_heat_source, pump_uses_setpoints, pump_temperature_settings, pump_reports_standby_limits
 
 
 def binary(hass, entity):
@@ -518,6 +518,12 @@ of physical compressor operation, especially with optimistic integrations.
                 # Bounds are mode-specific. Wait for Heat and its settling period
                 # before reading them; never send a temperature in fan-only mode.
                 checking_heat = mode in ('heat', 'cool') and state.state == mode and (now >= self.ready.get(entity, now))
+                if checking_heat and not garage_thermostat(room) and not rejected and pump_reports_standby_limits(attributes):
+                    # The mode can update before the device publishes fresh bounds.
+                    # Keep the requested mode pending instead of latching a false rejection.
+                    self.results[room_id] = {**intent, 'confirmed': False, 'stage': 'temperature'}
+                    self.deadlines.append(now + 10)
+                    continue
                 if checking_heat:
                     low = number(attributes.get('min_temp'), 5)
                     high = number(attributes.get('max_temp'), 35)

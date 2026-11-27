@@ -25,7 +25,7 @@ from .away import overlay_plan as away_plan
 from .away import update as update_away
 from .fireplaces import active_fireplaces, fireplace_activity
 from .fireplace_surface import WARM_SURFACE_EXCESS, sample_surface, surface_gain_rates, surface_heat_forecast
-from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings, heat_distribution_matches_source
+from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings, heat_distribution_matches_source, pump_reports_standby_limits
 from .shared_air import room_groups, coordinate_plans
 from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, response_step, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled, floor_response_from_history
@@ -1172,7 +1172,8 @@ class PilotCoordinator(DataUpdateCoordinator):
             if use_setpoints and room.get('is_garage') and room['garage_strategy'] == 'temperature':
                 target = room['garage_minimum']
                 if (thermostat_state and thermostat_state.state == 'heat'
-                        and now.timestamp() >= self.air_control.ready.get(room['thermostat'], 0)):
+                        and now.timestamp() >= self.air_control.ready.get(room['thermostat'], 0)
+                        and not pump_reports_standby_limits(thermostat_state.attributes)):
                     low = number(thermostat_state.attributes.get('min_temp'), 5)
                     high = number(thermostat_state.attributes.get('max_temp'), 35)
                     target = max(low, min(high, target))
@@ -1553,7 +1554,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                 # before issuing any temperature command.
                 settled_mode = (state.state == mode and dt_util.utcnow().timestamp()
                                 >= self.air_control.ready.get(room['thermostat'], 0))
-                if not air or settled_mode:
+                if not air or (settled_mode and not pump_reports_standby_limits(state.attributes)):
                     minimum = number(state.attributes.get('min_temp'), 5)
                     maximum = number(state.attributes.get('max_temp'), 35)
                     step = number(state.attributes.get('target_temp_step'), .5)

@@ -418,6 +418,15 @@ def pump_uses_setpoints(room, settings):
 
 
 
+def pump_reports_standby_limits(attributes: dict) -> bool:
+    """Recognize fan-only bounds that can linger after the mode changes."""
+    return (
+        'fan_only' in attributes.get('hvac_modes', [])
+        and number(attributes.get('min_temp')) == 0
+        and number(attributes.get('max_temp')) == 1
+    )
+
+
 def pump_temperature_settings(settings):
     """Use house values until independent pump values are saved."""
     limits = {}
@@ -764,7 +773,7 @@ def validate(payload, hass=None, *, require_outdoor=True, previous_settings=None
                 raise ValueError(f"{room['name']}: select a heat pump supporting heat and fan-only (and off for a garage).")
             target = room['garage_heat_target'] if room['is_garage'] else result['air_heat_target']
             # Climate limits can describe the current mode (fan-only may report 0–1).
-            if not use_setpoints and state.state == 'heat' and (not attrs.get('min_temp', 5) <= target <= attrs.get('max_temp', 35)):
+            if not use_setpoints and state.state == 'heat' and not pump_reports_standby_limits(attrs) and (not attrs.get('min_temp', 5) <= target <= attrs.get('max_temp', 35)):
                 raise ValueError(f"{room['name']}: heat pump heating setpoint {target:g} °C is outside device limits ({attrs.get('min_temp', 5):g}–{attrs.get('max_temp', 35):g} °C).")
             prefix = 'garage_' if room['is_garage'] else 'air_'
             values = room if room['is_garage'] else result
@@ -819,7 +828,7 @@ def validate(payload, hass=None, *, require_outdoor=True, previous_settings=None
                 required.add('fan_only')
             if not required.issubset(attrs.get('hvac_modes', [])):
                 raise ValueError('The zone heat pump must support the selected heating/cooling modes and fan-only.')
-            if not use_setpoints and zone['climate_mode'] in ('heat', 'both') and state.state == 'heat' and (not attrs.get('min_temp', 5) <= result['air_heat_target'] <= attrs.get('max_temp', 35)):
+            if not use_setpoints and zone['climate_mode'] in ('heat', 'both') and state.state == 'heat' and not pump_reports_standby_limits(attrs) and (not attrs.get('min_temp', 5) <= result['air_heat_target'] <= attrs.get('max_temp', 35)):
                 raise ValueError(f"{zone['name']}: heat pump heating setpoint {result['air_heat_target']:g} °C is outside device limits ({attrs.get('min_temp', 5):g}–{attrs.get('max_temp', 35):g} °C).")
             for key,attribute in [
                 ('air_fan_heat','fan_modes'),

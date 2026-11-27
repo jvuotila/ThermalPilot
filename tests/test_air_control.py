@@ -512,6 +512,48 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
         await self.control.apply([self.room],{self.room['id']:intent},40,lambda:True)
         self.assertEqual(self.hass.services.async_call.call_args.args[2]['hvac_mode'],'heat')
 
+    async def test_price_aware_garage_resumes_when_heat_bounds_arrive_late(self):
+        self.room.update(garage_strategy='price_aware_limits', garage_minimum=7,
+                         garage_maximum=10, garage_heat_target=18, garage_use_fan_only=True)
+        sensor = self.hass.states['sensor.garage']
+        sensor.state = '6.9'
+        self.pump.attributes.update(min_temp=0, max_temp=1)
+        room_id = self.room['id']
+
+        async def apply(now, plan=None):
+            intent = self.intent(now, planned=plan)
+            return await self.control.apply([self.room], {room_id: intent}, now, lambda: True)
+
+        await apply(0)
+        self.assertEqual(self.hass.services.async_call.call_args.args[2]['hvac_mode'], 'heat')
+        self.pump.state = 'heat'
+        for now in (10, 20, 30):
+            self.assertEqual(await apply(now), [])
+            self.assertEqual(self.control.results[room_id]['stage'], 'temperature')
+            self.assertEqual(self.control.deadlines[-1], now + 10)
+        self.assertEqual(self.hass.services.async_call.await_count, 1)
+        self.assertFalse(self.control.rejected_targets)
+        self.assertEqual(validate(self.settings, self.hass)['rooms'][0]['garage_heat_target'], 18)
+
+        self.pump.attributes.update(min_temp=16, max_temp=30)
+        await apply(40)
+        self.assertEqual(self.hass.services.async_call.call_args.args[2]['temperature'], 18)
+
+        sensor.state = '8'
+        await apply(50, {'garage_price_pause': True})
+        self.assertEqual(self.hass.services.async_call.call_args.args[2]['hvac_mode'], 'fan_only')
+        self.pump.state = 'fan_only'
+        self.pump.attributes.update(min_temp=0, max_temp=1)
+        await apply(60)
+        self.assertEqual(self.hass.services.async_call.call_args.args[2]['hvac_mode'], 'heat')
+        self.pump.state = 'heat'
+        self.assertEqual(await apply(70), [])
+
+        # A temperature limit must still interrupt a pending heat request.
+        sensor.state = '10'
+        await apply(80)
+        self.assertEqual(self.hass.services.async_call.call_args.args[2]['hvac_mode'], 'fan_only')
+
     def cooling_zone(self,mode='cool'):
         self.room.update(is_garage=False,heat_control='air_to_air',heating_zone_id='zone',zone_climate_mode=mode,zone_cooling_target=24,zone_policy='main')
         self.pump.attributes['hvac_modes']=['heat','cool','fan_only','off']

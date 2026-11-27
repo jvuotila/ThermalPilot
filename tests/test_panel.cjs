@@ -566,7 +566,9 @@ retentionPanel.settings={rooms:[{id:'garageA',is_garage:true}]};
 retentionHTML=retentionPanel.heatRetentionView();
 assert.ok(retentionHTML.indexOf('Fast cooling')<retentionHTML.indexOf('Garage A'));
 assert.ok(retentionHTML.indexOf('Garage A')<retentionHTML.indexOf('Garage Z'));
-assert.equal((retentionHTML.match(/class="garage-retention-row"/g)||[]).length,2);
+assert.match(retentionHTML,/retention-garage-spacer" aria-hidden="true"><td colspan="4"><\/td><\/tr>/);
+assert.match(retentionHTML,/class="garage-retention-row"><td><span data-user-text>Garage A/);
+assert.match(retentionHTML,/class="garage-retention-row garage-retention-row-alt"><td><span data-user-text>Garage Z/);
 console.log('Room retention UI checks passed: common reference, alphabetical default sorting, escaped names, data labels and accordion state.');
 
 const windMatches=vm.runInContext('entityMatches',context);
@@ -1072,6 +1074,14 @@ assert.doesNotMatch(zoneGroup(zonePlanSVG,'z-first'),/data-zone-period="plan"/);
 assert.doesNotMatch(zoneGroup(zoneHistorySVG,'z-first'),/>Off<|mode Off|data-zone-period="off"/);
 zoneChartPanel.info.data.price_chart=[];assert.match(zoneChartPanel.priceChart(false),/data-zone-timeline="z-first"/);
 zoneChartPanel.priceChartWidth=320;assert.match(zoneChartPanel.priceChart(true),/data-zone-period="cool"/);
+zoneChartPanel.settings.fireplaces=[{id:'fireplace-a',name:'A fireplace'}];
+zoneChartPanel.history.push({zone_id:'fireplace-a',time:zoneChartNow/1000-300,zone_mode:'heat'});
+for(const history of [false,true]){
+ const svg=zoneChartPanel.priceChart(history);
+ assert.match(svg,/>Zones<\/text>[\s\S]*data-zone-timeline="z-last"[\s\S]*>Fireplaces<\/text>[\s\S]*data-zone-timeline="fireplace-a"/);
+ assert.match(zoneGroup(svg,'fireplace-a'),/data-zone-period="heat"/);
+}
+
 console.log('Zone chart passed: alphabetic rows at bottom, distinct tint, heat/cool only, tariff-only Plan windows, History without plans, no-price and mobile layouts.');
 zoneChartPanel.priceChartWidth=1000;
 const combinedZoneChart=zoneChartPanel.priceChart(true),combinedZone=zoneGroup(combinedZoneChart,'z-first');
