@@ -2,6 +2,9 @@
   "language": "hu",
   "name": "Magyar",
   "messages": {
+    "Loading history…": "Előzmények betöltése…",
+    "Unable to load history.": "Nem sikerült betölteni az előzményeket.",
+    "Could not refresh history. Showing previously loaded data.": "Nem sikerült frissíteni az előzményeket. A korábban betöltött adatok láthatók.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "A mentett hőforrás és a hőelosztás módja nem illik össze. Nyissa meg a(z) Fűtés és hűtés → Ház fűtése beállításait, válassza ki a használt hőforrást és hőelosztási módot, majd mentse a beállításokat.",
     "Mixed (includes water-based heating)": "Vegyes (vízkeringetéses fűtéssel)",
     "Mixed (no water-based heating)": "Vegyes (vízkeringetéses fűtés nélkül)",

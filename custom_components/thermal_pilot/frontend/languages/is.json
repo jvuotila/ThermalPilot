@@ -2,6 +2,9 @@
   "language": "is",
   "name": "Íslenska",
   "messages": {
+    "Loading history…": "Hleð ferli…",
+    "Unable to load history.": "Ekki tókst að hlaða ferlinum.",
+    "Could not refresh history. Showing previously loaded data.": "Ekki tókst að uppfæra ferilinn. Áður sótt gögn eru sýnd.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Vistaður hitagjafi og hitadreifing passa ekki saman. Opnaðu Upphitun og kæling → Húshitun, veldu hitagjafann og hitadreifinguna sem þú notar og vistaðu stillingarnar.",
     "Mixed (includes water-based heating)": "Blönduð (með vatnshitun)",
     "Mixed (no water-based heating)": "Blönduð (án vatnshitunar)",

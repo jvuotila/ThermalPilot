@@ -2,6 +2,9 @@
   "language": "sr",
   "name": "Српски",
   "messages": {
+    "Loading history…": "Učitavanje istorije…",
+    "Unable to load history.": "Istorija nije mogla da se učita.",
+    "Could not refresh history. Showing previously loaded data.": "Istorija nije mogla da se osveži. Prikazuju se prethodno učitani podaci.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Sačuvani izvor toplote i način distribucije toplote nisu kompatibilni. Otvorite Грејање и хлађење → Грејање куће, izaberite izvor i način distribucije koje koristite i sačuvajte podešavanja.",
     "Mixed (includes water-based heating)": "Мешовито (са воденим грејањем)",
     "Mixed (no water-based heating)": "Мешовито (без воденог грејања)",

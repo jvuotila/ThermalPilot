@@ -2,6 +2,9 @@
   "language": "pl",
   "name": "Polski",
   "messages": {
+    "Loading history…": "Wczytywanie historii…",
+    "Unable to load history.": "Nie udało się wczytać historii.",
+    "Could not refresh history. Showing previously loaded data.": "Nie udało się odświeżyć historii. Wyświetlane są wcześniej wczytane dane.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Zapisane źródło ciepła i sposób dystrybucji ciepła są niezgodne. Otwórz Ogrzewanie i chłodzenie → Ustawienia ogrzewania domu, wybierz używane źródło i sposób dystrybucji, a następnie zapisz ustawienia.",
     "Mixed (includes water-based heating)": "Mieszana (z ogrzewaniem wodnym)",
     "Mixed (no water-based heating)": "Mieszana (bez ogrzewania wodnego)",

@@ -171,6 +171,7 @@ async def restore_backup(coordinator, content):
                 from homeassistant.util import dt as dt_util
                 await coordinator.release_managed_rooms(dt_util.utcnow(),force=True)
                 await hass.async_add_executor_job(replace_history,staged,coordinator.history_db.path)
+                coordinator.history_db.invalidate_chart()
                 await coordinator.store.async_save(state)
                 coordinator.settings = settings
                 from .air_control import AirHeatPumpControl
@@ -188,6 +189,7 @@ async def restore_backup(coordinator, content):
                 hass.config_entries.async_update_entry(coordinator.entry,options=settings)
             except Exception:
                 await hass.async_add_executor_job(replace_history,rollback,coordinator.history_db.path)
+                coordinator.history_db.invalidate_chart()
                 await coordinator.store.async_save(old_state)
                 coordinator.settings = old_settings
                 await coordinator.load()

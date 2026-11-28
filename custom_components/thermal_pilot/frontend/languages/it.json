@@ -2,6 +2,9 @@
   "language": "it",
   "name": "Italiano",
   "messages": {
+    "Loading history…": "Caricamento della cronologia…",
+    "Unable to load history.": "Impossibile caricare la cronologia.",
+    "Could not refresh history. Showing previously loaded data.": "Impossibile aggiornare la cronologia. Sono mostrati i dati caricati in precedenza.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "La fonte di calore e il tipo di distribuzione salvati non sono compatibili. Apri Riscaldamento e raffrescamento → Riscaldamento della casa, seleziona la fonte e il tipo di distribuzione effettivamente utilizzati e salva le impostazioni.",
     "Mixed (includes water-based heating)": "Mista (con riscaldamento ad acqua)",
     "Mixed (no water-based heating)": "Mista (senza riscaldamento ad acqua)",

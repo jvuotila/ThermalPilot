@@ -2,6 +2,9 @@
   "language": "pt",
   "name": "Português",
   "messages": {
+    "Loading history…": "A carregar o histórico…",
+    "Unable to load history.": "Não foi possível carregar o histórico.",
+    "Could not refresh history. Showing previously loaded data.": "Não foi possível atualizar o histórico. São apresentados os dados carregados anteriormente.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "A fonte de calor e o modo de distribuição guardados não são compatíveis. Abra Aquecimento e arrefecimento → Aquecimento da casa, escolha a fonte e o modo de distribuição em uso e guarde as definições.",
     "Mixed (includes water-based heating)": "Mista (com aquecimento a água)",
     "Mixed (no water-based heating)": "Mista (sem aquecimento a água)",

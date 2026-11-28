@@ -2,6 +2,9 @@
   "language": "sq",
   "name": "Shqip",
   "messages": {
+    "Loading history…": "Po ngarkohet historiku…",
+    "Unable to load history.": "Historiku nuk mund të ngarkohej.",
+    "Could not refresh history. Showing previously loaded data.": "Historiku nuk mund të rifreskohej. Po shfaqen të dhënat e ngarkuara më parë.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Burimi i ruajtur i nxehtësisë dhe mënyra e shpërndarjes nuk përputhen. Hapni Ngrohje dhe ftohje → Ngrohja e shtëpisë, zgjidhni burimin dhe mënyrën e shpërndarjes që përdorni dhe ruani cilësimet.",
     "Mixed (includes water-based heating)": "E përzier (me ngrohje me ujë)",
     "Mixed (no water-based heating)": "E përzier (pa ngrohje me ujë)",

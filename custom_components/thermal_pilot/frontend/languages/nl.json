@@ -2,6 +2,9 @@
   "language": "nl",
   "name": "Nederlands",
   "messages": {
+    "Loading history…": "Geschiedenis wordt geladen…",
+    "Unable to load history.": "De geschiedenis kon niet worden geladen.",
+    "Could not refresh history. Showing previously loaded data.": "De geschiedenis kon niet worden vernieuwd. Eerder geladen gegevens worden weergegeven.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "De opgeslagen warmtebron en warmteverdeling zijn niet compatibel. Open Verwarming en koeling → Huisverwarming, kies de warmtebron en warmteverdeling die je gebruikt en sla de instellingen op.",
     "Mixed (includes water-based heating)": "Gemengd (met watergedragen verwarming)",
     "Mixed (no water-based heating)": "Gemengd (zonder watergedragen verwarming)",

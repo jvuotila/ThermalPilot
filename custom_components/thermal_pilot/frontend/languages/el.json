@@ -2,6 +2,9 @@
   "language": "el",
   "name": "Ελληνικά",
   "messages": {
+    "Loading history…": "Φόρτωση ιστορικού…",
+    "Unable to load history.": "Δεν ήταν δυνατή η φόρτωση του ιστορικού.",
+    "Could not refresh history. Showing previously loaded data.": "Δεν ήταν δυνατή η ανανέωση του ιστορικού. Εμφανίζονται τα δεδομένα που είχαν φορτωθεί προηγουμένως.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Η αποθηκευμένη πηγή θερμότητας και ο τρόπος διανομής της δεν είναι συμβατά. Ανοίξτε Θέρμανση και ψύξη → Θέρμανση σπιτιού, επιλέξτε την πηγή και τον τρόπο διανομής που χρησιμοποιείτε και αποθηκεύστε τις ρυθμίσεις.",
     "Mixed (includes water-based heating)": "Μικτή (με θέρμανση νερού)",
     "Mixed (no water-based heating)": "Μικτή (χωρίς θέρμανση νερού)",

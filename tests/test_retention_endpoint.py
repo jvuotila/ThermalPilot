@@ -81,9 +81,11 @@ class PlanChartEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.coordinator.data['price_chart']=[{'start':'start','end':'end','price':10,'internal':'secret'}]
         self.coordinator.data['rooms']['room'].update(air_control=True,plan={'commands':[{'time':'later','action':'raise','setpoint':24}],'slots':[{'end':'end','temperature':20}],'reason':'private'})
         self.rows=[{'room_id':'room','time':1,'pump_mode':'heat','temperature':7,'forecast_context':['secret']},{'room_id':'zone:zone','zone_id':'zone','time':1,'zone_mode':'cool'}]
-        self.coordinator.history_db=types.SimpleNamespace(read_chart=lambda cutoff:self.rows)
-        async def executor(fn,*args):return fn(*args)
-        self.hass=types.SimpleNamespace(data={'thermal_pilot':{'one':self.coordinator}},async_add_executor_job=executor)
+        async def read_plan_history(hours, now):
+            self.assertEqual(hours, 48)
+            return self.rows
+        self.coordinator.read_plan_history=read_plan_history
+        self.hass=types.SimpleNamespace(data={'thermal_pilot':{'one':self.coordinator}})
     async def test_read_only_snapshot_keeps_chart_fields_and_excludes_internal_data(self):
         self.coordinator.settings['fireplaces'] = [
             {'id': 'stove', 'name': 'Fireplace', 'surface_temperature_entity': 'sensor.private_surface'},
@@ -101,6 +103,19 @@ class PlanChartEndpointTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn('internal',result['data']['price_chart'][0])
         self.assertEqual(result['data']['weather_forecast'],[{'datetime':'weather-time','temperature':12.1,'condition':'cloudy'}])
         self.assertEqual(result['data']['weather_forecast_history'],[{'datetime':'past','temperature':1,'condition':'snowy','issued':123}])
+
+    async def test_panel_plan_uses_same_history_path_as_card(self):
+        handler = next(item for item in ast.parse(SOURCE.read_text()).body
+                       if isinstance(item, ast.AsyncFunctionDef) and item.name == 'ws_history')
+        self.assertTrue(any(isinstance(item, ast.Attribute) and item.attr == 'require_admin'
+                            for item in handler.decorator_list))
+        handler.decorator_list = []
+        namespace = {**self.handler.__globals__, 'get_coordinator': lambda *_: self.coordinator}
+        exec(compile(ast.Module(body=[handler], type_ignores=[]), str(SOURCE), 'exec'), namespace)
+        self.connection.user = types.SimpleNamespace(is_admin=True)
+        await namespace['ws_history'](self.hass, self.connection, {'id': 1, 'hours': 48, 'chart': 'plan'})
+        self.assertEqual(self.connection.result, self.rows)
+
     async def test_card_cop_capability_follows_heat_source_and_sensor(self):
         self.coordinator.settings['heat_pump_cop_entity'] = 'sensor.private_cop'
         self.coordinator.data['heat_pump_cop'] = {

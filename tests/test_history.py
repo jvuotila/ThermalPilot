@@ -1,4 +1,6 @@
 import sys, types, tempfile, unittest
+import json
+from contextlib import closing
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]/'custom_components/thermal_pilot'
 pkg=types.ModuleType('thermal_pilot');pkg.__path__=[str(ROOT)];sys.modules.setdefault('thermal_pilot',pkg)
@@ -106,6 +108,17 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(history[21600]['forecast_6h_details'], full[21600]['forecast_6h_details'])
         self.assertNotIn('forecast_context', history[21600])
 
+    def test_trimmed_plan_chart_matches_direct_reads_for_rooms_and_zones(self):
+        self.db.append([self.row(901.25), self.row(1200.5), self.row(1500)], 0)
+        self.db.append_zones([
+            {'room_id': 'zone:one', 'zone_id': 'one', 'time': time, 'zone_mode': 'heat'}
+            for time in (902.5, 1200.5, 1510)
+        ], 0)
+        broad = self.db.read_chart(900)
+        for cutoff in (900, 900.99, 901, 901.5, 1199.25, 1200.75, 1201, 1500, 1501):
+            with self.subTest(cutoff=cutoff):
+                self.assertEqual(self.db.trim_plan_chart(broad, cutoff), self.db.read_chart(cutoff))
+
     def test_different_actual_heating_is_reported_and_context_changes_are_excluded(self):
         self.db.record_forecasts(self.forecast_room(demand=True),0,-1)
         self.db.append(self.observed_forecast_rows(activity=0),-1)
@@ -136,6 +149,61 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(self.db.forecast_accuracy(0),{})
         self.db.append_zones([],1300)
         self.assertEqual(len(self.db.read(0)),1)
+
+    def test_roomwise_accuracy_matches_history_with_cutoffs_and_replaced_samples(self):
+        rooms = self.forecast_room()
+        rooms['other'] = {**rooms['test'], 'forecast_context': ['sensor.other']}
+        self.db.record_forecasts(rooms, 0, -1)
+        observations = self.observed_forecast_rows()
+        observations += [{**row, 'room_id': 'other', 'forecast_context': ['sensor.other'], 'activity': None}
+                         for row in observations]
+        self.db.append(observations, -1)
+        self.db.append([{**observations[12], 'time': 3601, 'temperature': 23}], -1)
+        # A later forecast of the same horizon can match the same observation.
+        with self.db._connect() as connection:
+            raw = connection.execute(
+                "SELECT payload FROM forecasts WHERE room_id='test' AND horizon=1"
+            ).fetchone()[0]
+            later = {**json.loads(raw), 'issued': 200, 'due': 3700, 'temperature': 21}
+            connection.execute('INSERT INTO forecasts VALUES (?,?,?,?,?)',
+                               ('test', 1, 1, later['due'], json.dumps(later)))
+
+        details = next(row for row in self.db.read(0) if row['time'] == 3601)
+        self.assertEqual(details['forecast_1h_details']['error'], 2)
+        for cutoff in (0, 3601, 3602, 10801, 21601):
+            with self.subTest(cutoff=cutoff):
+                expected = {}
+                for row in self.db.read(cutoff):
+                    for hours in (1, 3, 6):
+                        detail = row.get(f'forecast_{hours}h_details')
+                        if detail:
+                            expected.setdefault(row['room_id'], {})[str(hours)] = detail
+                actual = self.db.forecast_accuracy(cutoff)
+                self.assertEqual(actual.keys(), expected.keys())
+                for room, horizons in expected.items():
+                    self.assertEqual(actual[room].keys(), horizons.keys())
+                    for horizon, detail in horizons.items():
+                        stat = actual[room][horizon]
+                        similar = detail['heating_match'] is not None and detail['heating_match'] >= 0.9
+                        self.assertEqual(stat['count'], 1)
+                        self.assertEqual(stat['mae'], detail['error'])
+                        self.assertEqual(stat['persistence_mae'], detail['persistence_error'])
+                        self.assertEqual(stat['similar_heating_count'], int(similar))
+                        self.assertEqual(stat['similar_heating_mae'], detail['error'] if similar else None)
+
+    def test_accuracy_reads_one_snapshot_while_observations_are_replaced(self):
+        rooms = self.forecast_room()
+        rooms['zzz'] = rooms['test']
+        self.db.record_forecasts(rooms, 0, -1)
+        rows = self.observed_forecast_rows()
+        self.db.append(rows + [{**row, 'room_id': 'zzz'} for row in rows], -1)
+        with closing(self.db._forecast_accuracy_rows(0)) as reader:
+            first = next(reader)
+            self.assertEqual(first['room_id'], 'test')
+            self.db.append([{**rows[12], 'room_id': 'zzz', 'temperature': 30}], -1)
+            old_observation = next(row for row in reader if row['room_id'] == 'zzz' and row['time'] == 3600)
+            self.assertEqual(old_observation['temperature'], 22)
+        self.assertAlmostEqual(self.db.forecast_accuracy(0)['zzz']['1']['mae'], 30 - (20 + 1/6))
 
 
 class SeasonTests(unittest.TestCase):

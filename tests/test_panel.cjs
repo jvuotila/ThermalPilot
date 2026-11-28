@@ -93,6 +93,11 @@ const samples=[
 const quarters=quarterRows(samples.slice().reverse());
 assert.equal(quarters.length,2);assert.equal(quarters[0].time,hour+12*60);assert.equal(quarters[1].interval_start,hour+15*60);
 const historyPanel=new Component();historyPanel.settings={rooms:[{id:'history-room',name:'Study'}]};historyPanel.info={data:{}};historyPanel.history=samples.map(row=>({...row,time:Date.now()/1000-1800+(row.time-hour)}));
+historyPanel.tab='history';
+historyPanel.roomDisclosureState.set('history:history-room',true);
+assert.doesNotMatch(historyPanel.historyView(),/data-temperature-time-tick/,'Closed room group skips even an open room');
+historyPanel.historySectionOpen('history:room-cards-accordion',false);
+historyPanel.saveHistorySection('history:room-cards-accordion',true);
 const readableHistory=historyPanel.historyView();
 assert.match(readableHistory,/Measured temperature/);assert.match(readableHistory,/Saved 3-hour forecast/);assert.match(readableHistory,/No completed 3-hour forecasts/);
 assert.match(readableHistory,/data-temperature-time-tick/);
@@ -448,7 +453,7 @@ flamePanel._hass.states['switch.relay'].state='unavailable';assert.match(flamePa
 flamePanel.settings.rooms[0].activity_entity='';flamePanel._hass.states['climate.room']={state:'heat',attributes:{hvac_action:'heating'}};assert.match(flamePanel.roomHeatingBadge({},'flame'),/room-heating actual/);
 flamePanel.info={data:{rooms:{flame:{name:'Room',actual_activity:1}}}};flamePanel.history=[];
 assert.match(flamePanel.overview(),/<summary><h2><span data-user-text>Room<\/span> [^]*?room-heating actual/);
-assert.match(flamePanel.historyView(),/<summary><h2><span data-user-text>Room<\/span> [^]*?room-heating actual/);
+assert.match(flamePanel.historyView(),/<summary id="history-room-[^"]+"><h2><span data-user-text>Room<\/span> [^]*?room-heating actual/);
 console.log('Room-header flame checks passed: Plan/History, current demand, Off/Unknown, unavailable relay and climate fallback.');
 
 assert.doesNotMatch(flamePanel.roomHeatingBadge({actual_activity:0,plan:{heat:true}},'flame'),/Suggested heating|suggested/);
@@ -2231,3 +2236,97 @@ draftHTML=localizedDraft.settingsView('rooms');
 assert.match(draftHTML,/<span data-user-text>New room<\/span>/);
 assert.match(draftHTML,/<span data-user-text>New zone<\/span>/);
 console.log('New room and zone headings follow the selected language without translating user-entered names.');
+
+{
+ const panel=new Component();
+ panel.tab='history';
+ panel.history=[
+  {room_id:'shared',time:10},
+  {room_id:'shared',zone_id:'shared',time:20},
+  {room_id:'shared',time:5},
+  {room_id:'other',time:25},
+ ];
+ const grouped=panel.groupedHistory();
+ assert.deepEqual(Array.from(grouped.rooms.get('shared'),row=>row.time),[5,10]);
+ assert.deepEqual(Array.from(grouped.zones.get('shared'),row=>row.time),[20]);
+ assert.equal(panel.groupedHistory(),grouped);
+ const drawn=[];
+ panel.forecastHistoryView=(rows,id)=>{drawn.push([id,Array.from(rows,row=>row.time)]);return '<svg/>';};
+ panel.bindResponsiveTemperatureCharts=()=>{};
+ panel.bindSettingTooltips=()=>{};
+ const details=(open,id)=>({
+  open,dataset:{roomAccordion:id},getRootNode:()=>panel.shadowRoot,
+  addEventListener(type,callback){this.toggle=callback;},
+ });
+ const makeRoom=(open,id)=>{
+  const content={set innerHTML(value){this.firstElementChild=value;}};
+  const room=details(open,id);
+  room.querySelector=()=>content;
+  return room;
+ };
+ const room=makeRoom(true,'shared'),other=makeRoom(false,'other'),group=details(false);
+ group.querySelectorAll=()=>[room,other];
+ panel.shadowRoot.querySelector=()=>group;
+ panel.bindHistoryRoomCharts();
+ assert.deepEqual(drawn,[]);
+ group.open=true;group.toggle();
+ assert.deepEqual(drawn,[['shared',[5,10]]]);
+ other.open=true;other.toggle();other.toggle();group.toggle();
+ assert.deepEqual(drawn,[['shared',[5,10]],['other',[25]]]);
+ panel.history=[{room_id:'shared',time:50}];
+ assert.notEqual(panel.groupedHistory(),grouped);
+ assert.deepEqual(Array.from(panel.groupedHistory().rooms.get('shared'),row=>row.time),[50]);
+}
+
+(async ()=>{
+ const panel=new Component(),requests=[];
+ panel._panel={config:{entry_id:'test'}};
+ panel.tab='history';
+ panel.call=(type,args)=>new Promise((resolve,reject)=>requests.push({type,args,resolve,reject}));
+ let html='';
+ panel.render=()=>{html=panel.info?panel.historyView():'';};
+ const settings={language:'en',rooms:[],house_heat_source:'air_to_water'};
+ const status=panel.load();
+ requests[0].resolve({settings,data:{}});
+ await status;
+ assert.equal(requests[1].args.hours,48);
+ assert.match(html,/Loading history…/);
+ assert.doesNotMatch(html,/id="price-accordion"/);
+ const newer=panel.setHistoryPeriod(96);
+ assert.equal(requests[2].args.hours,96);
+ assert.match(html,/value="96" selected/);
+ requests[2].resolve([{room_id:'newer',time:10}]);
+ await newer;
+ requests[1].resolve([{room_id:'older',time:10}]);
+ await Promise.resolve();
+ assert.equal(panel.history[0].room_id,'newer');
+ assert.match(html,/id="price-accordion"/);
+
+ const failed=panel.setHistoryPeriod(144);
+ requests[3].reject(Error('Connection closed'));
+ await failed;
+ assert.match(html,/Unable to load history\./);
+ assert.doesNotMatch(html,/id="price-accordion"/);
+ const later=panel.loadHistory();
+ const leave=panel.switchTab('settings');
+ requests[5].resolve({settings,data:{}});
+ await leave;
+ requests[4].resolve([]);
+ await later;
+ assert.equal(panel.tab,'settings');
+ assert.equal(panel.historyLoadedHours,96);
+
+ panel.tab='history';
+ panel.historyHours=96;
+ const stale=panel.loadHistory();
+ requests[6].reject(Error('Connection closed'));
+ await stale;
+ assert.match(html,/Showing previously loaded data/);
+ assert.match(html,/id="price-accordion"/);
+ const firstEntry=panel.loadHistory();
+ panel.panel={config:{entry_id:'new-entry'}};
+ requests[7].resolve([{room_id:'old-entry',time:99}]);
+ await firstEntry;
+ assert.equal(panel.history,null);
+ console.log('History paints before chart data, ignores stale responses, and distinguishes load errors from empty history.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

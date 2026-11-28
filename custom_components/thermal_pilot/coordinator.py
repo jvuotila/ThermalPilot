@@ -1,5 +1,5 @@
 """Read HA states, learn observed response, persist data, publish plans and reconcile opt-in thermostat control."""
-from typing import Any
+from typing import Any, NamedTuple
 from datetime import datetime, timedelta
 from copy import deepcopy
 from functools import partial
@@ -13,7 +13,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.event import async_track_point_in_utc_time, async_track_state_change_event
 from homeassistant.util import dt as dt_util
 from .const import DOMAIN, DEFAULTS, RESERVE_HOURS, ARCHIVE_KEEP_DAYS, WATER_REFERENCE, HISTORY_DAYS, MIN_LEARNING_INTERVAL_SECONDS
-from .history import HistoryDatabase
+from .history import HistoryDatabase, OBSERVATION_BUCKET_SECONDS
 from .cop import cop_priced_slots, cop_report_time, filter_cop_readings, forecast_cop, read_cop
 from .control import ThermostatControl
 from .air_control import AirHeatPumpControl, zone_temperature, binary
@@ -33,6 +33,7 @@ from .model import water_heating_factor
 
 _LOGGER = logging.getLogger(__name__)
 PLAN_REFRESH_INTERVAL = timedelta(minutes=5)
+FORECAST_ACCURACY_INTERVAL = timedelta(minutes=15)
 MANUAL_RELEASE_RETRY = timedelta(minutes=1)
 WATER_TEMPERATURE_BUCKETS = 24  # Two hours at one sample per five minutes.
 
@@ -41,6 +42,13 @@ HEAT_DISTRIBUTION_NOTICE = (
     'The saved heat source and heat distribution do not match. '
     'Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.'
 )
+
+
+class PlanHistoryRead(NamedTuple):
+    hours: int
+    read_from: float
+    revision: object
+    task: asyncio.Future
 
 
 class PilotCoordinator(DataUpdateCoordinator):
@@ -52,6 +60,12 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.store = Store(hass, 1, f'{DOMAIN}.{entry.entry_id}')
         self.models = {}
         self.history_db = HistoryDatabase(hass.config.path('.storage', f'{DOMAIN}.{entry.entry_id}.sqlite3'))
+        self._plan_history_read: PlanHistoryRead | None = None
+        self._forecast_accuracy: dict[str, Any] = {}
+        self._forecast_accuracy_attempt: datetime | None = None
+        self._forecast_accuracy_sampled_at: datetime | None = None
+        self._forecast_accuracy_task: asyncio.Task[None] | None = None
+        self._forecast_accuracy_generation = 0
         self.previous = {}
         self.forecast = []
         self.forecast_unit = None
@@ -97,6 +111,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.planning_air_samples: dict[tuple[str, str], dict[int, float]] = {}
 
     def stop(self):
+        self.history_db.invalidate_chart()
+        self._invalidate_forecast_accuracy()
         self.cancel_command_timer()
         self.cancel_source_timer()
         if self._source_unsubscribe:
@@ -105,12 +121,96 @@ class PilotCoordinator(DataUpdateCoordinator):
 
     def update_settings(self, settings: dict[str, Any]) -> None:
         """Apply new settings under the backup lock before scheduling a refresh."""
+        if settings != self.settings:
+            self._invalidate_forecast_accuracy()
         self.settings = settings
         self.listen_sources()
         if self.manual_sessions or self._manual_release_pending:
             now = dt_util.utcnow()
             self.retire_manual_sessions(now, self.configured_controllers())
             self.schedule_command_timer(now)
+
+    def _invalidate_forecast_accuracy(self) -> None:
+        # Let an in-flight executor read close its snapshot before starting another.
+        self._forecast_accuracy_generation += 1
+        self._forecast_accuracy = {}
+        self._forecast_accuracy_attempt = None
+        self._forecast_accuracy_sampled_at = None
+
+    def _schedule_forecast_accuracy(self, now: datetime) -> None:
+        if self._forecast_accuracy_task is not None:
+            return
+        previous = self._forecast_accuracy_attempt
+        if previous is not None and timedelta(0) <= now - previous < FORECAST_ACCURACY_INTERVAL:
+            return
+        self._forecast_accuracy_attempt = now
+        self._forecast_accuracy_task = asyncio.create_task(
+            self._refresh_forecast_accuracy(now, self._forecast_accuracy_generation)
+        )
+
+    async def _refresh_forecast_accuracy(self, now: datetime, generation: int) -> None:
+        try:
+            if generation != self._forecast_accuracy_generation:
+                return
+            accuracy = await self.hass.async_add_executor_job(
+                self.history_db.forecast_accuracy, (now - timedelta(days=7)).timestamp()
+            )
+            if generation == self._forecast_accuracy_generation:
+                self._forecast_accuracy = accuracy
+                self._forecast_accuracy_sampled_at = now
+        except Exception:
+            # The display keeps the last good statistics if a database read fails.
+            if generation == self._forecast_accuracy_generation:
+                _LOGGER.warning('Could not update room forecast accuracy.', exc_info=True)
+        finally:
+            self._forecast_accuracy_task = None
+
+    def panel_data(self) -> dict[str, Any]:
+        """Add display statistics without publishing a new heating plan."""
+        data = self.data or {}
+        rooms = data.get('rooms')
+        if rooms is None:
+            return data
+        return {
+            **data,
+            'rooms': {room_id: {**room, 'forecast_accuracy': self._forecast_accuracy.get(room_id, {})}
+                      for room_id, room in rooms.items()},
+            'forecast_accuracy_sampled_at': (
+                self._forecast_accuracy_sampled_at.isoformat() if self._forecast_accuracy_sampled_at else None
+            ),
+        }
+
+    async def read_plan_history(self, hours: int, now: datetime) -> list[dict[str, Any]]:
+        """Share only an in-flight Plan read from the same history revision."""
+        cutoff = now.timestamp() - hours * 3600
+        while (pending := self._plan_history_read) is not None and not pending.task.done():
+            task = pending.task
+            if (pending.hours == hours and pending.read_from <= cutoff
+                    and pending.revision is self.history_db.chart_revision):
+                break
+            # Serialize reads for other windows or revisions to bound executor work.
+            try:
+                await asyncio.shield(task)
+            except Exception:
+                # An unrelated query's error belongs to its own callers.
+                pass
+        else:
+            # Read the full first bucket, then apply each caller's exact cutoff.
+            bucket_seconds = OBSERVATION_BUCKET_SECONDS
+            read_from = cutoff // bucket_seconds * bucket_seconds
+            revision = self.history_db.chart_revision
+            task = asyncio.ensure_future(self.hass.async_add_executor_job(self.history_db.read_chart, read_from))
+            self._plan_history_read = PlanHistoryRead(hours, read_from, revision, task)
+            task.add_done_callback(self._finish_plan_history_read)
+        rows = await asyncio.shield(task)
+        return self.history_db.trim_plan_chart(rows, cutoff)
+
+    def _finish_plan_history_read(self, task: asyncio.Future) -> None:
+        if self._plan_history_read is not None and self._plan_history_read.task is task:
+            self._plan_history_read = None
+        if not task.cancelled():
+            # A read may fail after all the clients waiting for it disconnect.
+            task.exception()
 
     def listen_sources(self) -> None:
         """Subscribe to configured inputs, including secondary-zone and garage sensors."""
@@ -655,6 +755,7 @@ class PilotCoordinator(DataUpdateCoordinator):
 
     def reset_learning(self, room_id):
         """Explicit user reset; a zone includes its member response profiles."""
+        self._invalidate_forecast_accuracy()
         ids = {room_id}
         if room_id.startswith('zone:'):
             ids.update(key for key in self.models if key.startswith(room_id+':'))
@@ -1537,9 +1638,6 @@ class PilotCoordinator(DataUpdateCoordinator):
         cutoff = now.timestamp() - HISTORY_DAYS * 86400
         await self.hass.async_add_executor_job(self.history_db.append, readings, cutoff, self.season['season_id'])
         await self.hass.async_add_executor_job(self.history_db.record_forecasts,room_data,now.timestamp(),cutoff)
-        accuracy = await self.hass.async_add_executor_job(self.history_db.forecast_accuracy, now.timestamp() - 7 * 86400)
-        for room_id, room in room_data.items():
-            room['forecast_accuracy'] = accuracy.get(room_id, {})
         # Model parameters are small; sample history lives in SQLite.
         self.store.async_delay_save(self.storage_data,20)
         archives = await self.hass.async_add_executor_job(self.history_db.summaries)
@@ -1563,6 +1661,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         data['warnings'].extend(f'Thermostat control: {w}' for w in data['control']['errors'])
         self._plan_settings = plan_settings
         self.arm_command_timer(data, control_now)
+        if room_data:
+            self._schedule_forecast_accuracy(control_now)
         return data
 
     def fallback_summary(self):

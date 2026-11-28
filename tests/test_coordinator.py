@@ -1,5 +1,6 @@
 """HA adapter tests using minimal doubles, not a real Home Assistant runtime."""
 import sys,types,tempfile,unittest
+import asyncio
 from pathlib import Path
 from datetime import datetime,timedelta,timezone
 from copy import deepcopy
@@ -45,6 +46,176 @@ class Hass:
     async def async_add_executor_job(self,fn,*args):return fn(*args)
 
 class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_concurrent_plan_reads_keep_exact_cutoffs_and_survive_client_cancellation(self):
+        started, release = asyncio.Event(), asyncio.Event()
+        cutoff = now - timedelta(hours=48)
+        rows = [{'room_id': 'room', 'time': cutoff.timestamp() + seconds, 'activity': 0}
+                for seconds in (10, 299.5, 301)]
+
+        async def executor(fn, read_from):
+            started.set()
+            self.assertEqual(read_from, cutoff.timestamp())
+            await release.wait()
+            return rows
+
+        with patch.object(self.hass, 'async_add_executor_job', side_effect=executor) as read:
+            first = asyncio.create_task(self.c.read_plan_history(48, now + timedelta(seconds=299)))
+            await asyncio.wait_for(started.wait(), 5)
+            later = asyncio.create_task(self.c.read_plan_history(48, now + timedelta(seconds=300)))
+            closing_client = asyncio.create_task(self.c.read_plan_history(48, now + timedelta(seconds=300)))
+            await asyncio.sleep(0)
+            closing_client.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await closing_client
+            self.assertFalse(first.done())
+            self.assertFalse(later.done())
+            release.set()
+            self.assertEqual(await first, rows[1:])
+            self.assertEqual(await later, rows[2:])
+            self.assertEqual(read.await_count, 1)
+
+    async def test_plan_read_after_same_bucket_write_uses_new_revision(self):
+        started, release = asyncio.Event(), asyncio.Event()
+        row = {'room_id': 'room', 'time': now.timestamp() - 50, 'temperature': 20, 'outdoor': -5, 'activity': 0}
+        database = self.c.history_db
+        database.append([row], 0)
+        old_revision = database.chart_revision
+        calls = []
+
+        async def executor(fn, *args):
+            calls.append(args)
+            result = fn(*args)
+            if len(calls) == 1:
+                started.set()
+                await release.wait()
+            return result
+
+        with patch.object(self.hass, 'async_add_executor_job', side_effect=executor):
+            old = asyncio.create_task(self.c.read_plan_history(48, now))
+            await asyncio.wait_for(started.wait(), 5)
+            database.append([{**row, 'activity': 1}], 0)
+            self.assertIsNot(old_revision, database.chart_revision)
+            updated = asyncio.create_task(self.c.read_plan_history(48, now))
+            await asyncio.sleep(0)
+            self.assertEqual(len(calls), 1)
+            release.set()
+            self.assertEqual((await old)[0]['activity'], 0)
+            self.assertEqual((await updated)[0]['activity'], 1)
+            self.assertEqual(len(calls), 2)
+
+    async def test_plan_read_errors_reach_shared_callers_but_not_other_periods(self):
+        started, release = asyncio.Event(), asyncio.Event()
+        database = self.c.history_db
+        calls = []
+
+        async def executor(fn, *args):
+            calls.append(args)
+            if len(calls) == 1:
+                started.set()
+                await release.wait()
+                raise OSError('history unavailable')
+            return fn(*args)
+
+        with patch.object(self.hass, 'async_add_executor_job', side_effect=executor):
+            first = asyncio.create_task(self.c.read_plan_history(48, now))
+            await asyncio.wait_for(started.wait(), 5)
+            shared = asyncio.create_task(self.c.read_plan_history(48, now + timedelta(seconds=1)))
+            other = asyncio.create_task(self.c.read_plan_history(24, now))
+            await asyncio.sleep(0)
+            release.set()
+            for request in (first, shared):
+                with self.assertRaisesRegex(OSError, 'history unavailable'):
+                    await request
+            self.assertEqual(await other, [])
+            self.assertEqual(len(calls), 2)
+            database.append([{'room_id': 'room', 'time': now.timestamp(),
+                              'temperature': 20, 'outdoor': -5, 'activity': 1}], 0)
+            self.assertEqual(len(await self.c.read_plan_history(48, now)), 1)
+            self.assertEqual(len(calls), 3)
+
+    async def test_forecast_accuracy_does_not_hold_up_control_or_its_timer(self):
+        self.c.settings.update(simulation_enabled=False, live_control_confirmed=True)
+        room = self.c.settings['rooms'][0]
+        self.hass.states['climate.room'].attributes['temperature'] = 18
+        started, release = asyncio.Event(), asyncio.Event()
+        expected = {room['id']: {'3': {'count': 20, 'mae': 0.2}}}
+
+        async def executor(fn, *args):
+            if fn == self.c.history_db.forecast_accuracy:
+                started.set()
+                await release.wait()
+                return expected
+            return fn(*args)
+
+        with patch.object(self.hass, 'async_add_executor_job', side_effect=executor):
+            try:
+                self.c.data = await asyncio.wait_for(self.c._async_update_data(), 5)
+                await asyncio.wait_for(started.wait(), 5)
+                running = self.c._forecast_accuracy_task
+                self.assertFalse(running.done())
+                self.assertFalse(self.c.backup_lock.locked())
+                self.assertIsNotNone(self.c._command_timer)
+                self.hass.services.async_call.assert_awaited()
+                self.assertEqual(self.c.panel_data()['rooms'][room['id']]['forecast_accuracy'], {})
+                await asyncio.wait_for(self.c.update_command_state(now + timedelta(minutes=1)), 5)
+                self.c._schedule_forecast_accuracy(now + timedelta(minutes=15))
+                self.assertIs(self.c._forecast_accuracy_task, running)
+            finally:
+                release.set()
+                if self.c._forecast_accuracy_task:
+                    await self.c._forecast_accuracy_task
+        self.assertEqual(self.c.panel_data()['rooms'][room['id']]['forecast_accuracy'], expected[room['id']])
+        self.assertNotIn('forecast_accuracy', self.c.data['rooms'][room['id']])
+        self.assertEqual(self.c.panel_data()['forecast_accuracy_sampled_at'], now.isoformat())
+
+    async def test_forecast_accuracy_throttles_calculation_and_retains_last_good_result(self):
+        room_id = self.c.settings['rooms'][0]['id']
+        self.c.data = {'rooms': {room_id: {}}}
+        expected = {room_id: {'3': {'count': 5, 'mae': 0.3}}}
+        with patch.object(self.c.history_db, 'forecast_accuracy',
+                          side_effect=[expected, OSError('history unavailable')]) as compute:
+            self.c._schedule_forecast_accuracy(now)
+            await self.c._forecast_accuracy_task
+            self.c._schedule_forecast_accuracy(now + timedelta(minutes=14))
+            self.assertIsNone(self.c._forecast_accuracy_task)
+            self.c._schedule_forecast_accuracy(now + timedelta(minutes=15))
+            with self.assertLogs('thermal_pilot.coordinator', level='WARNING'):
+                await self.c._forecast_accuracy_task
+            self.assertEqual(compute.call_count, 2)
+            self.assertEqual(compute.call_args.args, ((now + timedelta(minutes=15) - timedelta(days=7)).timestamp(),))
+        self.assertEqual(self.c.panel_data()['rooms'][room_id]['forecast_accuracy'], expected[room_id])
+        self.assertEqual(self.c.panel_data()['forecast_accuracy_sampled_at'], now.isoformat())
+
+    async def test_forecast_accuracy_discards_results_after_invalidation(self):
+        room_id = self.c.settings['rooms'][0]['id']
+        self.c.data = {'rooms': {room_id: {}}}
+        actions = (
+            lambda: self.c.update_settings({**self.c.settings, 'language': 'fi'}),
+            lambda: self.c.reset_learning(room_id),
+            self.c.stop,
+        )
+        for invalidate in actions:
+            with self.subTest(invalidate=invalidate):
+                started, release = asyncio.Event(), asyncio.Event()
+
+                async def executor(fn, *args):
+                    started.set()
+                    await release.wait()
+                    return {room_id: {'3': {'count': 20}}}
+
+                with patch.object(self.hass, 'async_add_executor_job', side_effect=executor):
+                    self.c._schedule_forecast_accuracy(now)
+                    running = self.c._forecast_accuracy_task
+                    try:
+                        await asyncio.wait_for(started.wait(), 5)
+                        invalidate()
+                        self.assertIs(self.c._forecast_accuracy_task, running)
+                    finally:
+                        release.set()
+                        await running
+                self.assertEqual(self.c.panel_data()['rooms'][room_id]['forecast_accuracy'], {})
+                self.assertIsNone(self.c.panel_data()['forecast_accuracy_sampled_at'])
+
     async def test_saved_heat_distribution_mismatch_is_reported_until_corrected(self):
         entry = self.c.entry
         entry.options = {'house_heat_source': 'air_to_water', 'house_distribution': 'electric_floor'}

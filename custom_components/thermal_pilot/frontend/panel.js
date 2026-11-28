@@ -271,6 +271,19 @@ function entityMatches(state,rule={},settings={}){
   }
   return true;
 }
+function groupChartHistory(rows){
+  const rooms=new Map(),zones=new Map();
+  for(const row of rows){
+    const records=row.zone_id?zones:rooms;
+    const id=row.zone_id||row.room_id;
+    if(!records.has(id))records.set(id,[]);
+    records.get(id).push(row);
+  }
+  for(const records of [rooms,zones]){
+    for(const readings of records.values())readings.sort((a,b)=>a.time-b.time);
+  }
+  return {rooms,zones};
+}
 function quarterHourObservations(rows){
   const buckets=new Map();
   for(const row of rows){
@@ -468,9 +481,21 @@ class ThermalPilotPanel extends HTMLElement {
     const dark=value?.themes?.darkMode===true;
     this.style?.setProperty('color-scheme',dark?'dark':'light');
     this.style?.setProperty('--tp-floorplan-opacity',dark?'.04':'.2');
+    const connectionChanged=this._hass&&this._hass.connection!==value?.connection;
+    if(connectionChanged)this.resetLoadedPanel();
     this._hass=value;this.updateFireplaceReading();this.updateSourceReadings();if(this.isConnected && !this.loaded && !this.loading)this.load();
+    if(connectionChanged&&this.isConnected)this.render();
     if(this.isConnected)this.subscribeNotifications();}
-  set panel(value){this._panel=value;if(this.isConnected && this._hass && !this.loaded)this.load();if(this.isConnected)this.subscribeNotifications();}
+  set panel(value){
+    const previousEntry=this.entry;
+    this._panel=value;
+    if(previousEntry&&previousEntry!==this.entry){
+      this.resetLoadedPanel();
+      if(this.isConnected)this.render();
+    }
+    if(this.isConnected && this._hass && !this.loaded)this.load();
+    if(this.isConnected)this.subscribeNotifications();
+  }
   connectedCallback(){
     if(this._hass)this.load();
     this.subscribeNotifications();
@@ -479,7 +504,7 @@ class ThermalPilotPanel extends HTMLElement {
       if(!['settings','rooms'].includes(this.tab))this.load();
     },60000);
   }
-  disconnectedCallback(){this.stopNotificationSubscription();this.notificationDrawer?.close();this.awayDialog?.close();this.manualDialog?.close();this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearTimeout(this.manualSessionTimer);clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
+  disconnectedCallback(){this.cancelPanelLoads();this.stopNotificationSubscription();this.notificationDrawer?.close();this.awayDialog?.close();this.manualDialog?.close();this.settingTooltipCleanup?.();this.priceResizeObserver?.disconnect();this.temperatureResizeObserver?.disconnect();clearTimeout(this.manualSessionTimer);clearInterval(this.timer);clearTimeout(this.saveMessageTimer);}
   get entry(){return this._panel?.config?.entry_id;}
   manualControlStatus(id){
     const control=this.info?.manual_controls?.[id];
@@ -1163,22 +1188,81 @@ class ThermalPilotPanel extends HTMLElement {
     document.body.append(dialog);dialog.showModal();
   }
   async call(type,extra={}){return this._hass.callWS({type:`thermal_pilot/${type}`,entry_id:this.entry,...extra});}
+  cancelPanelLoads(){
+    this.panelLoad=null;
+    this.historyLoad=null;
+    this.loading=false;
+  }
+  resetLoadedPanel(){
+    this.cancelPanelLoads();
+    this.loaded=false;
+    this.info=null;
+    this.settings=null;
+    this.history=null;
+    this.historyLoadedHours=null;
+    this.historyError=false;
+    this.historyIndex=null;
+    this.statusHistory=null;
+    this.roomDisclosureState.clear();
+    clearTimeout(this.manualSessionTimer);
+  }
   async load(){
     if(!this.entry || this.loading)return;
     this.restoreHistoryPeriod();
+    const request={tab:this.tab};
+    this.panelLoad=request;
     this.loading=true;
     try{
       const response=await this.call('get');
+      if(this.panelLoad!==request)return;
+      await tpI18n.load(response.settings.language||'en');
+      if(this.panelLoad!==request)return;
       this.info=response;this.settings=structuredClone(response.settings);this.zoneRoomDrafts={};
       clearTimeout(this.manualSessionTimer);
       const manualEnds=Object.values(response.manual_controls||{}).map(control=>control.session?.ends*1000).filter(end=>end>Date.now());
       if(manualEnds.length)this.manualSessionTimer=setTimeout(()=>this.load(),Math.max(1,Math.min(...manualEnds)-Date.now()+1000));
-      await tpI18n.load(this.settings.language||'en');
-      if(this.tab==='history')this.history=await this.call('history',{hours:this.historyHours,chart:'history'});
-      else if(this.tab==='overview'){try{this.statusHistory=await this.call('history',{hours:48,chart:'plan'});}catch(error){this.statusHistory=[];}}
+      if(request.tab==='history'){
+        this.loaded=true;this.message='';
+        void this.loadHistory();
+        return;
+      }
+      if(request.tab==='overview'){
+        let rows;
+        try{rows=await this.call('history',{hours:48,chart:'plan'});}catch(error){rows=[];}
+        if(this.panelLoad!==request)return;
+        this.statusHistory=rows;
+      }
       this.loaded=true;this.message='';this.render();
-    }catch(e){this.message=e.message||String(e);this.messageLevel='error';this.saveConfirmation=false;this.render();}
-    finally{this.loading=false;if(this.historyPeriodReload){this.historyPeriodReload=false;if(this.tab==='history')this.setHistoryPeriod(this.historyHours,this.historyPeriodFocus);}}
+    }catch(e){
+      if(this.panelLoad!==request)return;
+      this.message=e.message||String(e);this.messageLevel='error';this.saveConfirmation=false;this.render();
+    }finally{
+      if(this.panelLoad===request){this.panelLoad=null;this.loading=false;}
+    }
+  }
+  hasHistoryForPeriod(){
+    return Array.isArray(this.history)&&(this.historyLoadedHours==null||this.historyLoadedHours===this.historyHours);
+  }
+  async loadHistory(){
+    if(!this.entry||this.tab!=='history'||this.historyLoad?.hours===this.historyHours)return;
+    const request={hours:this.historyHours};
+    this.historyLoad=request;
+    const showLoading=!this.hasHistoryForPeriod()||this.historyError;
+    this.historyError=false;
+    if(showLoading)this.render();
+    try{
+      const rows=await this.call('history',{hours:request.hours,chart:'history'});
+      if(this.historyLoad!==request)return;
+      if(!Array.isArray(rows))throw new Error('Invalid history response');
+      this.history=rows;
+      this.historyLoadedHours=request.hours;
+      this.historyIndex=null;
+    }catch(error){
+      if(this.historyLoad!==request)return;
+      this.historyError=true;
+    }finally{
+      if(this.historyLoad===request){this.historyLoad=null;this.render();}
+    }
   }
   field(field,obj,prefix){
     const [key,label,type,min,max,step='any']=field;const value=pumpTemperatureFields.includes(key)?obj[key]??obj[key.slice(4)]:['air_use_fan_only','garage_use_fan_only'].includes(key)?obj[key]??true:obj[key];const name=`${prefix}.${key}`;
@@ -1742,10 +1826,18 @@ class ThermalPilotPanel extends HTMLElement {
     const label=alternate?'Measured temperature':'Predicted temperature under the suggested plan';
     return `<div class="chart-legend"><span><i style="background:#1976d2"></i>${label}</span>${alternate?`<span><i style="background:repeating-linear-gradient(to right,#e49025 0 6px,transparent 6px 10px)"></i>${escapeHTML(alternateLabel)}</span>`:''}${future.length?`<span><i style="background:#e49025"></i>${escapeHTML(this.t('Current plan forecast'))}</span>`:''}</div><div class="temperature-chart"><svg viewBox="0 0 ${chartWidth} 195"${options.fillWidth?' data-responsive-temperature style="width:100%;min-width:0;height:195px"':''} role="img" aria-label="${label}${alternate?' and '+escapeHTML(alternateLabel):''}">${grid}${ticks.join('')}${nowLine}<polyline points="${points(key)}" fill="none" stroke="#1976d2" stroke-width="3"/>${alternate?`<polyline points="${points(alternate)}" fill="none" stroke="#e49025" stroke-width="2" stroke-dasharray="6 4"/>`:''}${futureLine}</svg></div><small>${escapeHTML(timeLabel(first*1000))} – ${escapeHTML(timeLabel(last*1000))}</small>`;
   }
-  bindResponsiveTemperatureCharts() {
-    this.temperatureResizeObserver?.disconnect();
-    const charts = new Map();
-    this.shadowRoot.querySelectorAll('svg[data-responsive-temperature]').forEach(svg => {
+  bindResponsiveTemperatureCharts(root=this.shadowRoot) {
+    if (root===this.shadowRoot||!this.temperatureCharts) {
+      this.temperatureResizeObserver?.disconnect();
+      const charts=this.temperatureCharts=new Map();
+      if (typeof ResizeObserver !== 'undefined') {
+        this.temperatureResizeObserver = new ResizeObserver(entries => {
+          for (const entry of entries) charts.get(entry.target)?.();
+        });
+      }
+    }
+    const charts=this.temperatureCharts;
+    root.querySelectorAll('svg[data-responsive-temperature]').forEach(svg => {
       const originalWidth = Number(svg.getAttribute('viewBox').split(' ')[2]);
       const left = originalWidth < 600 ? 56 : 70;
       const originalRight = originalWidth - 20;
@@ -1779,13 +1871,8 @@ class ThermalPilotPanel extends HTMLElement {
       charts.set(svg, resize);
       resize();
       svg.closest?.('[data-room-accordion]')?.addEventListener('toggle', resize);
+      this.temperatureResizeObserver?.observe(svg);
     });
-    if (typeof ResizeObserver !== 'undefined') {
-      this.temperatureResizeObserver = new ResizeObserver(entries => {
-        for (const entry of entries) charts.get(entry.target)?.();
-      });
-      for (const svg of charts.keys()) this.temperatureResizeObserver.observe(svg);
-    }
   }
 
   currentPlanForecast(roomId, hours) {
@@ -1838,7 +1925,7 @@ class ThermalPilotPanel extends HTMLElement {
       return `<div class="forecast-metric" title="${escapeHTML(this.t(h+'-hour forecast'))}"><span class="forecast-metric-label">${h} h</span><b class="forecast-metric-value">${mean('error')}</b></div>`;
     }).join('');
     const count=rows.filter(r=>r[`forecast_${hours}h_details`]).length;
-    return `<h3 class="forecast-heading">${escapeHTML(this.t('Forecast accuracy'))}<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t('Forecast accuracy'))}" aria-describedby="forecast-help-${escapeHTML(roomId||'room')}">${tooltipInfoIcon}</button><span id="forecast-help-${escapeHTML(roomId||'room')}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t('These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.'))}</span></span></h3><div class="forecast-toolbar"><div class="forecast-metrics"><span class="forecast-metrics-title">Mean error:</span>${cards}</div><label class="forecast-selection">Chart forecast<select data-forecast-hours>${[1,3,6].map(h=>`<option value="${h}" ${hours===h?'selected':''}>${h} ${h===1?'hour':'hours'} ahead</option>`).join('')}</select></label></div>${!count?`<p class="notice notice-info" role="status">${statusIcon('info')}<span class="notice-text">No completed ${hours}-hour forecasts in this period yet. New forecasts start being recorded after updating; previous short-term predictions cannot be converted into these comparisons.</span></p>`:''}${this.chart(rows,'temperature',`forecast_${hours}h`,`Saved ${hours}-hour forecast`,{twoHourTicks:true,fillWidth:true,future,rangeStart:start,rangeEnd:future.at(-1)?.time??now})}`;
+    return `<h3 class="forecast-heading">${escapeHTML(this.t('Forecast accuracy'))}<span class="setting-help"><button type="button" class="setting-info" aria-label="${escapeHTML(this.t('Forecast accuracy'))}" aria-describedby="forecast-help-${escapeHTML(roomId||'room')}">${tooltipInfoIcon}</button><span id="forecast-help-${escapeHTML(roomId||'room')}" class="setting-tooltip" role="tooltip">${escapeHTML(this.t('These forecasts were saved 1, 3 or 6 hours before the measurements. Later readings do not change them. Lower error is better.'))}</span></span></h3><div class="forecast-toolbar"><div class="forecast-metrics"><span class="forecast-metrics-title">Mean error:</span>${cards}</div><label class="forecast-selection">Chart forecast<select id="forecast-hours-${escapeHTML(roomId||'room')}" data-forecast-hours>${[1,3,6].map(h=>`<option value="${h}" ${hours===h?'selected':''}>${h} ${h===1?'hour':'hours'} ahead</option>`).join('')}</select></label></div>${!count?`<p class="notice notice-info" role="status">${statusIcon('info')}<span class="notice-text">No completed ${hours}-hour forecasts in this period yet. New forecasts start being recorded after updating; previous short-term predictions cannot be converted into these comparisons.</span></p>`:''}${this.chart(rows,'temperature',`forecast_${hours}h`,`Saved ${hours}-hour forecast`,{twoHourTicks:true,fillWidth:true,future,rangeStart:start,rangeEnd:future.at(-1)?.time??now})}`;
   }
   roomDisclosureOpen(id){return this.roomDisclosureState.get(`${this.tab}:${id}`)===true;}
   learningPercent(room){
@@ -2113,13 +2200,7 @@ class ThermalPilotPanel extends HTMLElement {
   const start=history?historyStart:Math.floor((published[0]?.time??values[0]?.time??(now-86400000))/900000)*900000;
   const end=history?historyEnd:Math.ceil((published.at(-1)?.end??Math.max(values.at(-1)?.end??(now+86400000),now))/900000)*900000;
   const span=end-start;
-  const roomHistory=new Map(),zoneHistory=new Map();
-  for(const row of (history?this.history:this.statusHistory)||[]){
-   const records=row.zone_id?zoneHistory:roomHistory;
-   const id=row.zone_id||row.room_id;
-   if(!records.has(id))records.set(id,[]);
-   records.get(id).push(row);
-  }
+  const {rooms:roomHistory,zones:zoneHistory}=history?this.groupedHistory():groupChartHistory(this.statusHistory||[]);
   const weatherByTime=new Map();
   if(!history&&visibility.weather){
     const forecasts=(this.info.data?.weather_forecast||[]).map(row=>({...row,saved:false}));
@@ -2225,7 +2306,7 @@ class ThermalPilotPanel extends HTMLElement {
   const garageHeading=garageRooms.length?`<text x="${manualNames?76:20}" y="${garageStart-20}" fill="var(--primary-text-color,#6d5848)" style="font-size:18px;font-weight:600">${escapeHTML(this.t('Garages'))}</text>`:'';
   const lanes=rooms.map((room,roomIndex)=>{
    const rowHeight=roomHeights[roomIndex];
-   const rows=(roomHistory.get(room.id)||[]).sort((a,b)=>a.time-b.time);
+   const rows=roomHistory.get(room.id)||[];
    const y=roomTop+roomHeights.slice(0,roomIndex).reduce((sum,height)=>sum+height,0)+(isGarage(room)?garageGap:0);
    const plan=this.info.data?.rooms?.[room.id]?.plan;
    const commands=[...(plan?.commands||[])].sort((a,b)=>new Date(a.time)-new Date(b.time));
@@ -2299,7 +2380,7 @@ class ThermalPilotPanel extends HTMLElement {
    const tariff=zone.source_type!=='fireplace'&&(zone.heating_strategy||'tariff')==='tariff'&&zone.climate_mode!=='cool';
    const showPlan=!history&&tariff;
    const laneTop=compact?26:0;
-   const rows=(zoneHistory.get(zone.id)||[]).sort((a,b)=>a.time-b.time);
+   const rows=zoneHistory.get(zone.id)||[];
    const observed=mode=>{
     const periods=[];
     rows.forEach((row,index)=>{
@@ -2879,23 +2960,68 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
     this.historyPeriodStorageKey=key;this.historyHours=48;
     try{const hours=Number(globalThis.localStorage?.getItem(key));if([24,48,96,144].includes(hours))this.historyHours=hours;}catch(error){}
   }
-  async setHistoryPeriod(hours,controlId){
+  async setHistoryPeriod(hours){
     hours=Number(hours);if(![24,48,96,144].includes(hours))return;
     this.restoreHistoryPeriod();
     this.historyHours=hours;
     try{globalThis.localStorage?.setItem(this.historyPeriodStorageKey,String(hours));}catch(error){}
     this.shadowRoot.querySelectorAll('[data-history-period]').forEach(select=>select.value=String(hours));
-    this.historyPeriodFocus=controlId;
-    if(this.loading){this.historyPeriodReload=true;return;}
-    await this.load();
-    this.shadowRoot.getElementById?.(this.historyPeriodFocus)?.focus({preventScroll:true});
+    await this.loadHistory();
   }
   historyPeriodSelector(roomId=null){
     return `<label class="history-period">${escapeHTML(this.t('Period'))}<select id="${roomId===null?'history-hours':'room-history-hours-'+escapeHTML(roomId)}" data-history-period>${[[24,'2 days'],[48,'3 days'],[96,'5 days'],[144,'7 days']].map(([hours,label])=>`<option value="${hours}" ${hours===this.historyHours?'selected':''}>${escapeHTML(this.t(label))}</option>`).join('')}</select></label>`;
   }
+  groupedHistory(){
+    const count=this.history?.length??0;
+    if(!this.historyIndex||this.historyIndex.source!==this.history||this.historyIndex.count!==count){
+      this.historyIndex={source:this.history,count,...groupChartHistory(this.history||[])};
+    }
+    return this.historyIndex;
+  }
+  historyRoomChart(roomId){
+    return this.forecastHistoryView(this.groupedHistory().rooms.get(roomId)||[],roomId);
+  }
+  historyRoomView(room,groupOpen){
+    const id=escapeHTML(room.id);
+    const open=this.historySectionOpen(`history:room:${room.id}`,this.roomDisclosureOpen(room.id));
+    const data=this.info.data?.rooms?.[room.id];
+    const chart=groupOpen&&open&&this.hasHistoryForPeriod()?this.historyRoomChart(room.id):'';
+    const garage=this.isGarageRoom(room.id,room)?' garage-observation-card':'';
+    return `<section class="observation-card${garage}"><details class="observation-accordion" data-room-accordion="${id}" ${open?'open':''}><summary id="history-room-${id}"><h2><span data-user-text>${escapeHTML(room.name)}</span> ${this.roomHeatingBadge(data,room.id)} ${this.learningBadge(data)}</h2></summary><div class="observation-content" data-history-room-chart>${chart}</div></details></section>`;
+  }
+  bindHistoryRoomCharts(){
+    if(this.tab!=='history')return;
+    const group=this.shadowRoot.querySelector('#room-cards-accordion');
+    if(!group)return;
+    const rooms=[...group.querySelectorAll('[data-room-accordion]')];
+    const mount=items=>{
+      if(group.getRootNode()!==this.shadowRoot||!group.open||!this.hasHistoryForPeriod())return;
+      let added=false;
+      for(const room of items){
+        if(!room.open)continue;
+        const content=room.querySelector('[data-history-room-chart]');
+        if(content.firstElementChild)continue;
+        content.innerHTML=this.historyRoomChart(room.dataset.roomAccordion);
+        this.translateRoot(content);
+        this.bindResponsiveTemperatureCharts(content);
+        added=true;
+      }
+      if(added)this.bindSettingTooltips();
+    };
+    group.addEventListener('toggle',()=>mount(rooms));
+    for(const room of rooms)room.addEventListener('toggle',()=>mount([room]));
+    mount(rooms);
+  }
   historyView(){
-    return `${(electricHeating(this.settings)||this.settings.heating_zones?.length||this.settings.fireplaces?.length)?this.priceChart(true):this.historyPeriodSelector()}<div class="history-summary"><section><details class="observation-accordion" data-history-section="about" ${this.historySectionOpen('about')?'open':''}><summary><h2>${escapeHTML(this.t('About this history'))}</h2></summary><div class="observation-content"><dl class="history-explanation"><div><dt>${escapeHTML(this.t("Recorded data"))}</dt><dd>${escapeHTML(this.t("Room sensors provide the temperatures that were actually measured. The charts also show recorded heating activity and earlier heating suggestions."))}</dd></div><div><dt>${escapeHTML(this.t("Forecast accuracy"))}</dt><dd>${escapeHTML(this.t("Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better."))}</dd></div><div><dt>${escapeHTML(this.t("During simulation"))}</dt><dd>${escapeHTML(this.t("Forecasts assume that ThermalPilot\u2019s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model."))}</dd></div></dl></div></details></section>
-    ${this.seasonArchivesView()}</div><section class="room-cards-group"><details class="observation-accordion" id="room-cards-accordion" ${this.historySectionOpen('history:room-cards-accordion',false)?'open':''}><summary><h2>${escapeHTML(this.t('Rooms'))}</h2></summary><div class="observation-content"><div class="observation-cards">${[...this.settings.rooms].sort((a,b)=>Number(this.isGarageRoom(a.id,a))-Number(this.isGarageRoom(b.id,b))||compareRoomNames(a,b)).map(room=>{const rows=(this.history||[]).filter(r=>r.room_id===room.id);return `<section class="observation-card${this.isGarageRoom(room.id,room)?' garage-observation-card':''}"><details class="observation-accordion" data-room-accordion="${escapeHTML(room.id)}" ${this.roomDisclosureOpen(room.id)?'open':''}><summary><h2><span data-user-text>${escapeHTML(room.name)}</span> ${this.roomHeatingBadge(this.info.data?.rooms?.[room.id],room.id)} ${this.learningBadge(this.info.data?.rooms?.[room.id])}</h2></summary><div class="observation-content">${this.forecastHistoryView(rows,room.id)}</div></details></section>`;}).join('')}</div></div></details></section>`;
+    const ready=this.hasHistoryForPeriod();
+    const groupOpen=this.historySectionOpen('history:room-cards-accordion',false);
+    const notice=this.historyError?statusNotice(this.t(ready?'Could not refresh history. Showing previously loaded data.':'Unable to load history.'),'error')
+      :!ready?statusNotice(this.t('Loading history…')):'';
+    const timeline=ready&&(electricHeating(this.settings)||this.settings.heating_zones?.length||this.settings.fireplaces?.length)
+      ?this.priceChart(true):this.historyPeriodSelector();
+    const rooms=[...this.settings.rooms].sort((a,b)=>Number(this.isGarageRoom(a.id,a))-Number(this.isGarageRoom(b.id,b))||compareRoomNames(a,b));
+    return `${notice}${timeline}<div class="history-summary"><section><details class="observation-accordion" data-history-section="about" ${this.historySectionOpen('about')?'open':''}><summary><h2>${escapeHTML(this.t('About this history'))}</h2></summary><div class="observation-content"><dl class="history-explanation"><div><dt>${escapeHTML(this.t("Recorded data"))}</dt><dd>${escapeHTML(this.t("Room sensors provide the temperatures that were actually measured. The charts also show recorded heating activity and earlier heating suggestions."))}</dd></div><div><dt>${escapeHTML(this.t("Forecast accuracy"))}</dt><dd>${escapeHTML(this.t("Each room card compares an earlier forecast with the temperature measured later. It also checks whether simply predicting that the temperature would stay unchanged would have worked better."))}</dd></div><div><dt>${escapeHTML(this.t("During simulation"))}</dt><dd>${escapeHTML(this.t("Forecasts assume that ThermalPilot\u2019s suggested heating plan is followed. In simulation, your existing controls may heat differently. A forecast error can therefore come from a different heating schedule as well as from the model."))}</dd></div></dl></div></details></section>
+    ${this.seasonArchivesView()}</div><section class="room-cards-group"><details class="observation-accordion" id="room-cards-accordion" ${groupOpen?'open':''}><summary id="history-room-group"><h2>${escapeHTML(this.t('Rooms'))}</h2></summary><div class="observation-content"><div class="observation-cards">${rooms.map(room=>this.historyRoomView(room,groupOpen)).join('')}</div></div></details></section>`;
   }
   hasUnsavedSettings(){
     if(!this.info?.settings||!this.settings)return false;
@@ -2929,8 +3055,14 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
       this.capture();
       if(['settings','rooms'].includes(tab)){this.tab=tab;this.render();return;}
       if(this.hasUnsavedSettings()&&!confirm(this.t('You have unsaved settings. Discard these changes and switch tabs?')))return;
+      this.settings=structuredClone(this.info.settings);
     }
-    this.tab=tab;this.loaded=false;this.load();
+    this.cancelPanelLoads();
+    this.tab=tab;
+    this.loaded=false;
+    this.restoreHistoryPeriod();
+    if(!['settings','rooms'].includes(tab))this.render();
+    return this.load();
   }
   settingsFieldTarget(name){
     const [prefix,key]=name.split('.');
@@ -2984,6 +3116,7 @@ ${waterDistribution(this.settings)&&this.settings?.water_entity?`      <div clas
 
   render(){
     tpI18n.watch(this,this.settings?.language||'en');
+    const historyFocus=this.tab==='history'&&!this.focusTabRequested?this.shadowRoot.activeElement?.id:null;
     const settingsOpen=new Set([...this.shadowRoot.querySelectorAll('[data-settings-disclosure]')].filter(d=>d.open).map(d=>d.dataset.settingsDisclosure));
     this.shadowRoot.innerHTML=`<style>${garageRowPalette}
 .header-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:8px 0 0}.header-status .status-pill{font-size:21px;font-weight:600;padding:8px 15px;border-radius:10px}.header-status-description{font-size:14px;color:var(--secondary-text-color,#60737b)}.status-pill.header-simulation{background:#e74c3c20;border-left:3px solid #c0392b}.status-pill.header-live{background:#2ecc7126;border-left:3px solid #229954}.status-pill.header-paused{background:#f1c40f26;border-left:3px solid #b7950b}.status-pill.header-observation{background:#3498db20;border-left:3px solid #3498db}
@@ -3461,6 +3594,7 @@ details{scroll-margin-block:16px}
     this.bindStatusTemperatures();
     this.bindHistorySections();
     this.bindResponsiveTemperatureCharts();
+    this.bindHistoryRoomCharts();
     this.bindSettingTooltips();
     const statusDetails=this.shadowRoot.querySelector('#status-details');statusDetails?.addEventListener('toggle',()=>{this.statusDetailsOpen=statusDetails.open;});
     const retention=this.shadowRoot.querySelector('#retention-accordion');if(retention)retention.addEventListener('toggle',()=>{this.retentionOpen=retention.open;});
@@ -3561,8 +3695,14 @@ details{scroll-margin-block:16px}
     this.shadowRoot.querySelector('#backup-import')?.addEventListener('click',()=>this.shadowRoot.querySelector('#backup-file')?.click());
     this.shadowRoot.querySelector('#backup-file')?.addEventListener('change',event=>{const file=event.target.files?.[0];if(file)this.transferBackup(file);});
     const disclosureTab=this.tab;
-    this.shadowRoot.querySelectorAll('[data-room-accordion]').forEach(details=>details.addEventListener('toggle',()=>{this.roomDisclosureState.set(`${disclosureTab}:${details.dataset.roomAccordion}`,details.open);}));
-    this.shadowRoot.querySelectorAll('[data-forecast-hours]').forEach(select=>select.addEventListener('change',event=>{this.forecastHours=Number(event.target.value);this.render();}));
+    this.shadowRoot.querySelectorAll('[data-room-accordion]').forEach(details=>details.addEventListener('toggle',()=>{
+      if(details.getRootNode()===this.shadowRoot)this.roomDisclosureState.set(`${disclosureTab}:${details.dataset.roomAccordion}`,details.open);
+    }));
+    this.shadowRoot.querySelector('#room-cards-accordion')?.addEventListener('change',event=>{
+      if(!event.target.hasAttribute?.('data-forecast-hours'))return;
+      this.forecastHours=Number(event.target.value);
+      this.render();
+    });
     this.shadowRoot.querySelectorAll('[data-retention-sort]').forEach(button=>button.addEventListener('click',()=>this.sortRetention(button.dataset.retentionSort)));
     this.shadowRoot.querySelectorAll('[data-archive-sort]').forEach(button=>button.addEventListener('click',()=>this.sortArchives(button.dataset.archiveSort)));
     this.mountAccordionScrolling();
@@ -3592,7 +3732,8 @@ details{scroll-margin-block:16px}
     this.shadowRoot.querySelectorAll('[data-remove-zone]').forEach(button=>button.addEventListener('click',()=>{this.capture();const zone=this.settings.heating_zones[Number(button.dataset.removeZone)];if(!confirm(this.t('Remove zone')+' '+zone.name+'?'))return;this.settings.heating_zones.splice(Number(button.dataset.removeZone),1);this.settings.rooms.forEach(room=>{if(room.heating_zone_id===zone.id){room.heating_zone_id='';}});this.render();}));
     const pastSuggestionsToggle=this.shadowRoot.querySelector('[data-history-plan-toggle]');
     pastSuggestionsToggle?.addEventListener('change',()=>this.setPastHeatingSuggestions(!pastSuggestionsToggle.checked));
-    this.shadowRoot.querySelectorAll('[data-history-period]').forEach(select=>select.addEventListener('change',event=>this.setHistoryPeriod(event.target.value,event.target.id)));
+    this.shadowRoot.querySelectorAll('[data-history-period]').forEach(select=>select.addEventListener('change',event=>this.setHistoryPeriod(event.target.value)));
+    if(historyFocus)this.shadowRoot.getElementById?.(historyFocus)?.focus({preventScroll:true});
   }
 }
 if(!customElements.get('thermal-pilot-panel'))customElements.define('thermal-pilot-panel',ThermalPilotPanel);

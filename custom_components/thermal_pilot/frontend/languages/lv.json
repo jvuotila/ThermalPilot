@@ -2,6 +2,9 @@
   "language": "lv",
   "name": "Latviešu",
   "messages": {
+    "Loading history…": "Notiek vēstures ielāde…",
+    "Unable to load history.": "Neizdevās ielādēt vēsturi.",
+    "Could not refresh history. Showing previously loaded data.": "Neizdevās atsvaidzināt vēsturi. Tiek rādīti iepriekš ielādētie dati.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Saglabātais siltuma avots un siltuma sadales veids nav saderīgi. Atveriet Apkure un dzesēšana → Mājas apkures iestatījumi, izvēlieties izmantoto siltuma avotu un sadales veidu, pēc tam saglabājiet iestatījumus.",
     "Mixed (includes water-based heating)": "Jaukta (ar ūdens apkuri)",
     "Mixed (no water-based heating)": "Jaukta (bez ūdens apkures)",

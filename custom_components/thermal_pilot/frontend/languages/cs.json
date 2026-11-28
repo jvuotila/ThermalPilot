@@ -2,6 +2,9 @@
   "language": "cs",
   "name": "Čeština",
   "messages": {
+    "Loading history…": "Načítání historie…",
+    "Unable to load history.": "Historii se nepodařilo načíst.",
+    "Could not refresh history. Showing previously loaded data.": "Historii se nepodařilo obnovit. Zobrazují se dříve načtená data.",
     "The saved heat source and heat distribution do not match. Open Climate setup → House heating settings, choose the heat source and distribution you use, and save.": "Uložený zdroj tepla a způsob rozvodu tepla nejsou kompatibilní. Otevřete Vytápění a chlazení → Vytápění domu, vyberte používaný zdroj a způsob rozvodu a nastavení uložte.",
     "Mixed (includes water-based heating)": "Kombinovaná (s teplovodním vytápěním)",
     "Mixed (no water-based heating)": "Kombinovaná (bez teplovodního vytápění)",
