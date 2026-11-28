@@ -13,7 +13,7 @@ import test_coordinator
 from test_coordinator import State, now
 from thermal_pilot.const import DEFAULTS
 from thermal_pilot.config import validate
-from thermal_pilot.model import price_slots, stamp
+from thermal_pilot.model import MAX_RAW_PRICE_ROWS, price_slots, stamp
 from thermal_pilot.sources import (PriceSourceReader, nordpool_rows, tibber_rows,
     normalize_weather, temperature_celsius, forecast_temperature, check_sources)
 
@@ -38,6 +38,13 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(slots[-1].price, 12)
         slots = price_slots({'today': [100]*24}, {**config, 'price_unit': '€/MWh'}, now, ZoneInfo('UTC'))
         self.assertEqual(slots[0].price, 10)
+
+    def test_native_response_limits_are_checked_before_parsing_rows(self):
+        rows = [None] * (MAX_RAW_PRICE_ROWS + 1)
+        with self.assertRaisesRegex(ValueError, 'too many intervals'):
+            nordpool_rows({'FI': rows}, 'FI', 0, 0)
+        with self.assertRaisesRegex(ValueError, 'too many intervals'):
+            tibber_rows({'prices': {'Example home': rows}}, 'Example home', 'EUR/kWh')
 
     def test_tibber_keeps_gaps_and_handles_quarter_hours_and_dst_offsets(self):
         response = {'prices': {'Home': [

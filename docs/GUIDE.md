@@ -43,6 +43,11 @@ that vary with consumption. ThermalPilot does not add these costs. Timestamped
 `today`/`tomorrow` lists also work. List-only sources cannot safely represent
 23- or 25-hour daylight-saving days.
 
+Timestamped price sources can supply up to 512 intervals. Each interval can
+last up to one hour, and future prices can extend up to 72 hours from the
+start of the current local day. If a source exceeds these limits, ThermalPilot
+shows a price-source warning and uses its normal temperature fallback.
+
 ## House and comfort settings
 
 Select the heat source, distribution and construction under **Climate setup**.

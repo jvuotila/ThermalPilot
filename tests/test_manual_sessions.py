@@ -3,10 +3,12 @@ from copy import deepcopy
 from datetime import timedelta
 from pathlib import Path
 import ast
+import asyncio
+import sqlite3
 import tempfile
 import types
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from test_coordinator import Hass, State, now
 from thermal_pilot.coordinator import PilotCoordinator
@@ -181,6 +183,127 @@ class ManualSessionTests(unittest.IsolatedAsyncioTestCase):
             self.coordinator.arm_command_timer({}, now)
         self.assertEqual(timer.call_args.args[2], now + timedelta(minutes=1))
 
+    async def test_manual_expiry_survives_repeated_history_failures(self):
+        coordinator = self.coordinator
+        coordinator.data = {}
+        with patch('thermal_pilot.coordinator.async_track_point_in_utc_time',
+                   side_effect=lambda *args: Mock()) as tracker:
+            await self.start('floor', minutes=1)
+            _, expire, deadline = tracker.call_args.args
+            cancel = coordinator._command_timer
+            self.assertEqual(deadline, now + timedelta(minutes=1))
+            self.hass.services.async_call.reset_mock()
+            with patch.object(coordinator.history_db, 'append_zones',
+                              side_effect=sqlite3.OperationalError('history unavailable')):
+                for elapsed in (10, 40, 75):
+                    with patch('thermal_pilot.coordinator.dt_util.utcnow',
+                               return_value=now + timedelta(seconds=elapsed)):
+                        with self.assertRaises(sqlite3.OperationalError):
+                            await coordinator._async_update_data()
+                cancel.assert_not_called()
+                await expire(deadline)
+        self.assertNotIn('floor', coordinator.manual_sessions)
+        self.assertNotIn('floor', coordinator.store.saved['manual_sessions'])
+        self.hass.services.async_call.assert_any_await(
+            'climate', 'set_temperature', {'entity_id': 'climate.room', 'temperature': self.floor['baseline']},
+            blocking=True,
+        )
+
+    async def test_queued_checkpoint_uses_time_after_waiting_for_lock(self):
+        coordinator = self.coordinator
+        coordinator.data = {}
+        await self.start('floor', minutes=1)
+        checkpoint = now + timedelta(seconds=30)
+        with patch('thermal_pilot.coordinator.async_track_point_in_utc_time') as tracker:
+            async with coordinator.backup_lock:
+                coordinator.schedule_command_timer(checkpoint)
+                wake = asyncio.create_task(tracker.call_args.args[1](checkpoint))
+                await asyncio.sleep(0)
+                self.assertFalse(wake.done())
+                self.assertIn('floor', coordinator.manual_sessions)
+            with patch('thermal_pilot.coordinator.dt_util.utcnow', return_value=now + timedelta(minutes=2)):
+                await wake
+        self.assertNotIn('floor', coordinator.manual_sessions)
+        self.assertEqual(coordinator.control.results['floor'], self.floor['baseline'])
+
+    async def test_expiry_applies_fallback_when_saving_fails(self):
+        coordinator = self.coordinator
+        coordinator.data = {}
+        await self.start('floor', minutes=1)
+        with patch.object(coordinator.store, 'async_save', new=AsyncMock(side_effect=OSError('disk unavailable'))):
+            with patch.object(coordinator.store, 'async_delay_save') as retry:
+                with self.assertLogs('thermal_pilot.coordinator', level='WARNING'):
+                    await coordinator.update_command_state(now + timedelta(minutes=1))
+                retry.assert_called_once()
+                self.assertNotIn('floor', retry.call_args.args[0]()['manual_sessions'])
+        self.assertNotIn('floor', coordinator.manual_sessions)
+        self.assertEqual(coordinator.control.results['floor'], self.floor['baseline'])
+        self.assertIn('Thermostat control: Could not save the end of a manual session; will retry.',
+                      coordinator.data['warnings'])
+
+    async def test_expiry_uses_new_fallback_after_settings_change(self):
+        coordinator = self.coordinator
+        await self.start('floor', minutes=1)
+        coordinator.settings['rooms'][0]['baseline'] = 19
+        self.hass.services.async_call.reset_mock()
+        await coordinator.update_command_state(now + timedelta(minutes=1))
+        self.assertFalse(coordinator.manual_sessions)
+        self.assertEqual(coordinator.data['control']['mode'], 'waiting')
+        self.hass.services.async_call.assert_awaited_once_with(
+            'climate', 'set_temperature', {'entity_id': 'climate.room', 'temperature': 19}, blocking=True,
+        )
+
+    async def test_pausing_retires_override_even_if_reenabled_before_checkpoint(self):
+        coordinator = self.coordinator
+        coordinator.data = {}
+        enabled = deepcopy(coordinator.settings)
+        with patch('thermal_pilot.coordinator.async_track_point_in_utc_time') as tracker:
+            await self.start('floor', minutes=15)
+            _, old_checkpoint, old_deadline = tracker.call_args.args
+            self.hass.services.async_call.reset_mock()
+            async with coordinator.backup_lock:
+                coordinator.update_settings({**enabled, 'heating_enabled': False})
+                self.assertFalse(coordinator.manual_sessions)
+                coordinator.update_settings(enabled)
+            _, new_checkpoint, new_deadline = tracker.call_args.args
+            await old_checkpoint(old_deadline)
+            self.hass.services.async_call.assert_not_awaited()
+            await new_checkpoint(new_deadline)
+        self.assertFalse(coordinator.store.saved['manual_sessions'])
+        self.assertEqual(coordinator.control.results['floor'], self.floor['baseline'])
+
+    async def test_unavailable_thermostat_retries_manual_release_without_plan(self):
+        coordinator = self.coordinator
+        coordinator.data = {}
+        await self.start('floor', minutes=1)
+        thermostat = self.hass.states['climate.room']
+        thermostat.state = 'unavailable'
+        with patch('thermal_pilot.coordinator.async_track_point_in_utc_time') as tracker:
+            await coordinator.update_command_state(now + timedelta(minutes=1))
+            self.assertNotIn('floor', coordinator.manual_sessions)
+            _, retry, deadline = tracker.call_args.args
+            self.assertEqual(deadline, now + timedelta(minutes=2))
+            thermostat.state = 'heat'
+            await retry(deadline)
+        self.assertEqual(coordinator.control.results['floor'], self.floor['baseline'])
+
+    async def test_garage_automatic_cycle_survives_retries_after_manual_release(self):
+        coordinator = self.coordinator
+        await self.start(minutes=1)
+        pump = self.hass.states['climate.garage']
+        pump.state = 'unavailable'
+        temperature = self.hass.states['sensor.garage']
+        temperature.state = str(self.garage['garage_minimum'] - 1)
+        await coordinator.update_command_state(now + timedelta(minutes=1))
+        self.assertFalse(coordinator.manual_sessions)
+        self.assertEqual(coordinator.data['rooms']['garage']['pump_suggestion']['mode'], 'heat')
+
+        pump.state = 'fan_only'
+        temperature.state = str(self.garage['garage_minimum'] + 1)
+        await coordinator.update_command_state(now + timedelta(minutes=2))
+        self.assertEqual(coordinator.data['rooms']['garage']['pump_suggestion']['mode'], 'heat')
+        self.assertEqual(coordinator.data['rooms']['garage']['pump_suggestion']['reason'], 'Garage temperature cycle')
+
     async def test_shared_zone_has_one_controller_and_can_manually_cool_in_winter(self):
         self.coordinator.settings['rooms'][0]['heating_zone_id'] = 'zone'
         self.coordinator.settings['heating_zones'] = [{
@@ -206,7 +329,6 @@ class ManualSessionTests(unittest.IsolatedAsyncioTestCase):
 
 
     async def test_storage_failure_does_not_activate_an_unconfirmed_session(self):
-        from unittest.mock import AsyncMock
         self.coordinator.store.async_save = AsyncMock(side_effect=OSError('disk unavailable'))
         with self.assertRaises(OSError):
             await self.start()

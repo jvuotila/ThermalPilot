@@ -6,6 +6,7 @@ slab delay; it is not a physical measurement of the slab's stored energy.
 from typing import Any
 from dataclasses import dataclass
 from datetime import date as date_type, datetime, timedelta, timezone
+from itertools import chain
 from statistics import median
 import math
 from .const import (
@@ -97,51 +98,76 @@ def apply_transfer_tariff(slots, config, tz):
     return result
 
 
-def price_slots(attributes, config, now, tz):
-    """Normalize timestamped prices to elapsed UTC hours; reject ambiguous lists.
+MAX_RAW_PRICE_ROWS = 512
+MAX_RAW_PRICE_DURATION = timedelta(hours=1)
+MAX_RAW_PRICE_HORIZON = timedelta(hours=72)
 
-Raw arrays are preferred and handle 23/25-hour days. List-only sources are
-accepted solely on regular 24-hour days, with their interval detected from
-    24 or 96 entries per day. Gaps stop the usable horizon.
-"""
+
+def check_raw_price_count(count: int) -> None:
+    """Bound work before copying, normalizing, or sorting provider rows."""
+    if count > MAX_RAW_PRICE_ROWS:
+        raise ValueError('The electricity price source returned too many intervals (maximum 512).')
+
+
+def price_slots(attributes, config, now, tz):
+    """Normalize prices into elapsed-time UTC slots until the first gap.
+
+    Timestamped prices support 23- and 25-hour days. Daily lists without
+    timestamps must contain 24 hourly or 96 quarter-hour values.
+    """
+    minutes = 60 if config['pricing_mode'] == 'hourly' else 15
+    interval = timedelta(minutes=minutes)
+    first = now.astimezone(timezone.utc)
+    first = first.replace(minute=first.minute // minutes * minutes, second=0, microsecond=0)
+    local_day = now.astimezone(tz).date()
     if config.get('price_entity') == 'static':
         # A fixed tariff is known through tomorrow. Build elapsed-time intervals
         # in UTC so local daylight-saving days have the correct 23/25-hour length.
         price = number(config.get('static_price'))
         if price is None or not -1000 <= price <= 10000:
             raise ValueError('Static price (c/kWh): value is outside the allowed range.')
-        step = 60 if config['pricing_mode'] == 'hourly' else 15
-        first = now.astimezone(timezone.utc)
-        first = first.replace(minute=first.minute // step * step, second=0, microsecond=0)
-        final_day = now.astimezone(tz).date() + timedelta(days=2)
+        final_day = local_day + timedelta(days=2)
         end = datetime.combine(final_day, datetime.min.time(), tzinfo=tz).astimezone(timezone.utc)
         output = []
         start = first
         while start < end:
-            stop = min(start + timedelta(minutes=step), end)
+            stop = min(start + interval, end)
             output.append(Slot(start, stop, price))
             start = stop
         return apply_transfer_tariff(output, config, tz)
     factor = {'c/kWh': 1.0, '€/kWh': 100.0, '€/MWh': .1}[config['price_unit']]
-    raw = []
-    for key in ('raw_today', 'raw_tomorrow'):
-        raw.extend(attributes.get(key) or [])
+    raw_today = attributes.get('raw_today') or ()
+    raw_tomorrow = attributes.get('raw_tomorrow') or ()
+    if not isinstance(raw_today, (list, tuple)) or not isinstance(raw_tomorrow, (list, tuple)):
+        raise ValueError('Unsupported price data format.')
+    check_raw_price_count(len(raw_today) + len(raw_tomorrow))
     segments = []
-    if raw:
-        for item in raw:
+    if raw_today or raw_tomorrow:
+        # Normal sources publish today and tomorrow. Allow extra time for
+        # upstream market dates to differ from Home Assistant's local dates.
+        midnight = datetime.combine(local_day, datetime.min.time(), tzinfo=tz)
+        latest_end = midnight.astimezone(timezone.utc) + MAX_RAW_PRICE_HORIZON
+        for item in chain(raw_today, raw_tomorrow):
             if not isinstance(item, dict):
                 raise ValueError('Each raw price row must be an object.')
             start, end = (stamp(item.get('start')), stamp(item.get('end')))
             value = number(item.get('value'))
             if start is None or end is None or value is None or (end <= start):
                 raise ValueError('Invalid price or timestamp in source list.')
-            segments.append((start.astimezone(timezone.utc), end.astimezone(timezone.utc), value * factor))
+            if end - start > MAX_RAW_PRICE_DURATION:
+                raise ValueError('An electricity price interval is longer than one hour.')
+            if end > latest_end:
+                raise ValueError('Electricity prices extend more than 72 hours from local midnight.')
+            try:
+                segments.append((start.astimezone(timezone.utc), end.astimezone(timezone.utc), value * factor))
+            except OverflowError as error:
+                raise ValueError('Invalid price or timestamp in source list.') from error
     else:
         for offset, key in enumerate(('today', 'tomorrow')):
             values = attributes.get(key) or []
             if not values:
                 continue
-            day = now.astimezone(tz).date() + timedelta(days=offset)
+            day = local_day + timedelta(days=offset)
             local_start = datetime.combine(day, datetime.min.time(), tzinfo=tz)
             local_end = datetime.combine(day + timedelta(days=1), datetime.min.time(), tzinfo=tz)
             start, end = (local_start.astimezone(timezone.utc), local_end.astimezone(timezone.utc))
@@ -157,26 +183,33 @@ accepted solely on regular 24-hour days, with their interval detected from
                 a = start + timedelta(minutes=i * step)
                 segments.append((a, a+timedelta(minutes=step), value*factor))
     segments.sort(key=lambda s: s[0])
-    for a, b in zip(segments, segments[1:]):
-        if a[1] > b[0]:
+    for previous, following in zip(segments, segments[1:]):
+        if previous[1] > following[0]:
             raise ValueError('Price intervals contain overlapping timestamps.')
-    step = 60 if config['pricing_mode'] == 'hourly' else 15
-    first = now.astimezone(timezone.utc).replace(minute=now.minute // step * step, second=0, microsecond=0)
     output = []
-    last_available = max((end for _, end, _ in segments), default=first)
-    intervals = max(0, math.ceil((last_available - first).total_seconds() / (step * 60)))
-    for i in range(intervals):
-        a = first + timedelta(minutes=i * step)
-        b = a + timedelta(minutes=step)
+    slot_start = first
+    last_available = segments[-1][1] if segments else first
+    minimum_coverage = interval.total_seconds() - 1
+    segment_index = 0
+    while slot_start < last_available:
+        slot_end = slot_start + interval
         total = duration = 0.0
-        for s, e, value in segments:
-            seconds = max(0.0, (min(b, e) - max(a, s)).total_seconds())
-            total += seconds * value
-            duration += seconds
-        if duration < step * 60 - 1:
+        while segment_index < len(segments):
+            start, end, value = segments[segment_index]
+            if start >= slot_end:
+                break
+            if end > slot_start:
+                seconds = (min(slot_end, end) - max(slot_start, start)).total_seconds()
+                total += seconds * value
+                duration += seconds
+            # Only revisit a segment if it also covers part of the next slot.
+            if end > slot_end:
+                break
+            segment_index += 1
+        if duration < minimum_coverage:
             break
-        price = total / duration
-        output.append(Slot(a, b, price))
+        output.append(Slot(slot_start, slot_end, total / duration))
+        slot_start = slot_end
     return apply_transfer_tariff(output, config, tz)
 
 

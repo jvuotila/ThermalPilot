@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 ROOT=Path(__file__).resolve().parents[1]/'custom_components/thermal_pilot'
 pkg=types.ModuleType('thermal_pilot');pkg.__path__=[str(ROOT)];sys.modules.setdefault('thermal_pilot',pkg)
 from thermal_pilot.const import DEFAULTS, ROOM_DEFAULTS
-from thermal_pilot.model import Slot, price_slots, initial_model, learn, learning_progress, plan, thermostat_state
+from thermal_pilot.model import MAX_RAW_PRICE_ROWS, Slot, price_slots, initial_model, learn, learning_progress, plan, thermostat_state
 from thermal_pilot.config import room_settings, validate, stored_settings
 UTC=timezone.utc
 NOW=datetime(2026,1,2,tzinfo=UTC)
@@ -60,10 +60,23 @@ class PriceTests(unittest.TestCase):
         slots=price_slots({'today':[-10]*96},self.config(),NOW,UTC)
         self.assertEqual(slots[0].price,-10)
     def test_dst_raw_timestamps(self):
-        start=datetime(2026,10,24,21,tzinfo=UTC)
-        raw=[{'start':(start+timedelta(minutes=i*15)).isoformat(),'end':(start+timedelta(minutes=(i+1)*15)).isoformat(),'value':10} for i in range(100)]
-        slots=price_slots({'raw_today':raw},self.config(pricing_mode='hourly'),start,ZoneInfo('Europe/Helsinki'))
-        self.assertEqual(len(slots),25)
+        tz = ZoneInfo('Europe/Helsinki')
+        for date, hours in ((datetime(2026, 3, 29, tzinfo=tz), 23), (datetime(2026, 10, 25, tzinfo=tz), 25)):
+            start = date.astimezone(UTC)
+            tomorrow = start + timedelta(hours=hours)
+            raw = [
+                {'start': (start + timedelta(minutes=i * 15)).astimezone(tz).isoformat(),
+                 'end': (start + timedelta(minutes=(i + 1) * 15)).astimezone(tz).isoformat(), 'value': i}
+                for i in range((hours + 24) * 4)
+            ]
+            for mode, slots_per_hour in (('hourly', 1), ('flexible', 4)):
+                with self.subTest(date=date.date(), mode=mode):
+                    slots = price_slots({'raw_today': raw[:hours * 4], 'raw_tomorrow': raw[hours * 4:]},
+                                        self.config(pricing_mode=mode), date, tz)
+                    self.assertEqual(len(slots), (hours + 24) * slots_per_hour)
+                    self.assertEqual(slots[hours * slots_per_hour].start, tomorrow)
+                    self.assertEqual(slots[-1].end, tomorrow + timedelta(days=1))
+                    self.assertEqual(slots[0].price, 1.5 if mode == 'hourly' else 0)
     def test_dst_list_rejected(self):
         with self.assertRaises(ValueError):
             price_slots({'today':[10]*100},self.config(),datetime(2026,10,24,21,tzinfo=UTC),ZoneInfo('Europe/Helsinki'))
@@ -73,6 +86,40 @@ class PriceTests(unittest.TestCase):
     def test_overlap_rejected(self):
         row={'start':NOW.isoformat(),'end':(NOW+timedelta(hours=1)).isoformat(),'value':10}
         with self.assertRaises(ValueError):price_slots({'raw_today':[row,row]},self.config(),NOW,UTC)
+
+    def test_timestamped_intervals_weighted_across_slot_boundaries(self):
+        raw = [
+            {'start': (NOW + timedelta(minutes=start)).isoformat(),
+             'end': (NOW + timedelta(minutes=end)).isoformat(), 'value': value}
+            for start, end, value in ((-5, 5, 6), (5, 25, 12), (25, 45, 24), (45, 60, 30))
+        ]
+        prices = {'raw_today': raw[::-1]}
+        quarters = price_slots(prices, self.config(pricing_mode='quarterly'), NOW, UTC)
+        self.assertEqual([slot.price for slot in quarters], [10, 16, 24, 30])
+        hours = price_slots(prices, self.config(pricing_mode='hourly'), NOW, UTC)
+        self.assertEqual([slot.price for slot in hours], [20])
+
+    def test_combined_price_row_limit_is_checked_before_parsing(self):
+        attrs = {'raw_today': [None] * MAX_RAW_PRICE_ROWS, 'raw_tomorrow': [None]}
+        with self.assertRaisesRegex(ValueError, 'too many intervals'):
+            price_slots(attrs, self.config(), NOW, UTC)
+
+    def test_overlong_price_interval_rejected(self):
+        row = {'start': NOW.isoformat(), 'end': (NOW + timedelta(hours=2)).isoformat(), 'value': 1}
+        with self.assertRaisesRegex(ValueError, 'longer than one hour'):
+            price_slots({'raw_today': [row]}, self.config(), NOW, UTC)
+
+    def test_price_horizon_is_bounded_from_local_midnight(self):
+        tz = ZoneInfo('Europe/Helsinki')
+        midnight = NOW - timedelta(hours=2)
+        latest = midnight + timedelta(hours=72)
+        row = {'start': (latest - timedelta(minutes=15)).isoformat(), 'end': latest.isoformat(), 'value': 10}
+        near = {'start': NOW.isoformat(), 'end': (NOW + timedelta(minutes=15)).isoformat(), 'value': 1}
+        attrs = {'raw_today': [near], 'raw_tomorrow': [row]}
+        self.assertEqual(len(price_slots(attrs, self.config(), NOW, tz)), 1)
+        row['end'] = (latest + timedelta(seconds=1)).isoformat()
+        with self.assertRaisesRegex(ValueError, '72 hours from local midnight'):
+            price_slots(attrs, self.config(), NOW, tz)
 
 
 class PlannerTests(unittest.TestCase):

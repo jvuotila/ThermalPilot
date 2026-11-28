@@ -2,7 +2,7 @@
 from typing import Any
 import asyncio
 from .model import number
-from .sources import temperature_celsius
+from .sources import temperature_state_celsius
 from .config import resolved_rooms, zone_rooms, garage_sensor_lists, garage_thermostat, room_heat_source, pump_uses_setpoints, pump_temperature_settings, pump_reports_standby_limits
 
 
@@ -22,11 +22,7 @@ def zone_temperature_readings(hass, room, settings):
             members.append(candidate)
     values = []
     for member in members:
-        state = hass.states.get(member['temperature_entity'])
-        try:
-            value = temperature_celsius(state.state, state.attributes.get('unit_of_measurement', '°C')) if state else None
-        except ValueError:
-            value = None
+        value = temperature_state_celsius(hass.states.get(member['temperature_entity']))
         if value is None:
             return []
         values.append(value)
@@ -37,7 +33,12 @@ def zone_temperature(
     hass: Any, room: dict[str, Any], settings: dict[str, Any],
 ) -> tuple[float | None, bool]:
     """Apply the zone policy only when every linked room can be read."""
-    values = zone_temperature_readings(hass, room, settings)
+    return _zone_temperature(room, settings, zone_temperature_readings(hass, room, settings))
+
+
+def _zone_temperature(
+    room: dict[str, Any], settings: dict[str, Any], values: list[float],
+) -> tuple[float | None, bool]:
     if not values:
         return (None, False)
     if room.get('is_garage'):
@@ -121,9 +122,9 @@ class AirHeatPumpControl:
         room_id = room['id']
         garage = room.get('is_garage', False)
         state = self.hass.states.get(room['thermostat'])
-        temperature, too_warm = zone_temperature(self.hass, room, settings)
-        outdoor_state = self.hass.states.get(settings['outdoor_entity'])
-        outdoor = number(outdoor_state.state) if outdoor_state else None
+        temperatures = zone_temperature_readings(self.hass, room, settings)
+        temperature, too_warm = _zone_temperature(room, settings, temperatures)
+        outdoor = temperature_state_celsius(self.hass.states.get(settings['outdoor_entity']))
         prefix = 'garage_' if garage else 'air_'
         values = room if garage else settings
         target = values[prefix + 'heat_target']
@@ -135,17 +136,7 @@ class AirHeatPumpControl:
         reason = 'Standby'
         errors = []
         lower_limit = room['garage_minimum'] if garage else settings['minimum']
-        members = [room]
-        for candidate in resolved_rooms(settings) + zone_rooms(settings):
-            if (candidate.get('heat_control') == 'zone_member'
-                    and candidate['thermostat'] == room['thermostat']):
-                members.append(candidate)
-        too_cold = False
-        if temperature is not None:
-            too_cold = any(
-                number(self.hass.states.get(member['temperature_entity']).state) < lower_limit
-                for member in members
-            )
+        too_cold = any(value < lower_limit for value in temperatures)
         signature = (
             room['thermostat'], room['temperature_entity'], garage, lower_limit,
             room.get('garage_maximum'), room.get('garage_strategy'), room.get('garage_heat_source', 'air_to_air'),
@@ -390,7 +381,8 @@ class AirHeatPumpControl:
         self, room: dict[str, Any], settings: dict[str, Any], now: float, enabled: bool,
     ) -> dict[str, Any]:
         """Preserve cooling hysteresis while protecting the coldest linked room."""
-        temperature, _ = zone_temperature(self.hass, room, settings)
+        temperatures = zone_temperature_readings(self.hass, room, settings)
+        temperature, _ = _zone_temperature(room, settings, temperatures)
         state = self.hass.states.get(room['thermostat'])
         target = room.get('zone_cooling_target', 24.0)
         if room.get('away_cooling_target') is not None:
@@ -401,16 +393,8 @@ class AirHeatPumpControl:
             cooling = old_cycle.get('cooling', False)
         else:
             cooling = bool(state and state.state == 'cool')
-        members = [room]
-        for candidate in resolved_rooms(settings) + zone_rooms(settings):
-            if (candidate.get('heat_control') == 'zone_member'
-                    and candidate['thermostat'] == room['thermostat']):
-                members.append(candidate)
         valid = temperature is not None
-        too_cold = valid and any(
-            number(self.hass.states.get(member['temperature_entity']).state) <= target
-            for member in members
-        )
+        too_cold = any(value <= target for value in temperatures)
         if not enabled or not valid or too_cold:
             cooling = False
         elif temperature >= target + 0.5:

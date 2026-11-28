@@ -100,6 +100,35 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(data['rooms'][room_id]['plan'])
         self.assertNotIn('Study',data['control']['fallback_rooms'])
 
+    async def test_out_of_range_price_feed_warns_and_uses_comfort_fallback_until_recovery(self):
+        self.c.settings.update(simulation_enabled=False, live_control_confirmed=True)
+        room = self.c.settings['rooms'][0]
+        sensor = self.hass.states['sensor.price']
+        data = await self.c._async_update_data()
+        self.assertTrue(data['rooms'][room['id']]['plan'])
+
+        far_future = now + timedelta(days=14)
+        sensor.attributes['raw_tomorrow'] = [
+            {'start': far_future.isoformat(), 'end': (far_future + timedelta(minutes=15)).isoformat(), 'value': 40}
+        ]
+        self.hass.states['climate.room'].attributes['temperature'] = room['baseline'] + 1.5
+        self.hass.services.async_call.reset_mock()
+        data = await self.c._async_update_data()
+        warning = 'Electricity prices extend more than 72 hours from local midnight.'
+        self.assertIn(warning, data['warnings'])
+        self.assertEqual(await self.c.price_reader.check(self.c.settings, now), {'ok': False, 'error': warning})
+        self.assertEqual(data['price_chart'], [])
+        self.assertIsNone(data['rooms'][room['id']]['plan'])
+        self.assertEqual(data['control']['fallback_rooms'], [room['name']])
+        self.hass.services.async_call.assert_any_await(
+            'climate', 'set_temperature', {'entity_id': 'climate.room', 'temperature': room['baseline']}, blocking=True,
+        )
+
+        del sensor.attributes['raw_tomorrow']
+        data = await self.c._async_update_data()
+        self.assertNotIn(warning, data['warnings'])
+        self.assertTrue(data['rooms'][room['id']]['plan'])
+
     async def test_wood_heating_has_no_price_setup_warning(self):
         self.c.settings.update(house_heat_source='wood_boiler',price_entity='')
         data=await self.c._async_update_data()

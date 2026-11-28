@@ -58,6 +58,9 @@ function runtime(fetch){
  assert.equal(i18n.translateNotification(zoneWarning,'en'),zoneWarning);
  assert.equal(i18n.translateNotification(zoneWarning,'fi'),
   'Termostaatin ohjaus: History: Garage: Vyöhykkeen lämpötila ei ole saatavilla. Valmiustila: Vain puhallus.');
+ assert.equal(i18n.translateNotification(
+  'Thermostat control: Could not save the end of a manual session; will retry.','fi'),
+  'Termostaatin ohjaus: Käsiohjauksen päättymistä ei voitu tallentaa. Tallennusta yritetään uudelleen.');
  for(const code of Object.keys(catalogs).filter(code=>code!=='en')){
   const zoneNotice=i18n.translateNotification(zoneWarning,code);
   assert.ok(zoneNotice.includes(device),code+' preserves the device name');

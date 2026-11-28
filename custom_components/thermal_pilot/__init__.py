@@ -64,9 +64,7 @@ async def async_setup_entry(hass, entry):
 async def _options_updated(hass, entry):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     async with coordinator.backup_lock:
-        coordinator.cancel_command_timer()
-        coordinator.settings = stored_settings(entry.data, entry.options)
-        coordinator.listen_sources()
+        coordinator.update_settings(stored_settings(entry.data, entry.options))
     await coordinator.async_request_refresh()
     # Re-create entities when rooms change; entities derive stable IDs from room UUIDs.
     await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
@@ -76,9 +74,10 @@ async def _options_updated(hass, entry):
 async def async_unload_entry(hass, entry):
     if await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator = hass.data[DOMAIN].pop(entry.entry_id)
-        coordinator.stop()
-        await coordinator.release_managed_rooms(dt_util.utcnow(),force=True)
-        await coordinator.store.async_save(coordinator.storage_data())
+        async with coordinator.backup_lock:
+            coordinator.stop()
+            await coordinator.release_managed_rooms(dt_util.utcnow(),force=True)
+            await coordinator.store.async_save(coordinator.storage_data())
         frontend.async_remove_panel(hass, DOMAIN)
         return True
     return False

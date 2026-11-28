@@ -27,12 +27,13 @@ from .fireplaces import active_fireplaces, fireplace_activity
 from .fireplace_surface import WARM_SURFACE_EXCESS, sample_surface, surface_gain_rates, surface_heat_forecast
 from .config import stored_settings, water_distribution, electric_heating, air_room, room_settings, resolved_rooms, zone_rooms, room_electric, price_required, learning_fingerprint, preferred_zone, garage_thermostat, room_heat_source, room_water_distribution, pump_uses_setpoints, pump_temperature_settings, heat_distribution_matches_source, pump_reports_standby_limits
 from .shared_air import room_groups, coordinate_plans
-from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, forecast_temperature, read_weather
+from .sources import PriceSourceReader, NATIVE_PRICE_SOURCES, PRICE_SOURCE_CHOICES, temperature_celsius, temperature_state_celsius, forecast_temperature, read_weather
 from .model import Slot, garage_cycle_plan, number, stamp, initial_model, learn, learning_progress, response_lag, response_step, price_slots, plan, collection_state, thermostat_state, fallback_season, price_forecast_reserve, heat_retention, solar_signal, solar_facing, solar_enabled, floor_response_from_history
 from .model import water_heating_factor
 
 _LOGGER = logging.getLogger(__name__)
 PLAN_REFRESH_INTERVAL = timedelta(minutes=5)
+MANUAL_RELEASE_RETRY = timedelta(minutes=1)
 WATER_TEMPERATURE_BUCKETS = 24  # Two hours at one sample per five minutes.
 
 
@@ -65,6 +66,8 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.garage_door_warnings = {}
         self.garage_door_warning_deadlines = []
         self.manual_sessions = {}
+        # Each retiring device resets its manual heating cycle on the first pass.
+        self._manual_release_pending: dict[str, bool] = {}
         self.solar_heating = {}
         self.heating_assistance = {}
         self.fireplace_surfaces = {}
@@ -74,6 +77,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.applied_season_targets = {}
         self.sensor_health = {'rooms': {}, 'last_notification_day': None}
         self._command_timer = None
+        self._command_timer_generation = 0
         # Restored HA attributes may not reflect the device after an outage.
         self.control = ThermostatControl(hass, require_initial_write=True)
         self.air_control = AirHeatPumpControl(hass)
@@ -98,6 +102,15 @@ class PilotCoordinator(DataUpdateCoordinator):
         if self._source_unsubscribe:
             self._source_unsubscribe()
             self._source_unsubscribe = None
+
+    def update_settings(self, settings: dict[str, Any]) -> None:
+        """Apply new settings under the backup lock before scheduling a refresh."""
+        self.settings = settings
+        self.listen_sources()
+        if self.manual_sessions or self._manual_release_pending:
+            now = dt_util.utcnow()
+            self.retire_manual_sessions(now, self.configured_controllers())
+            self.schedule_command_timer(now)
 
     def listen_sources(self) -> None:
         """Subscribe to configured inputs, including secondary-zone and garage sensors."""
@@ -188,13 +201,13 @@ class PilotCoordinator(DataUpdateCoordinator):
         self._source_refresh_at = None
 
     def cancel_command_timer(self):
+        self._command_timer_generation += 1
         if self._command_timer is not None:
             self._command_timer()
             self._command_timer = None
 
     def arm_command_timer(self, data: dict[str, Any], now: datetime) -> None:
         """Wake at the next target transition, horizon end, or pump acknowledgement."""
-        self.cancel_command_timer()
         future = []
         rooms = [*data.get('rooms', {}).values(), *data.get('zones', {}).values()]
         for room in rooms:
@@ -208,8 +221,9 @@ class PilotCoordinator(DataUpdateCoordinator):
             if rows and stamp(rows[-1]['end']) > now:
                 future.append(stamp(rows[-1]['end']))
         for session in self.manual_sessions.values():
-            if session['ends'] > now.timestamp():
-                future.append(datetime.fromtimestamp(session['ends'], now.tzinfo))
+            future.append(datetime.fromtimestamp(session['ends'], now.tzinfo))
+        if self._manual_release_pending:
+            future.append(now + MANUAL_RELEASE_RETRY)
         solar_candidate = self.solar_heating.get('candidate')
         if solar_candidate:
             deadline = solar_candidate['since'] + SOLAR_THRESHOLD_SECONDS
@@ -235,21 +249,51 @@ class PilotCoordinator(DataUpdateCoordinator):
             if deadline > now.timestamp():
                 future.append(datetime.fromtimestamp(deadline, now.tzinfo))
         if future:
-            self._command_timer = async_track_point_in_utc_time(
-                self.hass, self.update_command_state, min(future)
-            )
+            self.schedule_command_timer(max(now, min(future)))
+        else:
+            self.cancel_command_timer()
 
-    async def update_command_state(self, now):
+    def schedule_command_timer(self, when: datetime) -> None:
+        self.cancel_command_timer()
+        generation = self._command_timer_generation
+
+        async def reconcile(scheduled: datetime) -> None:
+            await self.update_command_state(scheduled, generation=generation)
+
+        self._command_timer = async_track_point_in_utc_time(self.hass, reconcile, when)
+
+    async def update_command_state(self, now: datetime, *, generation: int | None = None) -> None:
         async with self.backup_lock:
-            await self._update_command_state(now)
+            if generation is not None:
+                # A queued callback can outlive its timer while waiting for a refresh.
+                if generation != self._command_timer_generation:
+                    return
+                self._command_timer = None
+            now = max(now, dt_util.utcnow())
+            try:
+                await self._update_command_state(now)
+            except (OSError, asyncio.TimeoutError):
+                if generation is None:
+                    raise
+                _LOGGER.warning('Scheduled thermostat reconciliation failed; will retry.', exc_info=True)
+                retry_at = max(now, dt_util.utcnow()) + timedelta(seconds=10)
+                for session in self.manual_sessions.values():
+                    deadline = datetime.fromtimestamp(session['ends'], now.tzinfo)
+                    if now < deadline < retry_at:
+                        retry_at = deadline
+                self.schedule_command_timer(retry_at)
 
     async def _update_command_state(self, now: datetime) -> None:
         """Apply offset transitions between normal planning refreshes under the backup lock."""
         data = deepcopy(self.data or {})
-        rooms = [*data.get('rooms', {}).values(), *data.get('zones', {}).values()]
-        for room in rooms:
-            if room.get('plan'):
-                room['plan'].update(thermostat_state(room['plan'], now))
+        current_plan = self.settings['heating_enabled'] and (
+            self._plan_settings == self.settings or not self.live_enabled()
+        )
+        if current_plan:
+            rooms = [*data.get('rooms', {}).values(), *data.get('zones', {}).values()]
+            for room in rooms:
+                if room.get('plan'):
+                    room['plan'].update(thermostat_state(room['plan'], now))
         data['updated'] = now.isoformat()
         data['control'] = await self.apply_live_targets(data, now)
         # Replace only the prior control errors; retain independent source warnings.
@@ -258,7 +302,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         warnings.extend(f'Thermostat control: {error}' for error in data['control']['errors'])
         data['warnings'] = warnings
         self.async_set_updated_data(data)
-        self.arm_command_timer(data, now)
+        self.arm_command_timer(data if current_plan else {}, now)
 
     async def load(self, *, restore_floor_heat: bool = True):
         self.planning_water_samples.clear()
@@ -268,6 +312,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         self.garage_door_warnings = saved.get('garage_door_warnings', {})
         self.models = saved.get('models', {})
         self.manual_sessions = saved.get('manual_sessions', {})
+        self._manual_release_pending.clear()
         self.away = saved.get('away', {})
         self.heating_assistance = saved.get('heating_assistance', {})
         self.fireplace_surfaces = saved.get('fireplace_surfaces', {})
@@ -396,13 +441,7 @@ class PilotCoordinator(DataUpdateCoordinator):
                 'idle_hours':min((m.get('idle_hours',0) for m in models),default=0)}
 
     def value(self, entity):
-        state = self.hass.states.get(entity) if entity else None
-        if state is None:
-            return None
-        try:
-            return temperature_celsius(state.state, state.attributes.get('unit_of_measurement', '°C'))
-        except ValueError:
-            return None
+        return temperature_state_celsius(self.hass.states.get(entity) if entity else None)
 
     def planning_air_temperature(
         self, source: tuple[str, str], temperature: float | None, now: datetime,
@@ -876,7 +915,6 @@ class PilotCoordinator(DataUpdateCoordinator):
             return await self._update_data()
 
     async def _update_data(self):
-        self.cancel_command_timer()
         # This refresh reads the latest states, including any queued changes.
         self.cancel_source_timer()
         now = dt_util.utcnow()
@@ -943,10 +981,15 @@ class PilotCoordinator(DataUpdateCoordinator):
                 'heat_pump_cop':cop_chart,
                 'season_summaries':await self.hass.async_add_executor_job(self.history_db.summaries),
                 'history_info':await self.hass.async_add_executor_job(self.history_db.size)}
-            self._plan_settings = plan_settings
             data['fallback_season'] = self.fallback_summary()
-            data['control'] = await self.apply_live_targets(data, now)
+            control_now = max(now, dt_util.utcnow())
+            data['control'] = await self.apply_live_targets(data, control_now, plan_settings=plan_settings)
             data['warnings'].extend(f'Thermostat control: {w}' for w in data['control']['errors'])
+            self._plan_settings = plan_settings
+            if self._manual_release_pending:
+                self.arm_command_timer(data, control_now)
+            else:
+                self.cancel_command_timer()
             return data
         scheduling = price_required(self.settings)
         if not electric_heating(self.settings):
@@ -1515,10 +1558,11 @@ class PilotCoordinator(DataUpdateCoordinator):
                 },
                 'fallback_season':self.fallback_summary()}
         await self.save_heating_sessions(data, now)
-        self._plan_settings = plan_settings
-        data['control'] = await self.apply_live_targets(data, now)
+        control_now = max(now, dt_util.utcnow())
+        data['control'] = await self.apply_live_targets(data, control_now, plan_settings=plan_settings)
         data['warnings'].extend(f'Thermostat control: {w}' for w in data['control']['errors'])
-        self.arm_command_timer(data,now)
+        self._plan_settings = plan_settings
+        self.arm_command_timer(data, control_now)
         return data
 
     def fallback_summary(self):
@@ -1636,13 +1680,17 @@ class PilotCoordinator(DataUpdateCoordinator):
             }
         await self.store.async_save({**self.storage_data(), 'manual_sessions': sessions})
         self.manual_sessions = sessions
-        await self._update_command_state(now)
+        if mode != 'stop':
+            self._manual_release_pending.pop(control['entity'], None)
+        control_now = max(now, dt_util.utcnow())
+        self.arm_command_timer(self.data or {}, control_now)
+        await self._update_command_state(control_now)
         return self.manual_controls()
 
     def live_enabled(self):
         return electric_heating(self.settings) and (not self.settings['simulation_enabled']) and self.settings.get('live_control_confirmed', False)
 
-    async def release_managed_rooms(self, now, force=False):
+    async def release_managed_rooms(self, now, force=False, *, save=True):
         """Restore normal comfort targets on relinquishing thermostat ownership."""
         snapshot = deepcopy(self.settings)
         configured = {r['thermostat']: r for r in resolved_rooms(snapshot) + [r for r in zone_rooms(snapshot) if r['heat_control'] != 'zone_member'] if r.get('zone_control_enabled', True)}
@@ -1657,7 +1705,7 @@ class PilotCoordinator(DataUpdateCoordinator):
         for room in released+air_released:
             if (self.air_control.results.get(room['id'], {}).get('confirmed', False) if room in air_released else room['id'] in self.control.results):
                 self.managed_rooms.pop(room['thermostat'],None)
-        if released or air_released:
+        if save and (released or air_released):
             await self.store.async_save(self.storage_data())
         return errors
 
@@ -2007,43 +2055,82 @@ class PilotCoordinator(DataUpdateCoordinator):
                 errors.append('Push notification could not be sent. Check the selected notification device.')
         return errors
 
-    async def apply_live_targets(self, data, now):
-        """Reconcile current windows and restore comfort targets when inputs fail."""
-        self.air_control.deadlines = []
-        await self.update_away_status(data, now)
-        live = self.live_enabled()
-        if live and (not self._air_was_live):
-            self.air_control.cycles.clear()
-        self._air_was_live = live
-        release_errors = await self.release_managed_rooms(now)
-        release_errors += await self.update_garage_door_warnings(now)
-        air_rooms = [r for r in resolved_rooms(self.settings) + zone_rooms(self.settings) if room_electric(r, self.settings) and (air_room(r, self.settings) or garage_thermostat(r))]
-        # Expiry, pause and device reassignment all relinquish the override.
-        # A later re-enable must never resurrect a manually requested session.
-        configured = {r['id']: r for r in resolved_rooms(self.settings) + zone_rooms(self.settings)
-                      if r.get('heat_control') != 'zone_member'}
-        ended = set()
+    def configured_controllers(self) -> dict[str, dict[str, Any]]:
+        return {room['id']: room for room in resolved_rooms(self.settings) + zone_rooms(self.settings)
+                if room.get('heat_control') != 'zone_member'}
+
+    def retire_manual_sessions(self, now: datetime, configured: dict[str, dict[str, Any]]) -> None:
+        """Retire invalid overrides immediately, even if replanning fails."""
+        enabled = self.live_enabled() and self.settings['heating_enabled']
         for room_id, session in list(self.manual_sessions.items()):
             room = configured.get(room_id)
-            if (session['ends'] <= now.timestamp() or not live
-                    or not self.settings['heating_enabled'] or room is None
+            if (session['ends'] <= now.timestamp() or not enabled or room is None
                     or room['thermostat'] != session['entity']
                     or not room.get('zone_control_enabled', True)
                     or not room_electric(room, self.settings)
                     or (garage_thermostat(room) and session['mode'] != 'heat')):
                 self.manual_sessions.pop(room_id)
-                ended.add(room_id)
-        if ended:
+                self._manual_release_pending[session['entity']] = True
+
+    async def save_control_state(self, errors: list[str], manual_reconciliation: bool) -> None:
+        try:
             await self.store.async_save(self.storage_data())
-        previous_solar = set(self.solar_heating.get('sessions', {}))
-        solar_sessions = await self.update_solar_heating(data, now)
-        ended_solar = previous_solar - set(solar_sessions)
-        assistance = await self.update_heating_assistance(data, now)
+        except OSError:
+            if not manual_reconciliation:
+                raise
+            # The override is already retired in memory. Persist that state
+            # again without delaying or reissuing its device commands.
+            _LOGGER.warning('Could not save the end of a manual session; will retry.', exc_info=True)
+            self.store.async_delay_save(self.storage_data, 20)
+            errors.append('Could not save the end of a manual session; will retry.')
+
+    async def apply_live_targets(self, data, now, *, plan_settings=None):
+        """Reconcile current windows and restore comfort targets when inputs fail."""
+        self.air_control.deadlines = []
+        live = self.live_enabled()
+        if live and (not self._air_was_live):
+            self.air_control.cycles.clear()
+        self._air_was_live = live
+        plan_is_current = (self._plan_settings if plan_settings is None else plan_settings) == self.settings
+        configured = self.configured_controllers()
+        self.retire_manual_sessions(now, configured)
+        pending = self._manual_release_pending
+        manual_reconciliation = bool(pending)
+        release_errors = await self.release_managed_rooms(now, save=not manual_reconciliation)
+        if pending:
+            # Removed or released controllers no longer own a device to reconcile.
+            owned = set(self.managed_rooms)
+            if live:
+                owned.update(room['thermostat'] for room in configured.values()
+                             if room.get('zone_control_enabled', True) and room_electric(room, self.settings))
+            for entity in pending.keys() - owned:
+                del pending[entity]
+        solar_sessions, ended_solar, assistance = {}, set(), {}
+        try:
+            await self.update_away_status(data, now)
+            release_errors.extend(await self.update_garage_door_warnings(now))
+            if plan_is_current:
+                previous_solar = set(self.solar_heating.get('sessions', {}))
+                solar_sessions = await self.update_solar_heating(data, now)
+                ended_solar = previous_solar - set(solar_sessions)
+                assistance = await self.update_heating_assistance(data, now)
+        except OSError:
+            if not manual_reconciliation:
+                raise
+            _LOGGER.warning('Could not update auxiliary heating state during manual session expiry.', exc_info=True)
+            release_errors.append('Could not update auxiliary heating state during manual session expiry.')
+
+        air_rooms = [
+            room for room in configured.values()
+            if room_electric(room, self.settings)
+            and (air_room(room, self.settings) or garage_thermostat(room))
+        ]
         intents = {}
         active_fires = active_fireplaces(self.hass, self.settings)
         for room in air_rooms:
+            entity = room['thermostat']
             room = {**room, 'manual_session': deepcopy(self.manual_sessions.get(room['id'])),
-                    'manual_session_ended': room['id'] in ended,
+                    'manual_session_ended': pending.get(entity, False),
                     'away_target': self.away_target(room),
                     'away_cooling_target': self.settings['away_cooling_temperature'] if self.away_target(room) is not None else None,
                     'solar_session': solar_sessions.get(room['id']),
@@ -2061,7 +2148,7 @@ class PilotCoordinator(DataUpdateCoordinator):
 
             bucket = data.get('zones', {}) if room.get('secondary_zone') else data.get('rooms', {})
             key = room['heating_zone_id'] if room.get('secondary_zone') else room['id']
-            planned = bucket.get(key, {}).get('plan')
+            planned = bucket.get(key, {}).get('plan') if plan_is_current else None
             current = thermostat_state(planned, now) if planned and planned.get('slots') and (stamp(planned['slots'][0]['start']) <= now < stamp(planned['slots'][-1]['end'])) else None
             if current and current.get('mode') == 'away' and room.get('away_target') is None:
                 current = None
@@ -2079,6 +2166,8 @@ class PilotCoordinator(DataUpdateCoordinator):
                 summer=self.fallback_state.get('summer', False)
             )
             intents[room['id']] = intent
+            if room['manual_session_ended']:
+                pending[entity] = False
             if key in bucket:
                 bucket[key]['pump_suggestion'] = intent
             session = self.manual_sessions.get(room['id'])
@@ -2104,7 +2193,9 @@ class PilotCoordinator(DataUpdateCoordinator):
                     # or leave other rooms' physical control unreconciled.
                     _LOGGER.warning('Manual-session push notification failed', exc_info=True)
                     release_errors.append('Push notification could not be sent. Check the selected notification device.')
-        if not self.live_enabled():
+        if not live:
+            if manual_reconciliation:
+                await self.save_control_state(release_errors, manual_reconciliation)
             for room in air_rooms:
                 status = self.air_control.results.get(room['id'])
                 bucket = data.get('zones', {}) if room.get('secondary_zone') else data.get('rooms', {})
@@ -2117,26 +2208,28 @@ class PilotCoordinator(DataUpdateCoordinator):
                 'fallback_rooms': []
             }
         snapshot = deepcopy(self.settings)
-        if self._plan_settings != snapshot:
-            return {'mode': 'waiting', 'errors': [], 'fallback_rooms': []}
+        if not plan_is_current and not manual_reconciliation:
+            return {'mode': 'waiting', 'errors': release_errors, 'fallback_rooms': []}
         targets, fallback = ({}, [])
-        sources_ok = self.value(snapshot['outdoor_entity']) is not None
         uses_water = water_distribution(snapshot)
-        try:
-            if snapshot['price_entity'] == 'static':
-                prices = price_slots({}, snapshot, now, ZoneInfo(self.hass.config.time_zone))
-            else:
-                # Reuse the same normalized source and cache as planning. Native
-                # action sources have no sensor state to read at a checkpoint.
-                attributes, price_settings, _ = await self.price_reader.read(snapshot, now)
-                prices = price_slots(attributes, price_settings, now, ZoneInfo(self.hass.config.time_zone))
-        except ValueError:
-            prices = []
-        sources_ok = sources_ok and bool(prices)
+        sources_ok = False
+        if plan_is_current and snapshot['heating_enabled']:
+            try:
+                if snapshot['price_entity'] == 'static':
+                    prices = price_slots({}, snapshot, now, ZoneInfo(self.hass.config.time_zone))
+                else:
+                    # Native action sources have no sensor state at a checkpoint.
+                    attributes, price_settings, _ = await self.price_reader.read(snapshot, now)
+                    prices = price_slots(attributes, price_settings, now, ZoneInfo(self.hass.config.time_zone))
+            except ValueError:
+                prices = []
+            sources_ok = self.value(snapshot['outdoor_entity']) is not None and bool(prices)
         for room in resolved_rooms(snapshot):
             if not room_electric(room, snapshot) or air_room(room, snapshot) or garage_thermostat(room) or room.get('heat_control') == 'zone_member':
                 continue
-            planned = data.get('rooms', {}).get(room['id'], {}).get('plan')
+            if not plan_is_current and room['thermostat'] not in pending:
+                continue
+            planned = data.get('rooms', {}).get(room['id'], {}).get('plan') if plan_is_current else None
             rows = (planned or {}).get('slots', [])
             current_plan = rows and stamp(rows[0]['start']) <= now < stamp(rows[-1]['end'])
             if snapshot['heating_enabled'] and sources_ok and (self.value(room['temperature_entity']) is not None) and current_plan:
@@ -2173,16 +2266,22 @@ class PilotCoordinator(DataUpdateCoordinator):
                 if room['name'] in fallback:
                     fallback.remove(room['name'])
             targets[room['id']] = target
-        permitted = lambda: self.settings == snapshot and self.live_enabled()
+        manual_deadline = min((session['ends'] for session in self.manual_sessions.values()), default=None)
+        permitted = lambda: (self.settings == snapshot and self.live_enabled()
+                             and (manual_deadline is None or dt_util.utcnow().timestamp() < manual_deadline))
         control_rooms=[{**room,'control_minimum':snapshot['minimum'] if targets[room['id']]>=snapshot['minimum'] else None,
                         'control_maximum':snapshot['maximum']} for room in resolved_rooms(snapshot) if room['id'] in targets]
         errors = release_errors + await self.control.apply(control_rooms, targets, now.timestamp(), permitted)
-        errors += await self.air_control.apply(
-            [r for r in air_rooms if r.get('zone_control_enabled', True)],
-            intents,
-            now.timestamp(),
-            permitted
-        )
+        pump_rooms = [room for room in air_rooms if room.get('zone_control_enabled', True)
+                      and (plan_is_current or room['thermostat'] in pending)]
+        errors += await self.air_control.apply(pump_rooms, intents, now.timestamp(), permitted)
+        if pending:
+            for room in control_rooms:
+                if room['id'] in self.control.results:
+                    pending.pop(room['thermostat'], None)
+            for room in pump_rooms:
+                if self.air_control.results.get(room['id'], {}).get('confirmed'):
+                    pending.pop(room['thermostat'], None)
         for rid,status in self.air_control.results.items():
             if rid.startswith('zone:') and rid[5:] in data.get('zones', {}):
                 data['zones'][rid[5:]]['pump_control'] = status
@@ -2194,9 +2293,9 @@ class PilotCoordinator(DataUpdateCoordinator):
                 self.managed_rooms[room['thermostat']] = deepcopy(room)
         if fallback and snapshot['heating_enabled']:
             errors.append(f"{self.fallback_summary()['season'].capitalize()} fallback targets are being used because required data or a current heating plan is unavailable: "+', '.join(fallback)+'.')
-        await self.store.async_save(self.storage_data())
+        await self.save_control_state(errors, manual_reconciliation)
         return {
-            'mode': 'live' if snapshot['heating_enabled'] else 'paused',
+            'mode': ('live' if plan_is_current else 'waiting') if snapshot['heating_enabled'] else 'paused',
             'errors': errors,
             'fallback_rooms': fallback,
             'targets': dict(self.control.results),

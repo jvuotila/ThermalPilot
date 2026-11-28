@@ -267,6 +267,34 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
             settings['air_zone_temperature']=policy;self.assertEqual(zone_temperature(self.hass,main,settings),(expected,False))
         self.hass.states['sensor.second'].state='23';self.assertTrue(zone_temperature(self.hass,main,settings)[1])
         self.hass.states['sensor.second'].state='unknown';self.assertEqual(zone_temperature(self.hass,main,settings),(None,False))
+
+    def test_garage_warm_weather_decision_uses_celsius_outdoor_temperature(self):
+        for unit, cold, warm in [('°C', 0, 6), ('°F', 32, 42.8), ('K', 273.15, 279.15)]:
+            with self.subTest(unit=unit):
+                self.hass.states['sensor.garage'] = state('4')
+                self.hass.states['sensor.out'] = state(str(cold), {'unit_of_measurement': unit})
+                self.assertEqual(self.intent()['mode'], 'heat')
+                self.hass.states['sensor.out'].state = str(warm)
+                self.assertEqual(self.intent()['mode'], 'off')
+        self.hass.states['sensor.out'] = state('0', {'unit_of_measurement': 'unsupported'})
+        intent = self.intent()
+        self.assertEqual(intent['mode'], 'fan_only')
+        self.assertTrue(intent['errors'])
+
+    def test_shared_zone_lower_guard_uses_celsius_member_temperature(self):
+        self.room.update(is_garage=False, heat_control='air_to_air')
+        self.hass.states['sensor.garage'] = state('21')
+        self.settings['rooms'].append({
+            **ROOM_DEFAULTS, 'id': 'member', 'temperature_entity': 'sensor.member',
+            'thermostat': self.room['thermostat'], 'heat_control': 'zone_member',
+        })
+        for unit, cold, limit in [('°C', 18, 19), ('°F', 64.4, 66.2), ('K', 291.15, 292.15)]:
+            with self.subTest(unit=unit):
+                self.hass.states['sensor.member'] = state(str(cold), {'unit_of_measurement': unit})
+                self.assertEqual(self.intent(planned={'heat': False, 'setpoint': 20})['mode'], 'heat')
+                self.hass.states['sensor.member'].state = str(limit)
+                self.assertEqual(self.intent(planned={'heat': False, 'setpoint': 20})['mode'], 'fan_only')
+
     def test_zones_have_one_secondary_controller_and_preserve_primary_thermostats(self):
         main={**self.room,'is_garage':False,'heat_control':'house','heating_zone_id':'00000000-0000-4000-8000-000000000003','thermostat':'climate.floor1'}
         second={**main,'id':'00000000-0000-4000-8000-000000000002','name':'Second','temperature_entity':'sensor.second','thermostat':'climate.floor2'}
@@ -580,6 +608,25 @@ class AirTests(unittest.IsolatedAsyncioTestCase):
             self.hass.states['sensor.garage'].state=value
             self.assertEqual(self.control.intent(self.room,self.settings,0,summer=True)['mode'],expected)
         self.assertEqual(self.control.intent(self.room,self.settings,0,summer=True,enabled=False)['mode'],'fan_only')
+
+    def test_shared_zone_cooling_stops_at_member_limit_in_any_unit(self):
+        self.cooling_zone()
+        self.room['zone_policy'] = 'average'
+        self.hass.states['sensor.garage'] = state('28')
+        self.settings['rooms'].append({
+            **ROOM_DEFAULTS, 'id': 'member', 'temperature_entity': 'sensor.member',
+            'thermostat': self.room['thermostat'], 'heat_control': 'zone_member',
+        })
+        for unit, warm, limit in [('°C', 25, 24), ('°F', 77, 75.2), ('K', 298.15, 297.15)]:
+            with self.subTest(unit=unit):
+                self.hass.states['sensor.member'] = state(str(warm), {'unit_of_measurement': unit})
+                self.assertEqual(self.intent(summer=True)['mode'], 'cool')
+                self.hass.states['sensor.member'].state = str(limit)
+                self.assertEqual(self.intent(summer=True)['mode'], 'fan_only')
+        self.hass.states['sensor.member'] = state('25', {'unit_of_measurement': 'unsupported'})
+        intent = self.intent(summer=True)
+        self.assertEqual(intent['mode'], 'fan_only')
+        self.assertTrue(intent['errors'])
 
     async def test_cooling_stages_and_ten_minute_reversal_pause(self):
         self.cooling_zone();self.pump.state='heat'

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from typing import Any
 
-from .model import number, stamp, price_slots
+from .model import check_raw_price_count, number, price_slots, stamp
 
 NATIVE_PRICE_SOURCES = ('nordpool', 'tibber')
 PRICE_SOURCE_CHOICES = ('static', *NATIVE_PRICE_SOURCES)
@@ -24,10 +24,20 @@ def temperature_celsius(value: Any, unit: str = '°C') -> float | None:
     if unit in ('°c', 'c', 'celsius'):
         return value
     if unit in ('°f', 'f', 'fahrenheit'):
-        return (value - 32) * 5 / 9
+        return round((value - 32) * 5 / 9, 10)
     if unit in ('k', '°k', 'kelvin'):
-        return value - 273.15
+        return round(value - 273.15, 10)
     raise ValueError('Unsupported temperature unit.')
+
+
+def temperature_state_celsius(state: Any) -> float | None:
+    """Read a sensor state in Celsius, treating unsupported units as unavailable."""
+    if state is None:
+        return None
+    try:
+        return temperature_celsius(state.state, state.attributes.get('unit_of_measurement', '°C'))
+    except ValueError:
+        return None
 
 
 def normalize_weather(rows: Any, kind: str, unit: str, now: datetime) -> list[dict[str, Any]]:
@@ -93,6 +103,7 @@ def nordpool_rows(response: Any, area: str, vat: float, margin: float) -> list[d
     rows = response.get(area) if isinstance(response, dict) else None
     if not isinstance(rows, list):
         raise ValueError('Unsupported price data format.')
+    check_raw_price_count(len(rows))
     result = []
     for row in rows:
         if not isinstance(row, dict) or number(row.get('price')) is None:
@@ -116,6 +127,7 @@ def tibber_rows(response: Any, nickname: str, unit: str) -> list[dict[str, Any]]
     rows = homes.get(nickname) if isinstance(homes, dict) else None
     if not isinstance(rows, list):
         raise ValueError('Select an available Tibber price sensor using EUR/kWh.')
+    check_raw_price_count(len(rows))
     days = {}
     for row in rows:
         if not isinstance(row, dict):
@@ -200,7 +212,9 @@ class PriceSourceReader:
                             if offset == 1 and rows:
                                 continue
                             raise
-                        rows.extend(nordpool_rows(response, area, settings['nordpool_vat'], settings['nordpool_margin']))
+                        day_rows = nordpool_rows(response, area, settings['nordpool_vat'], settings['nordpool_margin'])
+                        check_raw_price_count(len(rows) + len(day_rows))
+                        rows.extend(day_rows)
                 else:
                     response = await self.hass.services.async_call('tibber', 'get_prices', {
                         'start': datetime.combine(day, datetime.min.time(), tzinfo=tz).isoformat(),
